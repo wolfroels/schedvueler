@@ -7,6 +7,7 @@ import type { SlotResolver } from '../composables/useSchedulerView'
 import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/useTimeline'
 import type { ResourceLabelSlotProps } from '../types'
 import EventItem from './EventItem.vue'
+import { stableStyle } from './stable-style'
 import { RenderSlot } from './RenderSlot'
 import type { TimelineSettings } from './view-props'
 
@@ -418,7 +419,13 @@ function eventTop(lane: number) {
                 :is-end="item.isEnd"
                 :resource-id="row.resource.id"
                 :snap-minutes="snapMinutes()"
-                :style="{ left: pct(item.left), width: pct(item.width), top: eventTop(item.lane) }"
+                :style="
+                  stableStyle(item, (i) => ({
+                    left: pct(i.left),
+                    width: pct(i.width),
+                    top: eventTop(i.lane),
+                  }))
+                "
               />
             </div>
           </div>

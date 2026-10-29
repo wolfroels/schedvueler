@@ -534,6 +534,17 @@ export interface TimelineHeaderSlotProps {
   isToday: boolean
 }
 
+export interface YearDaySlotProps<T> {
+  view: string
+  date: Temporal.PlainDate
+  dayNumber: string
+  isToday: boolean
+  count: number
+  occurrences: EventOccurrence<T>[]
+  /** 0 without events, otherwise 1-4 relative to the busiest day of the year. */
+  level: number
+}
+
 export interface NowIndicatorSlotProps {
   now: Temporal.ZonedDateTime
   label: string
@@ -576,4 +587,8 @@ export interface SchedulerSlots<T> {
   'resource-area-header'?: SlotFn<{ view: string; label: string }>
   /** Day and slot headings of the timeline. */
   'timeline-header'?: SlotFn<TimelineHeaderSlotProps>
+  /** A day in the year view (inside its button). */
+  'year-day'?: SlotFn<YearDaySlotProps<T>>
+  /** A month name in the year view. */
+  'year-month-header'?: SlotFn<{ view: string; date: Temporal.PlainDate; label: string }>
 }

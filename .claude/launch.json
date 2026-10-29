@@ -4,8 +4,27 @@
     {
       "name": "playground",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "6173", "--strictPort"],
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--port",
+        "6173",
+        "--strictPort"
+      ],
       "port": 6173
+    },
+    {
+      "name": "playground-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "preview",
+        "--config",
+        "vite.playground.config.ts",
+        "--port",
+        "6180",
+        "--strictPort"
+      ],
+      "port": 6180
     }
   ]
 }

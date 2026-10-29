@@ -4,6 +4,7 @@ import {
   onBeforeUpdate,
   shallowRef,
   type ComputedRef,
+  type ShallowRef,
   type Slot,
   type Slots,
 } from 'vue'
@@ -41,7 +42,7 @@ export function useSchedulerView<T = unknown>(
  */
 export function useSlotResolver(viewSlots: Slots | undefined, ctx: SchedulerContext<unknown>) {
   const viewVersion = shallowRef(0)
-  onBeforeUpdate(() => viewVersion.value++)
+  if (viewSlots) trackSlotNames(viewSlots, viewVersion)
   return (...names: string[]): Slot | undefined => {
     void viewVersion.value
     void ctx.slotsVersion.value
@@ -54,3 +55,24 @@ export function useSlotResolver(viewSlots: Slots | undefined, ctx: SchedulerCont
 }
 
 export type SlotResolver = ReturnType<typeof useSlotResolver>
+
+/**
+ * Bumps `version` when slots are added or removed (e.g. `<template v-if #event>`). Call it
+ * during setup.
+ *
+ * What a slot renders is already reactive: it runs inside the render of the component that
+ * calls it, which tracks what it reads. Only the set of names needs a signal; bumping on every
+ * parent re-render instead would re-render every event in every view each time.
+ */
+export function trackSlotNames(slots: Slots, version: ShallowRef<number>) {
+  const names = () => Object.keys(slots).sort().join()
+  let last = names()
+  // Slots are already updated when beforeUpdate runs.
+  onBeforeUpdate(() => {
+    const next = names()
+    if (next !== last) {
+      last = next
+      version.value++
+    }
+  })
+}

@@ -2,7 +2,6 @@ import {
   computed,
   getCurrentInstance,
   getCurrentScope,
-  onBeforeUpdate,
   markRaw,
   onScopeDispose,
   provide,
@@ -34,6 +33,7 @@ import {
 import { defaultMessages, type SchedulerOptions } from '../types'
 import { createCancelable, whenAllowed } from './cancelable'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
+import { trackSlotNames } from './useSchedulerView'
 import {
   SchedulerContextKey,
   parseTimeOfDay,
@@ -52,6 +52,25 @@ export interface UseSchedulerState {
 export interface UseSchedulerHooks {
   emit?: (name: string, payload: unknown) => void
   slots?: Slots
+}
+
+/** Field-by-field equality, comparing arrays and the messages object by their contents. */
+function sameOptions<T>(a: ResolvedOptions<T>, b: ResolvedOptions<T>): boolean {
+  for (const key of Object.keys(a) as (keyof ResolvedOptions<T>)[]) {
+    const x = a[key]
+    const y = b[key]
+    if (x === y) continue
+    if (key === 'hiddenDays') {
+      const p = x as readonly number[]
+      const q = y as readonly number[]
+      if (p.length !== q.length || p.some((v, i) => v !== q[i])) return false
+    } else if (key === 'messages') {
+      const p = x as unknown as Record<string, unknown>
+      const q = y as unknown as Record<string, unknown>
+      if (Object.keys(p).some((k) => p[k] !== q[k])) return false
+    } else return false
+  }
+  return true
 }
 
 function defaultLocale(): string {
@@ -77,10 +96,13 @@ export function useScheduler<T>(
   const timeZone = computed(() => raw.value.timeZone ?? systemTimeZone())
   const locale = computed(() => raw.value.locale ?? defaultLocale())
 
-  const resolved = computed<ResolvedOptions<T>>(() => {
+  // Templates often pass fresh arrays and objects on every render (`:hidden-days="[6, 7]"`).
+  // Keeping the previous object when nothing really changed spares every view and event from
+  // recomputing and re-rendering whenever the parent re-renders.
+  const resolved = computed<ResolvedOptions<T>>((old) => {
     const o = raw.value
     const layout = o.eventLayout ?? 'columns'
-    return {
+    const next: ResolvedOptions<T> = {
       timeZone: timeZone.value,
       locale: locale.value,
       weekStart: o.weekStart ?? weekStartForLocale(locale.value),
@@ -97,6 +119,7 @@ export function useScheduler<T>(
       messages: { ...defaultMessages, ...o.messages },
       raw: o,
     }
+    return old && sameOptions(old, next) ? old : next
   })
 
   // --- events -----------------------------------------------------------------------------------
@@ -279,7 +302,7 @@ export function useScheduler<T>(
 
   // New slot functions arrive with every re-render of the owning component.
   const slotsVersion = shallowRef(0)
-  if (getCurrentInstance()) onBeforeUpdate(() => slotsVersion.value++)
+  if (getCurrentInstance()) trackSlotNames(slots, slotsVersion)
 
   const occurrences = computed(
     () => ctx.interaction.applyPending(queried.value) as EventOccurrence<T>[],

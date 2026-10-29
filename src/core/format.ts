@@ -19,6 +19,23 @@ function formatter(
   return fmt
 }
 
+/**
+ * Results of formatting calls. Views format the same few dates and times over and over (every
+ * event shows a time of day), and Intl formatting is slow compared to a map lookup.
+ */
+const results = new Map<string, string>()
+const MAX_RESULTS = 5_000
+
+function remember(key: string, compute: () => string): string {
+  let value = results.get(key)
+  if (value === undefined) {
+    if (results.size >= MAX_RESULTS) results.clear()
+    value = compute()
+    results.set(key, value)
+  }
+  return value
+}
+
 function utc(date: Temporal.PlainDate, minutes = 0): Date {
   const d = new Date(Date.UTC(2000, 0, 1, 0, minutes))
   d.setUTCFullYear(date.year, date.month - 1, date.day)
@@ -30,7 +47,8 @@ export function formatDate(
   locale: string | undefined,
   options: Intl.DateTimeFormatOptions,
 ): string {
-  return formatter(locale, options).format(utc(date))
+  const key = `d|${locale ?? ''}|${JSON.stringify(options)}|${date.year}-${date.month}-${date.day}`
+  return remember(key, () => formatter(locale, options).format(utc(date)))
 }
 
 /** Formats an inclusive date range, e.g. "26 Oct – 1 Nov 2026". */
@@ -57,6 +75,11 @@ export function formatTimeOfDay(
   options: TimeFormatOptions = {},
 ): string {
   const whole = Math.round(minutes) % 1440
+  const key = `t|${locale ?? ''}|${options.hour12 ?? ''}|${options.compact ?? ''}|${whole}`
+  return remember(key, () => formatMinute(whole, locale, options))
+}
+
+function formatMinute(whole: number, locale: string | undefined, options: TimeFormatOptions) {
   const date = new Date(Date.UTC(2000, 0, 1, 0, whole))
   const clock: Intl.DateTimeFormatOptions =
     options.hour12 === undefined ? {} : { hour12: options.hour12 }

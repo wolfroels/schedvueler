@@ -62,6 +62,7 @@
   /* columns get narrower than this only by scrolling horizontally (resource columns) */
   --orb-tg-column-min-width: 0px;
   --orb-tl-resource-width: 12rem;
+  --orb-year-month-min-width: 13rem;
   --orb-tl-day-heading-height: 2rem;
   --orb-tl-slot-heading-height: 1.75rem;
 
@@ -1473,4 +1474,117 @@
   .orb-tl {
     --orb-tl-resource-width: 7.5rem;
   }
+}
+
+/* ---------------------------------------------------------------- year ------------------------ */
+
+.orb-year {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fill, minmax(var(--orb-year-month-min-width), 1fr));
+  align-content: start;
+  gap: 1.25rem 1.5rem;
+  min-height: 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.orb-year__month-title {
+  display: block;
+  margin-bottom: 0.375rem;
+  padding: 0.125rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-weight: var(--orb-font-weight-strong);
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.orb-year__month-title:hover {
+  background: var(--orb-color-hover);
+}
+
+.orb-year__grid {
+  display: grid;
+  grid-template-columns: repeat(var(--orb-year-cols), minmax(0, 1fr));
+  gap: 2px;
+}
+
+.orb-year__weekday {
+  color: var(--orb-color-text-muted);
+  font-size: 0.6875rem;
+  text-align: center;
+}
+
+.orb-year__day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: var(--orb-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.orb-year__day:hover {
+  background: var(--orb-color-hover);
+}
+
+.orb-year__day.is-weekend {
+  color: var(--orb-color-text-muted);
+}
+
+.orb-year__day.is-today {
+  background: var(--orb-color-accent);
+  color: var(--orb-color-accent-contrast);
+  font-weight: var(--orb-font-weight-strong);
+}
+
+.orb-year__day:focus-visible {
+  outline: 2px solid var(--orb-color-focus);
+  outline-offset: 1px;
+}
+
+.orb-year__dot {
+  position: absolute;
+  bottom: 12%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--orb-color-accent);
+}
+
+.orb-year__day.is-today .orb-year__dot {
+  background: var(--orb-color-accent-contrast);
+}
+
+/* heatmap: the background darkens with the number of events */
+.orb-year--heatmap .orb-year__day--level-1 {
+  background: color-mix(in srgb, var(--orb-color-accent) 15%, transparent);
+}
+
+.orb-year--heatmap .orb-year__day--level-2 {
+  background: color-mix(in srgb, var(--orb-color-accent) 32%, transparent);
+}
+
+.orb-year--heatmap .orb-year__day--level-3 {
+  background: color-mix(in srgb, var(--orb-color-accent) 55%, transparent);
+  color: var(--orb-color-accent-contrast);
+}
+
+.orb-year--heatmap .orb-year__day--level-4 {
+  background: color-mix(in srgb, var(--orb-color-accent) 80%, transparent);
+  color: var(--orb-color-accent-contrast);
+}
+
+.orb-year--heatmap .orb-year__day.is-today {
+  outline: 2px solid var(--orb-color-text);
+  outline-offset: -2px;
 }

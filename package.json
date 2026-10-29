@@ -35,7 +35,9 @@
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "playground:build": "vite build --config vite.playground.config.ts",
+    "playground:preview": "vite preview --config vite.playground.config.ts"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

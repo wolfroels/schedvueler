@@ -15,9 +15,11 @@ import {
   useTimeGrid,
   type TimeGridColumn,
   type TimeGridSlotRow,
+  type AllDayEventLayout,
   type TimedEventLayout,
 } from '../composables/useTimeGrid'
 import EventItem from './EventItem.vue'
+import { stableStyle } from './stable-style'
 import { RenderSlot } from './RenderSlot'
 import type { TimeGridViewProps } from './view-props'
 
@@ -106,13 +108,20 @@ const messages = computed(() => ctx.options.value.messages)
 const pct = (fraction: number) => `${fraction * 100}%`
 
 function eventStyle(item: TimedEventLayout<unknown>) {
-  return {
-    top: pct(item.top),
-    height: pct(item.height),
-    left: pct(item.left),
-    width: `calc(${pct(item.width)} - var(--orb-event-gap))`,
-    zIndex: item.order + 1,
-  }
+  return stableStyle(item, (i) => ({
+    top: pct(i.top),
+    height: pct(i.height),
+    left: pct(i.left),
+    width: `calc(${pct(i.width)} - var(--orb-event-gap))`,
+    zIndex: i.order + 1,
+  }))
+}
+
+function allDayStyle(item: AllDayEventLayout<unknown>) {
+  return stableStyle(item, (i) => ({
+    gridColumn: `${i.startCol + 1} / ${i.endCol + 1}`,
+    gridRow: i.row + 1,
+  }))
 }
 
 function dateLabel(date: Temporal.PlainDate) {
@@ -435,7 +444,7 @@ defineExpose({ scrollToMinute })
           >
             <div
               v-for="(col, i) in columns"
-              :key="col.key"
+              :key="i"
               class="orb-tg__allday-cell"
               :class="{
                 'is-today': col.isToday,
@@ -467,10 +476,7 @@ defineExpose({ scrollToMinute })
               :valid="interaction.mirror.value?.valid ?? true"
               :resource-id="columns[item.startCol]?.resourceId"
               :snap-minutes="snapMinutes()"
-              :style="{
-                gridColumn: `${item.startCol + 1} / ${item.endCol + 1}`,
-                gridRow: item.row + 1,
-              }"
+              :style="allDayStyle(item)"
             />
           </div>
         </div>
@@ -496,7 +502,7 @@ defineExpose({ scrollToMinute })
 
         <div
           v-for="(col, ci) in columns"
-          :key="col.key"
+          :key="ci /* by position: navigating reuses the slot cells */"
           :ref="(el) => setColumnEl(el, ci)"
           class="orb-tg__column"
           :class="{

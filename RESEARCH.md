@@ -167,6 +167,8 @@ Every cancellable payload is `{ ..., preventDefault(), waitUntil(promise) }`.
 | Audience | **Publishable npm package**: Vite library mode, `.d.ts`, stable public API |
 | Testing / demo | **Vitest** unit tests for core (date math, layout, RRULE, DST) + **playground** Vite app with a large generated dataset |
 
+
+
 ### Phasing (updated for the decisions)
 1. **Core.** Temporal DateAdapter, timezone-aware range math, RRULE expander, event index, overlap layout. Vitest coverage including DST transitions.
 2. **Root + first views.** `<Scheduler>` root, view registry, CSS-variable theme, TimeGrid (day/week/N-day) and MonthView with typed slots and emits, plus the playground app.
@@ -174,3 +176,9 @@ Every cancellable payload is `{ ..., preventDefault(), waitUntil(promise) }`.
 4. **Agenda and mobile.** AgendaView, responsive view switching, and touch long-press.
 5. **Resources and timeline.** TimelineView with resource rows, virtualization, lazy load by visible resources, and resource columns in the time grid.
 6. **Polish.** Year view, undo/redo helpers, perf pass with 10k+ events, docs.
+7. **Known Bugs** The user will place known bugs under the Known bugs section. This will, the AI will write bugs it finds and so will the user here. This section will continue as long as there are bugs
+
+
+# Known bBugs
+1. the opacity of the events is too low and it is not as readable
+2. dragging a event over to another day causes it to weirdly behave in the drag vertically=

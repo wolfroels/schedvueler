@@ -46,6 +46,9 @@ const SLOT_NAMES: Record<EventVariant, string[]> = {
   timeline: ['timeline-event', 'event'],
 }
 
+// Separate so the clock ticking every minute only re-renders events that actually became past.
+const isPast = computed(() => props.occurrence.endMs <= ctx.now.value.epochMilliseconds)
+
 const slotProps = computed<EventSlotProps<unknown>>(() => {
   const occ = props.occurrence
   const { locale, hour12 } = ctx.options.value
@@ -74,7 +77,7 @@ const slotProps = computed<EventSlotProps<unknown>>(() => {
     allDay: occ.allDay,
     isStart: props.isStart,
     isEnd: props.isEnd,
-    isPast: occ.endMs <= ctx.now.value.epochMilliseconds,
+    isPast: isPast.value,
     color:
       accessors.color(occ.event) ??
       ctx.resourceMap.value.get(props.resourceId ?? occ.resourceIds[0]!)?.color,

@@ -13,6 +13,7 @@ import { useSchedulerContext } from '../composables/context'
 import { useMonthGrid, type MonthCell, type MonthMoreLink } from '../composables/useMonthGrid'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import EventItem from './EventItem.vue'
+import { stableStyle } from './stable-style'
 import { RenderSlot } from './RenderSlot'
 
 const props = defineProps<{
@@ -390,10 +391,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             :is-end="item.isEnd"
             :mirror="item.mirror"
             :valid="interaction.mirror.value?.valid ?? true"
-            :style="{
-              gridColumn: `${item.startCol + 1} / ${item.endCol + 1}`,
-              gridRow: item.row + 1,
-            }"
+            :style="
+              stableStyle(item, (i) => ({
+                gridColumn: `${i.startCol + 1} / ${i.endCol + 1}`,
+                gridRow: i.row + 1,
+              }))
+            "
           />
           <button
             v-for="more in week.more"

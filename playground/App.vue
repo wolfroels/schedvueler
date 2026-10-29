@@ -8,9 +8,11 @@ import {
   Temporal,
   TimelineView,
   WeekView,
+  YearView,
   applyEventEdit,
   formatTimeRange,
   removeEventOccurrence,
+  useHistory,
   type EventChangedPayload,
   type EventDeletePayload,
   type EventPointerPayload,
@@ -58,11 +60,15 @@ watch([eventCount, resourceCount], ([count, resourceTotal]) => {
   const t = performance.now()
   resources.value = generateResources(resourceTotal)
   events.value = generateEvents(count, today, resources.value)
+  history.reset()
   log(
     'data',
     `generated ${count} events, ${resources.value.length} resources in ${(performance.now() - t).toFixed(1)} ms`,
   )
 })
+
+// Every edit goes through history.commit, so Ctrl+Z / Ctrl+Shift+Z undo and redo it.
+const history = useHistory(events, { keyboard: true })
 
 const cssVars = computed(() => ({
   '--orb-color-accent': accent.value,
@@ -109,45 +115,48 @@ const fmtTimes = (p: {
 
 /** Applies a drop or resize to the data; the scheduler keeps showing it until `events` changes. */
 function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
-  events.value = applyEventEdit(events.value, p.occurrence, p, {
-    scope: p.scope,
-    timeZone: timeZone.value,
-  })
+  history.commit(
+    applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone: timeZone.value }),
+    `${name === 'event-drop' ? 'Move' : 'Resize'} ${title(p.event)}`,
+  )
   const moved =
     p.resourceIds.join() !== p.oldResourceIds.join() ? ` @ ${p.resourceIds.join(', ')}` : ''
   log(name, `${title(p.event)} → ${fmtTimes(p)}${moved}${p.recurring ? ` [${p.scope}]` : ''}`)
 }
 
 function onDelete(p: EventDeletePayload<SchedulerEvent>) {
-  events.value = removeEventOccurrence(events.value, p.occurrence, {
-    scope: p.scope,
-    timeZone: timeZone.value,
-  })
+  history.commit(
+    removeEventOccurrence(events.value, p.occurrence, { scope: p.scope, timeZone: timeZone.value }),
+    `Delete ${title(p.event)}`,
+  )
   log('event-delete', `${title(p.event)}${p.recurring ? ` [${p.scope}]` : ''}`)
 }
 
 function onSelect(p: SelectPayload) {
   const id = `new-${Date.now()}`
-  events.value = [
-    ...events.value,
-    p.allDay
-      ? {
-          id,
-          title: 'New event',
-          start: p.start.toPlainDate().toString(),
-          end: p.end.toPlainDate().toString(),
-          color: '#ca8a04',
-          resourceId: p.resourceId,
-        }
-      : {
-          id,
-          title: 'New event',
-          start: p.start.toString(),
-          end: p.end.toString(),
-          color: '#ca8a04',
-          resourceId: p.resourceId,
-        },
-  ]
+  history.commit(
+    [
+      ...events.value,
+      p.allDay
+        ? {
+            id,
+            title: 'New event',
+            start: p.start.toPlainDate().toString(),
+            end: p.end.toPlainDate().toString(),
+            color: '#ca8a04',
+            resourceId: p.resourceId,
+          }
+        : {
+            id,
+            title: 'New event',
+            start: p.start.toString(),
+            end: p.end.toString(),
+            color: '#ca8a04',
+            resourceId: p.resourceId,
+          },
+    ],
+    'Create event',
+  )
   scheduler.value?.clearSelection()
   log('select', `created event ${fmtTimes(p)}`)
 }
@@ -175,25 +184,28 @@ function beforeChange(p: {
 function onSlotDblClick(p: SlotPointerPayload) {
   // Adding an event creates a new array; the store re-reads only the new object.
   const id = `new-${Date.now()}`
-  events.value = [
-    ...events.value,
-    p.allDay
-      ? {
-          id,
-          title: 'New all-day event',
-          start: p.date.toString(),
-          color: '#ca8a04',
-          resourceId: p.resourceId,
-        }
-      : {
-          id,
-          title: 'New event',
-          start: p.start.toString(),
-          end: p.start.add({ minutes: 60 }).toString(),
-          color: '#ca8a04',
-          resourceId: p.resourceId,
-        },
-  ]
+  history.commit(
+    [
+      ...events.value,
+      p.allDay
+        ? {
+            id,
+            title: 'New all-day event',
+            start: p.date.toString(),
+            color: '#ca8a04',
+            resourceId: p.resourceId,
+          }
+        : {
+            id,
+            title: 'New event',
+            start: p.start.toString(),
+            end: p.start.add({ minutes: 60 }).toString(),
+            color: '#ca8a04',
+            resourceId: p.resourceId,
+          },
+    ],
+    'Add event',
+  )
   log('slot-dblclick', `added event at ${p.allDay ? p.date : p.start.toPlainDateTime().toString()}`)
 }
 </script>
@@ -280,6 +292,25 @@ function onSlotDblClick(p: SlotPointerPayload) {
 
       <section>
         <h2>Editing</h2>
+        <div class="pg__history">
+          <button
+            type="button"
+            :disabled="!history.canUndo.value"
+            :title="history.undoLabel.value"
+            @click="history.undo()"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            :disabled="!history.canRedo.value"
+            :title="history.redoLabel.value"
+            @click="history.redo()"
+          >
+            Redo
+          </button>
+          <span>{{ history.undoLabel.value ?? '' }}</span>
+        </div>
         <label class="pg__check"><input v-model="editable" type="checkbox" /> Editable</label>
         <label class="pg__check"><input v-model="selectable" type="checkbox" /> Selectable</label>
         <label class="pg__check">
@@ -400,6 +431,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
           :min-width="600"
         />
         <MonthView />
+        <YearView display="heatmap" />
         <AgendaView />
         <DayView
           name="day-resources"
@@ -512,6 +544,19 @@ body {
   width: 8rem;
 }
 
+.pg__history {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.pg__history span {
+  overflow: hidden;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pg__hint {
   margin: 0;
   color: #64748b;
@@ -583,7 +628,7 @@ body {
 
   .pg__main {
     padding: 0.5rem;
-    min-height: 80vh;
+    height: 80vh;
   }
 }
 </style>

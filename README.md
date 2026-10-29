@@ -3,9 +3,10 @@
 Modular scheduler and calendar components for Vue 3: views as child components, a slot for every
 part, typed emits, full RRULE recurrence and time-zone support, and a framework-free core.
 
-> Status: in development. Phases 1–5 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
-> day/week/N-day/month/agenda views, drag/resize/select, keyboard, responsive and touch, resources
-> and the timeline). Polish (year view, undo/redo, performance pass) is next.
+> Status: in development. All six phases of [RESEARCH.md](RESEARCH.md) are done: core, root
+> component, day/week/N-day/month/year/agenda/timeline views, drag/resize/select, keyboard,
+> responsive and touch, resources, undo/redo and a performance pass. The full reference is in
+> [docs/API.md](docs/API.md).
 
 ## Quick start
 
@@ -47,6 +48,7 @@ const view = ref('week')
   <DayView />
   <WeekView :min-width="600" />   <!-- only offered when the scheduler is at least 600px wide -->
   <MonthView />                   <!-- below compact-width (560px) days show dots; tap for the list -->
+  <YearView display="heatmap" />  <!-- twelve small months, shaded by number of events -->
   <AgendaView period="week" />    <!-- virtualized list grouped by day -->
 </Scheduler>
 ```
@@ -148,6 +150,21 @@ function onChange(p: EventChangedPayload<SchedulerEvent>) {
   show the preview in red and the drop reverts.
 - Touch: long-press (`longPressDelay`, 400 ms) starts a drag or selection, so scrolling still works.
 
+### Undo and redo
+
+```ts
+import { useHistory } from 'orb-scheduler'
+
+const history = useHistory(events, { keyboard: true }) // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y
+
+function onChange(p: EventChangedPayload<SchedulerEvent>) {
+  history.commit(applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone }), 'Move')
+}
+// history.undo(), history.redo(), history.canUndo.value, history.undoLabel.value, history.reset()
+```
+
+Snapshots share unchanged event objects, so keeping 100 steps of a 10 000-event array is cheap.
+
 ### Keyboard
 
 | Keys | Action |
@@ -182,8 +199,8 @@ Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 `time-event`, `all-day-event`, `month-event`, `day-header`, `all-day-label`, `time-label`,
 `time-slot`, `month-weekday`, `month-cell`, `more-link`, `more-popover`, `now-indicator`,
 `agenda-event`, `agenda-day-header`, `agenda-empty`, `timeline-event`, `timeline-header`,
-`resource-label`, `resource-area-header`.
-See `SchedulerSlots` in [src/types.ts](src/types.ts) for the props each one receives.
+`resource-label`, `resource-area-header`, `year-day`, `year-month-header`.
+See [docs/API.md](docs/API.md#slots) for the props each one receives.
 
 ## Theming
 
@@ -206,8 +223,8 @@ field (or the `color` accessor).
 
 `orb-scheduler/core` has no Vue dependency: `EventStore`, RRULE parsing and expansion, range
 strategies, resource trees, and layout algorithms (time grid, day rows, timeline). The
-composables (`useScheduler`, `useSchedulerView`, `useTimeGrid`, `useMonthGrid`, `useTimeline`)
-give you the state and layout without any markup.
+composables (`useScheduler`, `useSchedulerView`, `useTimeGrid`, `useMonthGrid`, `useTimeline`,
+`useYearGrid`, `useHistory`) give you the state and layout without any markup.
 
 ## Development
 
@@ -217,4 +234,5 @@ npm run dev        # playground on http://localhost:6173
 npm test           # unit tests, against native Temporal and the polyfill
 npm run build      # type-check + library build into dist/
 npm run lint
+npm run playground:build && npm run playground:preview   # production playground, for measuring
 ```
