@@ -121,6 +121,12 @@ export interface SchedulerOptions<T> {
   recurrenceEditScope?: RecurrenceEditScope
   /** Touch: how long to press before a drag or selection starts, in ms. Default 400. */
   longPressDelay?: number
+
+  // --- navigation ---
+  /** View to open when a date (day header, month day number, agenda day) is clicked. */
+  drillDownView?: string
+  /** Swipe left/right on touch screens to go to the next/previous period. Default true. */
+  swipeNavigation?: boolean
 }
 
 export type EventChangeKind = 'move' | 'resize-start' | 'resize-end'
@@ -151,6 +157,10 @@ export interface SchedulerViewDefinition {
   strategy: RangeStrategy
   /** Toolbar title for a range. */
   title(range: VisibleRange, locale: string): string
+  /** Only offered while the scheduler is at least this wide (px). */
+  minWidth?: number
+  /** Only offered while the scheduler is at most this wide (px). */
+  maxWidth?: number
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -218,7 +228,8 @@ export interface SlotPointerPayload {
   element: HTMLElement
 }
 
-export interface DateClickPayload {
+/** Cancelable: preventing it stops the drill-down to `drillDownView`. */
+export interface DateClickPayload extends Cancelable {
   view: string
   date: Temporal.PlainDate
   nativeEvent: MouseEvent
@@ -331,7 +342,7 @@ export interface SchedulerEmits<T> {
   'slot-click': [payload: SlotPointerPayload]
   'slot-dblclick': [payload: SlotPointerPayload]
   'slot-contextmenu': [payload: SlotPointerPayload]
-  /** A day header (time grid) or day number (month) was clicked. */
+  /** A day header (time grid), day number (month) or agenda day was clicked. Cancelable. */
   'date-click': [payload: DateClickPayload]
   /** Before the "+N more" popover opens. Cancelable. */
   'more-click': [payload: MoreClickPayload<T>]
@@ -362,7 +373,7 @@ export interface SchedulerEmits<T> {
 // Slot props
 // ---------------------------------------------------------------------------------------------
 
-export type EventVariant = 'time' | 'all-day' | 'month' | 'month-timed' | 'list'
+export type EventVariant = 'time' | 'all-day' | 'month' | 'month-timed' | 'list' | 'agenda'
 
 export interface EventSlotProps<T> {
   occurrence: EventOccurrence<T>
@@ -434,6 +445,14 @@ export interface MorePopoverSlotProps<T> {
   close(): void
 }
 
+export interface AgendaDayHeaderSlotProps {
+  view: string
+  date: Temporal.PlainDate
+  label: string
+  isToday: boolean
+  count: number
+}
+
 export interface NowIndicatorSlotProps {
   now: Temporal.ZonedDateTime
   label: string
@@ -443,7 +462,7 @@ type SlotFn<P> = (props: P) => VNodeChild
 
 /**
  * Every customizable part. View-specific event slots (`time-event`, `all-day-event`,
- * `month-event`) win over `event`; `event-content` only replaces what is inside the default chip.
+ * `month-event`, `agenda-event`) win over `event`; `event-content` only replaces what is inside the default chip.
  */
 export interface SchedulerSlots<T> {
   default?: () => VNodeChild
@@ -466,4 +485,7 @@ export interface SchedulerSlots<T> {
   'more-link'?: SlotFn<MoreLinkSlotProps<T>>
   'more-popover'?: SlotFn<MorePopoverSlotProps<T>>
   'now-indicator'?: SlotFn<NowIndicatorSlotProps>
+  'agenda-event'?: SlotFn<EventSlotProps<T>>
+  'agenda-day-header'?: SlotFn<AgendaDayHeaderSlotProps>
+  'agenda-empty'?: SlotFn<{ view: string; label: string }>
 }

@@ -57,6 +57,10 @@ export interface SchedulerContext<T = unknown> {
   /** Anchor date the active view is built around. */
   date: ComputedRef<Temporal.PlainDate>
   views: Readonly<ShallowRef<readonly ViewRegistration[]>>
+  /** Views that fit the current width (see `minWidth` / `maxWidth`). */
+  availableViews: ComputedRef<readonly ViewRegistration[]>
+  /** Rendered width of the scheduler in px; 0 until measured. Set by the root component. */
+  width: Ref<number>
   activeView: ComputedRef<ViewRegistration | undefined>
   activeViewName: ComputedRef<string | undefined>
   range: ComputedRef<VisibleRange | undefined>
@@ -75,6 +79,8 @@ export interface SchedulerContext<T = unknown> {
   goToday(): void
   goTo(date: Temporal.PlainDate | string): void
   setView(name: string): void
+  /** Emits a cancelable `date-click` and then drills down to `drillDownView`, if set. */
+  openDate(date: Temporal.PlainDate, view: string, nativeEvent: MouseEvent): void
   /** Re-reads the events, e.g. after mutating event objects in place. */
   refresh(): void
 

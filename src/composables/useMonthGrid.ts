@@ -1,7 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import {
   Temporal,
-  dayBounds,
+  groupByDay,
+  rangeDays,
   formatDate,
   layoutDayGridRow,
   rangeContains,
@@ -164,13 +165,23 @@ export function useMonthGrid<T>(
     return result
   })
 
+  /** Occurrences per visible day, computed once per change instead of per cell. */
+  const byDay = computed(() => {
+    const { range, hiddenDays } = cfg.value
+    const days = rangeDays(range, hiddenDays)
+    const map = new Map<string, EventOccurrence<T>[]>()
+    for (const group of groupByDay(ctx.occurrences.value, days, ctx.options.value.timeZone)) {
+      map.set(
+        group.date.toString(),
+        group.segments.map((s) => s.occurrence),
+      )
+    }
+    return map
+  })
+
   /** All occurrences touching a day, e.g. for the "+N more" popover. */
   function occurrencesOn(date: Temporal.PlainDate): EventOccurrence<T>[] {
-    const { startMs, endMs } = dayBounds(date, ctx.options.value.timeZone)
-    return ctx.occurrences.value.filter(
-      (o) =>
-        o.startMs < endMs && (o.endMs > startMs || (o.endMs === o.startMs && o.startMs >= startMs)),
-    )
+    return byDay.value.get(date.toString()) ?? []
   }
 
   return { weekdays, weeks, occurrencesOn }

@@ -5,9 +5,9 @@ import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import type { SchedulerSlots } from '../types'
 import MonthGrid from './MonthGrid.vue'
-import { monthTitle } from './view-props'
+import { monthTitle, type ResponsiveViewProps } from './view-props'
 
-export interface MonthViewProps {
+export interface MonthViewProps extends ResponsiveViewProps {
   name?: string
   label?: string
   /**
@@ -15,6 +15,11 @@ export interface MonthViewProps {
    * Default "auto".
    */
   maxEventRows?: number | 'auto'
+  /**
+   * Below this scheduler width (px) days show colored dots instead of event bars, and tapping a
+   * day lists its events. Default 560; 0 turns it off.
+   */
+  compactWidth?: number
   /** Always show six weeks. Default false. */
   fixedWeeks?: boolean
   weekStart?: number
@@ -24,6 +29,7 @@ export interface MonthViewProps {
 const props = withDefaults(defineProps<MonthViewProps>(), {
   name: 'month',
   maxEventRows: 'auto',
+  compactWidth: 560,
   fixedWeeks: false,
 })
 // View components are not generic, so view-level slot props carry an untyped event.
@@ -39,6 +45,8 @@ const { isActive } = useSchedulerView(() => ({
     fixedWeeks: props.fixedWeeks,
   }),
   title: monthTitle,
+  minWidth: props.minWidth,
+  maxWidth: props.maxWidth,
 }))
 
 const resolve = useSlotResolver(slots as never, ctx as never)
@@ -52,6 +60,7 @@ const hiddenDays = computed(() => props.hiddenDays ?? ctx.options.value.hiddenDa
     :range="ctx.range.value"
     :hidden-days="hiddenDays"
     :max-event-rows="maxEventRows"
+    :compact-width="compactWidth"
     :resolve="resolve"
   />
 </template>

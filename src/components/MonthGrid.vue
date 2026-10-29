@@ -20,6 +20,8 @@ const props = defineProps<{
   range: VisibleRange
   hiddenDays: readonly number[]
   maxEventRows: number | 'auto'
+  /** Below this scheduler width, days show dots instead of event bars. */
+  compactWidth: number
   resolve: SlotResolver
 }>()
 
@@ -94,12 +96,7 @@ function onCell(name: SlotEmit, cell: MonthCell, e: MouseEvent) {
 }
 
 function onDateClick(cell: MonthCell, e: MouseEvent) {
-  ctx.emit('date-click', {
-    view: props.view,
-    date: cell.date,
-    nativeEvent: e,
-    element: e.currentTarget as HTMLElement,
-  })
+  ctx.openDate(cell.date, props.view, e)
 }
 
 /** Pointerdown on empty space starts a selection (when enabled); events handle their own. */
@@ -220,6 +217,25 @@ function onCellKeydown(e: KeyboardEvent, cell: MonthCell) {
   focusCellKey(next.key)
 }
 
+// --- compact mode: dots per day, tap a day for its list -------------------------------------
+
+const compact = computed(() => ctx.width.value > 0 && ctx.width.value < props.compactWidth)
+
+function dots(cell: MonthCell) {
+  const list = occurrencesOn(cell.date)
+  const accessors = ctx.accessors.value
+  return {
+    colors: list.slice(0, 3).map((o) => accessors.color(o.event)),
+    extra: Math.max(0, list.length - 3),
+  }
+}
+
+function onCompactCellClick(cell: MonthCell, col: number, e: MouseEvent) {
+  onCell('slot-click', cell, e)
+  const count = occurrencesOn(cell.date).length
+  if (count) openMore({ col, date: cell.date, count }, e)
+}
+
 // --- "+N more" popover -----------------------------------------------------------------------
 
 interface PopoverState {
@@ -240,6 +256,7 @@ function moreLabel(count: number) {
 function openMore(more: MonthMoreLink, e: MouseEvent) {
   const element = e.currentTarget as HTMLElement
   const occurrences = occurrencesOn(more.date)
+
   const { payload, settle } = createCancelable({
     view: props.view,
     date: more.date,
@@ -251,7 +268,7 @@ function openMore(more: MonthMoreLink, e: MouseEvent) {
   ctx.emit('more-click', payload)
   whenAllowed(settle(), () => {
     const rootRect = root.value!.getBoundingClientRect()
-    const cell = element.closest('.orb-month__week')!.querySelectorAll('.orb-month__cell')[more.col]
+    const cell = element.closest('.orb-month__week')?.querySelectorAll('.orb-month__cell')[more.col]
     const rect = (cell ?? element).getBoundingClientRect()
     const width = Math.max(rect.width + 16, 220)
     const left = Math.min(Math.max(rect.left - rootRect.left - 8, 0), rootRect.width - width)
@@ -293,6 +310,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
   <div
     ref="root"
     class="orb-month"
+    :class="{ 'orb-month--compact': compact }"
     role="grid"
     :aria-label="ctx.title.value"
     :style="{ '--orb-month-cols': weekdays.length, '--orb-month-rows': maxRows }"
@@ -312,7 +330,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         role="row"
       >
         <div
-          v-for="cell in week.cells"
+          v-for="(cell, ci) in week.cells"
           :key="cell.key"
           class="orb-month__cell"
           :class="{
@@ -330,7 +348,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
           :aria-current="cell.isToday ? 'date' : undefined"
           @keydown="onCellKeydown($event, cell)"
           @focus="focusKey = cell.key"
-          @click="onCell('slot-click', cell, $event)"
+          @click="
+            compact ? onCompactCellClick(cell, ci, $event) : onCell('slot-click', cell, $event)
+          "
           @dblclick="onCell('slot-dblclick', cell, $event)"
           @contextmenu="onCell('slot-contextmenu', cell, $event)"
         >
@@ -343,10 +363,21 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             >
               {{ cell.dayNumber }}
             </button>
+            <span v-if="compact" class="orb-month__dots" aria-hidden="true">
+              <span
+                v-for="(color, di) in dots(cell).colors"
+                :key="di"
+                class="orb-month__dot"
+                :style="color ? { '--orb-event-color': color } : undefined"
+              />
+              <span v-if="dots(cell).extra" class="orb-month__dot-more"
+                >+{{ dots(cell).extra }}</span
+              >
+            </span>
           </RenderSlot>
         </div>
 
-        <div :ref="(el) => setEventsLayer(el, wi)" class="orb-month__events">
+        <div v-if="!compact" :ref="(el) => setEventsLayer(el, wi)" class="orb-month__events">
           <span v-if="wi === 0" :ref="setProbe" class="orb-month__probe" aria-hidden="true" />
           <EventItem
             v-for="item in week.events"

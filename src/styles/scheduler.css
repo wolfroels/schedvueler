@@ -71,6 +71,8 @@
   font-size: var(--orb-font-size);
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
+  /* Compact layouts follow the scheduler width, not the window width. */
+  container: orb-scheduler / inline-size;
 }
 
 .orb-scheduler[data-theme='dark'] {
@@ -247,9 +249,13 @@
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
 }
 
-@media (max-width: 640px) {
-  .orb-scheduler {
+/* A container cannot query itself, so compact rules target the parts inside the scheduler. */
+@container orb-scheduler (max-width: 640px) {
+  .orb-toolbar,
+  .orb-scheduler__body {
     --orb-gutter-width: 3rem;
+    --orb-font-size-title: 1.05rem;
+    --orb-day-header-height: 2.75rem;
   }
 
   .orb-toolbar__section--end {
@@ -260,6 +266,21 @@
     order: -1;
     flex-basis: 100%;
     justify-content: flex-start;
+  }
+
+  .orb-tg__weekday {
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+  }
+
+  .orb-tg__daynum {
+    font-size: 0.95rem;
+    min-width: 1.625rem;
+    height: 1.625rem;
+  }
+
+  .orb-month__cell {
+    padding: 2px;
   }
 }
 
@@ -959,4 +980,172 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------------------------------------------------------------- agenda ---------------------- */
+
+.orb-agenda {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  overflow: hidden;
+  --orb-agenda-time-width: 7.5rem;
+}
+
+.orb-agenda__scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.orb-agenda__list {
+  position: relative;
+}
+
+.orb-agenda__day,
+.orb-agenda__row {
+  left: 0;
+  width: 100%;
+}
+
+.orb-agenda__day {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--orb-color-border);
+  background: var(--orb-color-surface);
+}
+
+.orb-agenda__list > .orb-agenda__day:not(:first-child) {
+  border-top: 1px solid var(--orb-color-border);
+}
+
+.orb-agenda__day-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: var(--orb-font-weight-strong);
+  cursor: pointer;
+}
+
+.orb-agenda__day-button:hover {
+  text-decoration: underline;
+}
+
+.orb-agenda__day.is-today .orb-agenda__day-button {
+  color: var(--orb-color-accent);
+}
+
+.orb-agenda__row {
+  display: flex;
+  align-items: stretch;
+  padding: 2px 0.375rem;
+  border-bottom: 1px solid var(--orb-color-border-subtle);
+}
+
+.orb-event--agenda {
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 0.375rem;
+  color: var(--orb-color-text);
+  font-size: var(--orb-font-size);
+}
+
+.orb-event--agenda:hover {
+  background: var(--orb-color-hover);
+}
+
+.orb-event--agenda .orb-event__time {
+  flex: 0 0 var(--orb-agenda-time-width);
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.orb-event--agenda .orb-event__dot {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.orb-event--agenda .orb-event__title {
+  font-weight: 500;
+}
+
+.orb-agenda__empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 2rem;
+  color: var(--orb-color-text-muted);
+}
+
+@container orb-scheduler (max-width: 480px) {
+  .orb-agenda {
+    --orb-agenda-time-width: 5.5rem;
+  }
+}
+
+/* ---------------------------------------------------------------- compact month --------------- */
+
+.orb-month--compact .orb-month__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.orb-month__dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0.5rem;
+}
+
+.orb-month__dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--orb-event-color, var(--orb-color-accent));
+}
+
+.orb-month__dot-more {
+  color: var(--orb-color-text-muted);
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+.orb-month--compact .orb-month__week {
+  --orb-month-week-min-height: 3.5rem;
+}
+
+/* ---------------------------------------------------------------- touch ----------------------- */
+
+/* Vertical panning stays with the browser; horizontal swipes go to the scheduler. */
+.orb-scheduler__body--swipe {
+  touch-action: pan-y pinch-zoom;
+}
+
+@media (pointer: coarse) {
+  .orb-scheduler {
+    --orb-resizer-size: 14px;
+    --orb-control-height: 2.5rem;
+  }
+
+  /* No hover on touch screens: show the resize handles on the event that was tapped. */
+  .orb-event:focus > .orb-event__resizer {
+    opacity: 1;
+  }
+
+  .orb-event--time > .orb-event__resizer--end::after {
+    width: 1.5rem;
+    height: 3px;
+  }
 }

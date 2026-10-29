@@ -154,3 +154,24 @@ export function partitionAllDay<T>(
   }
   return { allDay, timed }
 }
+
+export interface DayGroup<T> {
+  date: Temporal.PlainDate
+  segments: DaySegment<T>[]
+}
+
+/**
+ * Occurrences grouped per day, for agenda/list views. Multi-day occurrences appear on every day
+ * they touch (check `isStart` / `isEnd`). Days without occurrences are left out unless
+ * `includeEmpty` is set.
+ */
+export function groupByDay<T>(
+  occurrences: readonly EventOccurrence<T>[],
+  days: readonly Temporal.PlainDate[],
+  timeZone: string,
+  includeEmpty = false,
+): DayGroup<T>[] {
+  return segmentByDay(occurrences, days, timeZone)
+    .map((segments, i) => ({ date: days[i]!, segments }))
+    .filter((group) => includeEmpty || group.segments.length > 0)
+}

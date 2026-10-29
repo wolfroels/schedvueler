@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Temporal } from '../temporal'
-import { EventStore, partitionAllDay, segmentByDay, spanRow } from '../events'
+import { EventStore, groupByDay, partitionAllDay, segmentByDay, spanRow } from '../events'
 import { rangeDays, rangeToWindow, weekStrategy } from '../range'
 import { createAccessors, type SchedulerEvent } from '../types'
 
@@ -269,5 +269,26 @@ describe('setEvents reuse', () => {
     store.setEvents([a])
     const window = rangeToWindow(weekStrategy().range(d('2026-10-26')), 'UTC')
     expect(store.query(window)[0]!.start.hour).toBe(9)
+  })
+})
+
+describe('groupByDay', () => {
+  it('groups occurrences per day and skips empty days', () => {
+    const store = new EventStore<SchedulerEvent>(
+      [
+        { id: 'trip', start: '2026-10-27', end: '2026-10-29' },
+        { id: 'call', start: '2026-10-27T15:00' },
+        { id: 'late', start: '2026-10-30T23:00', end: '2026-10-31T01:00' },
+      ],
+      { timeZone: BXL },
+    )
+    const groups = groupByDay(store.query(weekWindow), rangeDays(week), BXL)
+    expect(groups.map((g) => [g.date.toString(), g.segments.map((s) => s.occurrence.id)])).toEqual([
+      ['2026-10-27', ['trip', 'call']],
+      ['2026-10-28', ['trip']],
+      ['2026-10-30', ['late']],
+      ['2026-10-31', ['late']],
+    ])
+    expect(groupByDay(store.query(weekWindow), rangeDays(week), BXL, true)).toHaveLength(7)
   })
 })

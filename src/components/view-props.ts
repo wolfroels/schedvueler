@@ -1,8 +1,16 @@
 import { formatDate, formatDateRange, type VisibleRange } from '../core'
 import type { EventLayoutOption } from '../types'
 
+/** Width limits that make a view responsive. */
+export interface ResponsiveViewProps {
+  /** Only offer this view while the scheduler is at least this wide (px). */
+  minWidth?: number
+  /** Only offer this view while the scheduler is at most this wide (px). */
+  maxWidth?: number
+}
+
 /** Props shared by the time-grid views. Unset props fall back to the `<Scheduler>` option. */
-export interface TimeGridViewProps {
+export interface TimeGridViewProps extends ResponsiveViewProps {
   /** Unique view name, used by `v-model:view`. */
   name?: string
   /** Text in the view switcher. */

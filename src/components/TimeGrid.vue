@@ -95,12 +95,7 @@ function onAllDay(name: SlotEmit, col: TimeGridColumn, e: MouseEvent) {
 }
 
 function onDateClick(col: TimeGridColumn, e: MouseEvent) {
-  ctx.emit('date-click', {
-    view: props.view,
-    date: col.date,
-    nativeEvent: e,
-    element: e.currentTarget as HTMLElement,
-  })
+  ctx.openDate(col.date, props.view, e)
 }
 
 /** Pointerdown on empty space starts a selection (when enabled); events handle their own. */

@@ -7,7 +7,7 @@ export function useToolbar(ctx: SchedulerContext<unknown>): ComputedRef<ToolbarS
   return computed(() => ({
     title: ctx.title.value,
     view: ctx.activeViewName.value,
-    views: ctx.views.value.map((v) => ({
+    views: ctx.availableViews.value.map((v) => ({
       name: v.definition.value.name,
       label: v.definition.value.label,
       active: v === ctx.activeView.value,

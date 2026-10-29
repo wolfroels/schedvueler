@@ -3,16 +3,16 @@
 Modular scheduler and calendar components for Vue 3: views as child components, a slot for every
 part, typed emits, full RRULE recurrence and time-zone support, and a framework-free core.
 
-> Status: in development. Phases 1–3 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
-> day/week/N-day/month views, drag/resize/select, keyboard). Agenda/mobile and the resource
-> timeline are next.
+> Status: in development. Phases 1–4 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
+> day/week/N-day/month/agenda views, drag/resize/select, keyboard, responsive and touch). The
+> resource timeline is next.
 
 ## Quick start
 
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Scheduler, DayView, WeekView, MonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, DayView, WeekView, MonthView, AgendaView, type SchedulerEvent } from 'orb-scheduler'
 import 'orb-scheduler/style.css'
 
 const events = ref<SchedulerEvent[]>([
@@ -35,9 +35,31 @@ const view = ref('week')
     <WeekView />
     <WeekView name="workweek" :days="5" label="Work week" />
     <MonthView />
+    <AgendaView />
   </Scheduler>
 </template>
 ```
+
+## Responsive and mobile
+
+```vue
+<Scheduler :events="events" drill-down-view="day">
+  <DayView />
+  <WeekView :min-width="600" />   <!-- only offered when the scheduler is at least 600px wide -->
+  <MonthView />                   <!-- below compact-width (560px) days show dots; tap for the list -->
+  <AgendaView period="week" />    <!-- virtualized list grouped by day -->
+</Scheduler>
+```
+
+- `min-width` / `max-width` on any view hide it from the switcher when the scheduler does not fit.
+  If the chosen view does not fit, the first one that does is shown; `v-model:view` keeps your
+  choice, so it comes back when there is room again.
+- Layout tweaks use container queries on the scheduler's own width, so it also adapts inside
+  narrow panels on a wide screen.
+- Touch: swipe left/right to change period (`swipe-navigation`), long-press to drag or select,
+  larger resize handles on coarse pointers.
+- `drill-down-view` opens that view when a date is clicked (day header, month day number, agenda
+  day); `date-click` is cancelable.
 
 Views register themselves in the order they are declared; the first one is the default. Toggle a
 view with `v-if`, give it its own settings with props (`slot-duration`, `day-start-time`,
@@ -122,7 +144,8 @@ Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 
 `toolbar`, `toolbar-start`, `toolbar-center`, `toolbar-end`, `title`, `event`, `event-content`,
 `time-event`, `all-day-event`, `month-event`, `day-header`, `all-day-label`, `time-label`,
-`time-slot`, `month-weekday`, `month-cell`, `more-link`, `more-popover`, `now-indicator`.
+`time-slot`, `month-weekday`, `month-cell`, `more-link`, `more-popover`, `now-indicator`,
+`agenda-event`, `agenda-day-header`, `agenda-empty`.
 See `SchedulerSlots` in [src/types.ts](src/types.ts) for the props each one receives.
 
 ## Theming

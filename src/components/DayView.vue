@@ -24,6 +24,8 @@ const { ctx, isActive } = useSchedulerView(() => ({
   name: props.name,
   label: props.label ?? (props.days === 1 ? 'Day' : `${props.days} days`),
   strategy: dayStrategy({ days: props.days }),
+  minWidth: props.minWidth,
+  maxWidth: props.maxWidth,
   title: props.days === 1 ? singleDayTitle : multiDayTitle,
 }))
 

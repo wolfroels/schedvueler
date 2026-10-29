@@ -27,7 +27,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rolldownOptions: {
-      external: ['vue', 'temporal-polyfill'],
+      external: ['vue', 'temporal-polyfill', '@tanstack/vue-virtual'],
     },
   },
 })

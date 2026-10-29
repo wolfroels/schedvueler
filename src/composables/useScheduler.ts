@@ -174,9 +174,21 @@ export function useScheduler<T>(
     }
     return old?.equals(value) ? old : value
   })
-  const activeView = computed(
-    () => views.value.find((v) => v.definition.value.name === state.view.value) ?? views.value[0],
-  )
+  const width = shallowRef(0)
+  const availableViews = computed(() => {
+    const w = width.value
+    if (!w) return views.value
+    const fits = views.value.filter((v) => {
+      const { minWidth, maxWidth } = v.definition.value
+      return (minWidth === undefined || w >= minWidth) && (maxWidth === undefined || w <= maxWidth)
+    })
+    return fits.length ? fits : views.value
+  })
+  // The requested view (v-model) is kept; when it does not fit, the first view that does is shown.
+  const activeView = computed(() => {
+    const list = availableViews.value
+    return list.find((v) => v.definition.value.name === state.view.value) ?? list[0]
+  })
   const activeViewName = computed(() => activeView.value?.definition.value.name)
   const range = computed<VisibleRange | undefined>((old) => {
     const value = activeView.value?.definition.value.strategy.range(date.value)
@@ -265,6 +277,8 @@ export function useScheduler<T>(
     version,
     date,
     views,
+    availableViews,
+    width,
     activeView,
     activeViewName,
     range,
@@ -291,6 +305,21 @@ export function useScheduler<T>(
       emit('view-change', payload)
       whenAllowed(settle(), () => {
         state.view.value = name
+      })
+    },
+    openDate(target, view, nativeEvent) {
+      const { payload, settle } = createCancelable({
+        view,
+        date: target,
+        nativeEvent,
+        element: nativeEvent.currentTarget as HTMLElement,
+      })
+      emit('date-click', payload)
+      const drill = raw.value.drillDownView
+      if (!drill) return
+      whenAllowed(settle(), () => {
+        if (drill !== activeViewName.value) ctx.setView(drill)
+        if (!target.equals(date.value)) navigate(target, 'date')
       })
     },
     refresh() {

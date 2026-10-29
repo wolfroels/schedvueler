@@ -31,6 +31,8 @@ const { isActive } = useSchedulerView(() => ({
     weekStart: props.weekStart ?? ctx.options.value.weekStart,
     days: props.days,
   }),
+  minWidth: props.minWidth,
+  maxWidth: props.maxWidth,
   title: multiDayTitle,
 }))
 

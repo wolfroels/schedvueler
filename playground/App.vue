@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
 import {
+  AgendaView,
   DayView,
   MonthView,
   Scheduler,
@@ -35,6 +36,7 @@ const selectable = ref(true)
 const blockWeekends = ref(false)
 const scope = ref<RecurrenceEditScope>('this')
 const confirmRecurring = ref(false)
+const phoneFrame = ref(false)
 
 const accent = ref('#2563eb')
 const slotHeight = ref(36)
@@ -196,7 +198,8 @@ function onSlotDblClick(p: SlotPointerPayload) {
         <p class="pg__hint">
           Drag over empty slots to create an event, drag events to move them, drag their edges to
           resize. Keyboard: Alt+arrows move, Alt+Shift+arrows resize, Delete removes, arrows walk
-          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…5.
+          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…6. Click a date to
+          open its day. On touch: swipe to navigate, long-press to drag.
         </p>
       </section>
 
@@ -241,6 +244,9 @@ function onSlotDblClick(p: SlotPointerPayload) {
         >
         <label class="pg__check">
           <input v-model="customEvents" type="checkbox" /> Custom event slot
+        </label>
+        <label class="pg__check">
+          <input v-model="phoneFrame" type="checkbox" /> Phone frame (390 px)
         </label>
       </section>
 
@@ -299,7 +305,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
       </section>
     </aside>
 
-    <main class="pg__main">
+    <main class="pg__main" :class="{ 'pg__main--phone': phoneFrame }">
       <Scheduler
         ref="scheduler"
         v-model:date="date"
@@ -315,6 +321,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         :editable="editable"
         :selectable="selectable"
         :recurrence-edit-scope="scope"
+        drill-down-view="day"
         :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
         @range-change="onRange"
         @navigate="(p) => log('navigate', `${p.reason}: ${p.from} → ${p.to}`)"
@@ -343,9 +350,17 @@ function onSlotDblClick(p: SlotPointerPayload) {
 
         <DayView />
         <DayView name="3days" :days="3" label="3 days" />
-        <WeekView />
-        <WeekView name="workweek" :days="5" label="Work week" scroll-time="07:00" />
+        <!-- Week views need room; on narrow screens the scheduler falls back to the day view. -->
+        <WeekView :min-width="600" />
+        <WeekView
+          name="workweek"
+          :days="5"
+          label="Work week"
+          scroll-time="07:00"
+          :min-width="600"
+        />
         <MonthView />
+        <AgendaView />
       </Scheduler>
     </main>
   </div>
@@ -465,6 +480,16 @@ body {
 .pg__main {
   min-width: 0;
   padding: 1rem;
+}
+
+.pg__main--phone {
+  display: flex;
+  justify-content: center;
+}
+
+.pg__main--phone > .orb-scheduler {
+  width: 390px;
+  max-width: 100%;
 }
 
 .pg__main > .orb-scheduler {

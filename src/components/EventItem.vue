@@ -31,6 +31,7 @@ const SLOT_NAMES: Record<EventVariant, string[]> = {
   month: ['month-event', 'event'],
   'month-timed': ['month-event', 'event'],
   list: ['event'],
+  agenda: ['agenda-event', 'event'],
 }
 
 const slotProps = computed<EventSlotProps<unknown>>(() => {
@@ -38,7 +39,14 @@ const slotProps = computed<EventSlotProps<unknown>>(() => {
   const { locale, hour12 } = ctx.options.value
   const accessors = ctx.accessors.value
   let timeText = ''
-  if (!occ.allDay) {
+  if (props.variant === 'agenda') {
+    // One row per day: show the part of the occurrence that falls on that day.
+    const { isStart, isEnd } = props
+    if (occ.allDay || (!isStart && !isEnd)) timeText = ctx.options.value.messages.allDay
+    else if (isStart && isEnd) timeText = formatTimeRange(occ.start, occ.end, locale, { hour12 })
+    else if (isStart) timeText = `${formatTime(occ.start, locale, { hour12 })} →`
+    else timeText = `→ ${formatTime(occ.end, locale, { hour12 })}`
+  } else if (!occ.allDay) {
     timeText =
       props.variant === 'month-timed'
         ? formatTime(occ.start, locale, { hour12, compact: true })
@@ -64,7 +72,11 @@ const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
 
 const draggable = computed(
-  () => !props.mirror && props.variant !== 'list' && interaction.canDrag(props.occurrence),
+  () =>
+    !props.mirror &&
+    props.variant !== 'list' &&
+    props.variant !== 'agenda' &&
+    interaction.canDrag(props.occurrence),
 )
 // Timed events resize on the time grid only; all-day events in day rows.
 const resizable = computed(
@@ -182,7 +194,12 @@ function onKeydown(e: KeyboardEvent) {
   >
     <RenderSlot v-if="eventSlot" :fn="eventSlot" :scope="slotProps" />
     <RenderSlot v-else :fn="contentSlot" :scope="slotProps">
-      <template v-if="variant === 'month-timed' || variant === 'list'">
+      <template v-if="variant === 'agenda'">
+        <span class="orb-event__time">{{ slotProps.timeText }}</span>
+        <span class="orb-event__dot" aria-hidden="true" />
+        <span class="orb-event__title">{{ slotProps.title }}</span>
+      </template>
+      <template v-else-if="variant === 'month-timed' || variant === 'list'">
         <span class="orb-event__dot" aria-hidden="true" />
         <span v-if="slotProps.timeText" class="orb-event__time">{{ slotProps.timeText }}</span>
         <span class="orb-event__title">{{ slotProps.title }}</span>
