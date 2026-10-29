@@ -3,9 +3,9 @@
 Modular scheduler and calendar components for Vue 3: views as child components, a slot for every
 part, typed emits, full RRULE recurrence and time-zone support, and a framework-free core.
 
-> Status: in development. Phases 1–4 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
-> day/week/N-day/month/agenda views, drag/resize/select, keyboard, responsive and touch). The
-> resource timeline is next.
+> Status: in development. Phases 1–5 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
+> day/week/N-day/month/agenda views, drag/resize/select, keyboard, responsive and touch, resources
+> and the timeline). Polish (year view, undo/redo, performance pass) is next.
 
 ## Quick start
 
@@ -65,6 +65,41 @@ Views register themselves in the order they are declared; the first one is the d
 view with `v-if`, give it its own settings with props (`slot-duration`, `day-start-time`,
 `hidden-days`, ...), and give it its own slots to override the scheduler-wide ones.
 
+## Resources and the timeline
+
+```vue
+<Scheduler :events="events" :resources="resources" editable selectable>
+  <TimelineView />                                    <!-- one day, hourly columns -->
+  <TimelineView name="tl-week" period="week" />       <!-- one column per day -->
+  <DayView name="crews" :resources="['crew-1', 'crew-2']" />
+  <WeekView name="rooms" resources group-by="date" />
+</Scheduler>
+```
+
+```ts
+const resources: SchedulerResource[] = [
+  { id: 'cranes', title: 'Cranes', color: '#ea580c' },
+  { id: 'crane-1', title: 'Tower crane 1', parentId: 'cranes' }, // inherits the group color
+]
+const events = [{ id: 1, start: '...', end: '...', resourceId: 'crane-1' }] // or resourceIds: [...]
+```
+
+- **Timeline**: a row per resource, events stacked in lanes, groups (`parentId`) that expand and
+  collapse. Only the visible rows are rendered, so hundreds of resources stay fast; use
+  `visible-resources-change` to load events for just the rows on screen. Props: `period`
+  (`day` / `week` / `month`) or `days`, `slot-duration` (1440 = day columns), `slot-width`,
+  `day-start-time` / `day-end-time`, `event-height`, `row-min-height`, `resource-area-width`,
+  `resource-ids`.
+- **Resource columns**: `resources` on `DayView` / `WeekView` shows a column per resource (all
+  resources without children for `true`, or a list of ids); `group-by="date"` puts the resources
+  inside each day instead. Set `--orb-tg-column-min-width` to scroll sideways instead of squeezing.
+- Dragging to another row or column moves the event to that resource: `event-drop` carries
+  `resourceIds` and `oldResourceIds`, `applyEventEdit` writes them, `select` and slot clicks
+  carry `resourceId`. On a timeline, Alt + up/down moves the focused event to the previous/next
+  row.
+- Events without a color use their resource's color. Events without a resource do not show in
+  resource views. Custom resource shapes work with `resource-accessors`.
+
 ## Dates
 
 | Value | Meaning |
@@ -120,7 +155,7 @@ function onChange(p: EventChangedPayload<SchedulerEvent>) {
 | Arrows | Move focus over slots / day cells (past the edge goes to the previous/next period) |
 | Shift + arrows, then Enter | Select a range |
 | Enter / Space | Click the focused slot or event |
-| Alt + arrows | Move the focused event by a snap step / a day |
+| Alt + arrows | Move the focused event by a snap step / a day (timeline: left/right in time, up/down to another resource) |
 | Alt + Shift + arrows | Resize the focused event |
 | Delete / Backspace | `event-delete` for the focused event |
 | PageUp / PageDown, T | Previous / next period, today |
@@ -135,8 +170,9 @@ Changes are announced to screen readers through a live region; texts are in `mes
 `event-click` / `-dblclick` / `-contextmenu` / `-mouseenter` / `-mouseleave` / `-keydown`,
 `slot-click` / `-dblclick` / `-contextmenu`, `date-click`, `more-click` (cancelable),
 `event-drag-start` (cancelable), `event-drag`, `event-drag-cancel`, `before-event-drop` /
-`event-drop`, `before-event-resize` / `event-resize`, `event-delete`, `select`, `unselect`, plus
-`update:date` and `update:view` for `v-model`.
+`event-drop`, `before-event-resize` / `event-resize`, `event-delete`, `select`, `unselect`,
+`resource-click`, `resource-toggle`, `visible-resources-change`, plus `update:date` and
+`update:view` for `v-model`.
 
 Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 
@@ -145,7 +181,8 @@ Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 `toolbar`, `toolbar-start`, `toolbar-center`, `toolbar-end`, `title`, `event`, `event-content`,
 `time-event`, `all-day-event`, `month-event`, `day-header`, `all-day-label`, `time-label`,
 `time-slot`, `month-weekday`, `month-cell`, `more-link`, `more-popover`, `now-indicator`,
-`agenda-event`, `agenda-day-header`, `agenda-empty`.
+`agenda-event`, `agenda-day-header`, `agenda-empty`, `timeline-event`, `timeline-header`,
+`resource-label`, `resource-area-header`.
 See `SchedulerSlots` in [src/types.ts](src/types.ts) for the props each one receives.
 
 ## Theming
@@ -168,8 +205,9 @@ field (or the `color` accessor).
 ## Headless use
 
 `orb-scheduler/core` has no Vue dependency: `EventStore`, RRULE parsing and expansion, range
-strategies, and layout algorithms. The composables (`useScheduler`, `useSchedulerView`,
-`useTimeGrid`, `useMonthGrid`) give you the state and layout without any markup.
+strategies, resource trees, and layout algorithms (time grid, day rows, timeline). The
+composables (`useScheduler`, `useSchedulerView`, `useTimeGrid`, `useMonthGrid`, `useTimeline`)
+give you the state and layout without any markup.
 
 ## Development
 

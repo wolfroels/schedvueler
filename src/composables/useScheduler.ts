@@ -18,7 +18,11 @@ import {
 import {
   EventStore,
   Temporal,
+  buildResourceTree,
   createAccessors,
+  createResourceAccessors,
+  visibleResources as visibleResourceNodes,
+  type ResourceId,
   now as zonedNow,
   rangeToWindow,
   systemTimeZone,
@@ -139,6 +143,20 @@ export function useScheduler<T>(
       version.value = store.version
     },
     { immediate: true, deep: 1 },
+  )
+
+  // --- resources --------------------------------------------------------------------------------
+
+  const resourceAccessorsInput = computed(() => raw.value.resourceAccessors)
+  const resourceAccessors = computed(() => createResourceAccessors(resourceAccessorsInput.value))
+  const resourcesInput = computed(() => raw.value.resources)
+  const resources = computed(() =>
+    buildResourceTree(resourcesInput.value ?? [], resourceAccessors.value),
+  )
+  const resourceMap = computed(() => new Map(resources.value.map((r) => [r.id, r])))
+  const collapsedResources = shallowRef<ReadonlySet<ResourceId>>(new Set())
+  const visibleResources = computed(() =>
+    visibleResourceNodes(resources.value, collapsedResources.value),
   )
 
   // --- current time ----------------------------------------------------------------------------
@@ -287,6 +305,22 @@ export function useScheduler<T>(
     title,
     today,
     now,
+    resources,
+    resourceMap,
+    collapsedResources,
+    visibleResources,
+    toggleResource(id, expanded) {
+      const node = resourceMap.value.get(id)
+      if (!node || !node.childIds.length) return
+      const isExpanded = !collapsedResources.value.has(id)
+      const next = expanded ?? !isExpanded
+      if (next === isExpanded) return
+      const set = new Set(collapsedResources.value)
+      if (next) set.delete(id)
+      else set.add(id)
+      collapsedResources.value = set
+      emit('resource-toggle', { resource: node, expanded: next })
+    },
     registerView(view) {
       views.value = [...views.value, view]
     },

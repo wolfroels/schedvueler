@@ -10,6 +10,7 @@ import {
   type EventOccurrence,
   type EventTimes,
   type Hit,
+  type ResourceId,
 } from '../core'
 import type { EventChangeKind, SelectPayload } from '../types'
 import { createCancelable } from './cancelable'
@@ -20,6 +21,20 @@ export interface DragSurface {
   hitTest(clientX: number, clientY: number): Hit | null
   /** Scroll container to auto-scroll near its edges while dragging. */
   scrollElement?: () => HTMLElement | null | undefined
+  /** Minutes to snap gestures that start on this surface to. Defaults to the scheduler's. */
+  snapMinutes?: () => number
+}
+
+/** A keyboard move or resize step. */
+export interface KeyboardStep {
+  days?: number
+  minutes?: number
+  /** Step along a timeline: all-day events then move by whole days of minutes. */
+  timeline?: boolean
+  /** Resource the event is shown on, and the one to move it to. */
+  fromResource?: ResourceId
+  toResource?: ResourceId
+  snapMinutes?: number
 }
 
 export interface DragState {
@@ -69,7 +84,7 @@ export interface SchedulerInteraction {
     occurrence: EventOccurrence<unknown>,
     kind: EventChangeKind,
     view: string,
-    step: { days?: number; minutes?: number },
+    step: KeyboardStep,
   ): void
   /** Sets the selection from the keyboard; `commit` emits `select`. */
   setSelection(view: string, times: EventTimes | null, commit?: KeyboardEvent): void
@@ -89,9 +104,9 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
   const raw = () => ctx.options.value.raw
   const snapMinutes = () => raw().snapDuration ?? ctx.options.value.slotDuration
-  const computeOptions = () => ({
+  const computeOptions = (snap = snapMinutes()) => ({
     timeZone: ctx.options.value.timeZone,
-    snapMinutes: snapMinutes(),
+    snapMinutes: snap,
     defaultDurationMinutes: raw().defaultEventDuration ?? 60,
   })
 
@@ -113,10 +128,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     return committedSelection.value ? { ...committedSelection.value, pending: false } : null
   })
 
-  function hit(x: number, y: number): Hit | null {
+  function hit(x: number, y: number): { hit: Hit; surface: DragSurface } | null {
     for (const surface of surfaces) {
       const h = surface.hitTest(x, y)
-      if (h) return h
+      if (h) return { hit: h, surface }
     }
     return null
   }
@@ -139,8 +154,24 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     times: EventTimes,
   ) {
     const o = raw()
-    if (kind === 'select') return o.canSelect ? o.canSelect({ ...times }) : true
-    return o.canDrop && occ ? o.canDrop({ occurrence: occ, kind, ...times }) : true
+    if (kind === 'select') return o.canSelect ? o.canSelect(selectInfo(times)) : true
+    return o.canDrop && occ
+      ? o.canDrop({
+          occurrence: occ,
+          kind,
+          ...times,
+          resourceIds: times.resourceIds ?? occ.resourceIds,
+        })
+      : true
+  }
+
+  function selectInfo(times: EventTimes) {
+    return {
+      start: times.start,
+      end: times.end,
+      allDay: times.allDay,
+      resourceId: times.resourceIds?.[0],
+    }
   }
 
   function describe(times: EventTimes): string {
@@ -175,7 +206,9 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       oldStart: occ.start,
       oldEnd: occ.end,
       oldAllDay: occ.allDay,
+      oldResourceIds: occ.resourceIds,
       ...times,
+      resourceIds: times.resourceIds ?? occ.resourceIds,
       recurring: occ.recurring,
       scope: raw().recurrenceEditScope ?? 'this',
       nativeEvent,
@@ -210,7 +243,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
   function emitSelect(view: string, times: EventTimes, nativeEvent: PointerEvent | KeyboardEvent) {
     committedSelection.value = { view, times }
-    const payload: SelectPayload = { view, ...times, nativeEvent }
+    const payload: SelectPayload = { view, ...selectInfo(times), nativeEvent }
     ctx.emit('select', payload)
     ctx.announce(ctx.options.value.messages.selected(describe(times)))
   }
@@ -230,8 +263,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     occ: EventOccurrence<unknown> | undefined,
   ) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
-    const origin = hit(e.clientX, e.clientY)
-    if (!origin) return
+    const found = hit(e.clientX, e.clientY)
+    if (!found) return
+    const origin = found.hit
+    const opts = computeOptions(found.surface.snapMinutes?.() ?? snapMinutes())
 
     const touch = e.pointerType !== 'mouse'
     const pointerId = e.pointerId
@@ -271,9 +306,8 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     const update = (x: number, y: number) => {
       const s = state.value
       if (!s) return
-      const current = hit(x, y)
+      const current = hit(x, y)?.hit
       if (!current) return
-      const opts = computeOptions()
       let preview: EventTimes | null
       if (kind === 'select') preview = computeSelection(origin, current, opts)
       else if (kind === 'move') preview = computeMove(occ!, origin, current, opts)
@@ -289,24 +323,33 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       const valid = isValid(kind, occ, preview)
       state.value = { ...s, preview, valid }
       if (occ && kind !== 'select')
-        ctx.emit('event-drag', { ...base(occ, view, kind), ...preview, valid })
+        ctx.emit('event-drag', {
+          ...base(occ, view, kind),
+          ...preview,
+          resourceIds: preview.resourceIds ?? occ.resourceIds,
+          valid,
+        })
     }
 
     const autoScroll = () => {
       if (!active) return
+      const edgeSpeed = (pos: number, start: number, end: number) =>
+        pos < start + EDGE
+          ? -(start + EDGE - pos) / 3
+          : pos > end - EDGE
+            ? (pos - end + EDGE) / 3
+            : 0
       for (const surface of surfaces) {
         const el = surface.scrollElement?.()
         if (!el) continue
         const rect = el.getBoundingClientRect()
-        if (lastX < rect.left || lastX > rect.right) continue
-        const speed =
-          lastY < rect.top + EDGE
-            ? -(rect.top + EDGE - lastY) / 3
-            : lastY > rect.bottom - EDGE
-              ? (lastY - rect.bottom + EDGE) / 3
-              : 0
-        if (speed) {
-          el.scrollTop += speed
+        if (lastX < rect.left || lastX > rect.right || lastY < rect.top || lastY > rect.bottom)
+          continue
+        const dy = edgeSpeed(lastY, rect.top, rect.bottom)
+        const dx = el.scrollWidth > el.clientWidth ? edgeSpeed(lastX, rect.left, rect.right) : 0
+        if (dx || dy) {
+          el.scrollTop += dy
+          el.scrollLeft += dx
           update(lastX, lastY)
         }
       }
@@ -373,7 +416,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       if (!s.valid) return abort('invalid')
       state.value = null
       if (kind === 'select') return emitSelect(view, s.preview, ev)
-      const occTimes = { start: occ!.start, end: occ!.end, allDay: occ!.allDay }
+      const occTimes = {
+        start: occ!.start,
+        end: occ!.end,
+        allDay: occ!.allDay,
+        resourceIds: occ!.resourceIds,
+      }
       if (sameTimes(s.preview, occTimes)) return abort('unchanged')
       commit(occ!, kind, view, s.preview, ev)
     }
@@ -418,13 +466,25 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     },
     keyboardChange(e, occ, kind, view, step) {
       if (kind === 'move' ? !canDrag(occ) : !canResize(occ)) return
-      const opts = computeOptions()
+      const opts = computeOptions(step.snapMinutes)
       const tz = opts.timeZone
       const date = occ.start.withTimeZone(tz).toPlainDate()
       const days = step.days ?? 0
       const minutes = step.minutes ?? 0
       let times: EventTimes | null
-      if (occ.allDay) {
+      if (step.timeline) {
+        const from: Hit = { zone: 'timeline', date, minute: 0, resourceId: step.fromResource }
+        const to: Hit = {
+          zone: 'timeline',
+          date: date.add({ days }),
+          minute: minutes,
+          resourceId: step.toResource ?? step.fromResource,
+        }
+        times =
+          kind === 'move'
+            ? computeMove(occ, from, to, opts)
+            : computeResize(occ, kind === 'resize-start' ? 'start' : 'end', from, to, opts)
+      } else if (occ.allDay) {
         if (minutes) return
         const from: Hit = { zone: 'all-day', date }
         const to: Hit = { zone: 'all-day', date: date.add({ days }) }
@@ -440,7 +500,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
             ? computeMove(occ, from, to, opts)
             : computeResize(occ, kind === 'resize-start' ? 'start' : 'end', from, to, opts)
       }
-      if (!times || !isValid(kind, occ, times)) return
+      if (!times || sameTimes(times, occ) || !isValid(kind, occ, times)) return
       e.preventDefault()
       commit(occ, kind, view, times, e)
     },

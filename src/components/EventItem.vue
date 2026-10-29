@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatDate, formatTime, formatTimeRange, type EventOccurrence } from '../core'
+import {
+  formatDate,
+  formatTime,
+  formatTimeRange,
+  type EventOccurrence,
+  type ResourceId,
+} from '../core'
 import { useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
+import type { KeyboardStep } from '../composables/useInteraction'
 import type { EventChangeKind, EventSlotProps, EventVariant } from '../types'
 import { RenderSlot } from './RenderSlot'
 
@@ -18,6 +25,10 @@ const props = withDefaults(
     mirror?: boolean
     /** For the drag preview: false when the current spot is not allowed. */
     valid?: boolean
+    /** Resource of the column or timeline row this event is shown in. */
+    resourceId?: ResourceId
+    /** Minutes per keyboard step; defaults to the scheduler's snap. */
+    snapMinutes?: number
   }>(),
   { isStart: true, isEnd: true, mirror: false, valid: true },
 )
@@ -32,6 +43,7 @@ const SLOT_NAMES: Record<EventVariant, string[]> = {
   'month-timed': ['month-event', 'event'],
   list: ['event'],
   agenda: ['agenda-event', 'event'],
+  timeline: ['timeline-event', 'event'],
 }
 
 const slotProps = computed<EventSlotProps<unknown>>(() => {
@@ -63,7 +75,10 @@ const slotProps = computed<EventSlotProps<unknown>>(() => {
     isStart: props.isStart,
     isEnd: props.isEnd,
     isPast: occ.endMs <= ctx.now.value.epochMilliseconds,
-    color: accessors.color(occ.event),
+    color:
+      accessors.color(occ.event) ??
+      ctx.resourceMap.value.get(props.resourceId ?? occ.resourceIds[0]!)?.color,
+    resourceId: props.resourceId,
   }
 })
 
@@ -78,11 +93,12 @@ const draggable = computed(
     props.variant !== 'agenda' &&
     interaction.canDrag(props.occurrence),
 )
-// Timed events resize on the time grid only; all-day events in day rows.
+// Timed events resize on the time grid and timeline; all-day events in day rows and the timeline.
 const resizable = computed(
   () =>
     !props.mirror &&
     (props.variant === 'time' ||
+      props.variant === 'timeline' ||
       (props.occurrence.allDay && (props.variant === 'all-day' || props.variant === 'month'))) &&
     interaction.canResize(props.occurrence),
 )
@@ -124,6 +140,27 @@ const ARROWS: Record<string, { days?: number; minutes?: number }> = {
   ArrowDown: { minutes: 1 },
 }
 
+/**
+ * On a timeline, Alt + left/right moves along the time axis (all-day events by a day), and
+ * Alt + up/down moves to the previous/next resource row. Shift resizes the end instead.
+ */
+function timelineKey(e: KeyboardEvent, arrow: { days?: number; minutes?: number }) {
+  const occ = props.occurrence
+  const snap = props.snapMinutes ?? ctx.options.value.slotDuration
+  const unit = occ.allDay ? Math.max(1440, Math.round(snap / 1440) * 1440) : snap
+  const step: KeyboardStep = { timeline: true, fromResource: props.resourceId, snapMinutes: snap }
+  if (arrow.days) step.minutes = arrow.days * unit
+  else if (e.shiftKey) return
+  else {
+    const rows = ctx.visibleResources.value
+    const index = rows.findIndex((r) => r.id === props.resourceId)
+    const target = rows[index + (arrow.minutes ?? 0)]
+    if (index < 0 || !target) return
+    step.toResource = target.id
+  }
+  interaction.keyboardChange(e, occ, e.shiftKey ? 'resize-end' : 'move', props.view, step)
+}
+
 function onKeydown(e: KeyboardEvent) {
   ctx.emit('event-keydown', payload(e))
   if (e.defaultPrevented) return
@@ -133,9 +170,14 @@ function onKeydown(e: KeyboardEvent) {
     return
   }
   const arrow = ARROWS[e.key]
+  if (arrow && e.altKey && props.variant === 'timeline') {
+    timelineKey(e, arrow)
+    return
+  }
   if (arrow && e.altKey) {
     // Alt + arrows moves by a snap step or a day; with Shift it resizes the end instead.
-    const snap = ctx.options.value.raw.snapDuration ?? ctx.options.value.slotDuration
+    const snap =
+      props.snapMinutes ?? ctx.options.value.raw.snapDuration ?? ctx.options.value.slotDuration
     const step = { days: arrow.days, minutes: arrow.minutes && arrow.minutes * snap }
     interaction.keyboardChange(
       e,
@@ -204,7 +246,7 @@ function onKeydown(e: KeyboardEvent) {
         <span v-if="slotProps.timeText" class="orb-event__time">{{ slotProps.timeText }}</span>
         <span class="orb-event__title">{{ slotProps.title }}</span>
       </template>
-      <template v-else-if="variant === 'time'">
+      <template v-else-if="variant === 'time' || variant === 'timeline'">
         <span class="orb-event__title">{{ slotProps.title }}</span>
         <span class="orb-event__time">{{ slotProps.timeText }}</span>
       </template>

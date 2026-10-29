@@ -5,8 +5,15 @@ export { default as WeekView } from './WeekView.vue'
 export { default as MonthView } from './MonthView.vue'
 export { default as AgendaView } from './AgendaView.vue'
 export { default as AgendaList } from './AgendaList.vue'
+export { default as TimelineView } from './TimelineView.vue'
+export { default as Timeline } from './Timeline.vue'
 export { default as TimeGrid } from './TimeGrid.vue'
 export { default as MonthGrid } from './MonthGrid.vue'
 export { default as EventItem } from './EventItem.vue'
 export { RenderSlot } from './RenderSlot'
-export type { TimeGridViewProps } from './view-props'
+export type {
+  TimeGridViewProps,
+  TimelineViewProps,
+  TimelineSettings,
+  ViewPeriod,
+} from './view-props'

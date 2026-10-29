@@ -6,6 +6,7 @@ import {
   MonthView,
   Scheduler,
   Temporal,
+  TimelineView,
   WeekView,
   applyEventEdit,
   formatTimeRange,
@@ -19,11 +20,12 @@ import {
   type SchedulerEvent,
   type SlotPointerPayload,
 } from '../src'
-import { generateEvents } from './data'
+import { generateEvents, generateResources } from './data'
 
 // --- settings ------------------------------------------------------------------------------------
 
 const eventCount = ref(400)
+const resourceCount = ref(9)
 const timeZone = ref('Europe/Brussels')
 const locale = ref('en-GB')
 const theme = ref<'light' | 'dark'>('light')
@@ -48,11 +50,18 @@ const date = ref<string>()
 const view = ref('week')
 
 const today = Temporal.Now.plainDateISO()
-const events = shallowRef<SchedulerEvent[]>(generateEvents(eventCount.value, today))
-watch(eventCount, (count) => {
+const resources = shallowRef(generateResources(resourceCount.value))
+const events = shallowRef<SchedulerEvent[]>(
+  generateEvents(eventCount.value, today, resources.value),
+)
+watch([eventCount, resourceCount], ([count, resourceTotal]) => {
   const t = performance.now()
-  events.value = generateEvents(count, today)
-  log('data', `generated ${count} events in ${(performance.now() - t).toFixed(1)} ms`)
+  resources.value = generateResources(resourceTotal)
+  events.value = generateEvents(count, today, resources.value)
+  log(
+    'data',
+    `generated ${count} events, ${resources.value.length} resources in ${(performance.now() - t).toFixed(1)} ms`,
+  )
 })
 
 const cssVars = computed(() => ({
@@ -104,7 +113,9 @@ function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
     scope: p.scope,
     timeZone: timeZone.value,
   })
-  log(name, `${title(p.event)} → ${fmtTimes(p)}${p.recurring ? ` [${p.scope}]` : ''}`)
+  const moved =
+    p.resourceIds.join() !== p.oldResourceIds.join() ? ` @ ${p.resourceIds.join(', ')}` : ''
+  log(name, `${title(p.event)} → ${fmtTimes(p)}${moved}${p.recurring ? ` [${p.scope}]` : ''}`)
 }
 
 function onDelete(p: EventDeletePayload<SchedulerEvent>) {
@@ -126,6 +137,7 @@ function onSelect(p: SelectPayload) {
           start: p.start.toPlainDate().toString(),
           end: p.end.toPlainDate().toString(),
           color: '#ca8a04',
+          resourceId: p.resourceId,
         }
       : {
           id,
@@ -133,6 +145,7 @@ function onSelect(p: SelectPayload) {
           start: p.start.toString(),
           end: p.end.toString(),
           color: '#ca8a04',
+          resourceId: p.resourceId,
         },
   ]
   scheduler.value?.clearSelection()
@@ -165,13 +178,20 @@ function onSlotDblClick(p: SlotPointerPayload) {
   events.value = [
     ...events.value,
     p.allDay
-      ? { id, title: 'New all-day event', start: p.date.toString(), color: '#ca8a04' }
+      ? {
+          id,
+          title: 'New all-day event',
+          start: p.date.toString(),
+          color: '#ca8a04',
+          resourceId: p.resourceId,
+        }
       : {
           id,
           title: 'New event',
           start: p.start.toString(),
           end: p.start.add({ minutes: 60 }).toString(),
           color: '#ca8a04',
+          resourceId: p.resourceId,
         },
   ]
   log('slot-dblclick', `added event at ${p.allDay ? p.date : p.start.toPlainDateTime().toString()}`)
@@ -193,6 +213,14 @@ function onSlotDblClick(p: SlotPointerPayload) {
             <option :value="2000">2 000</option>
             <option :value="10000">10 000</option>
             <option :value="20000">20 000</option>
+          </select>
+        </label>
+        <label>
+          Resources
+          <select v-model.number="resourceCount">
+            <option :value="9">9</option>
+            <option :value="60">60</option>
+            <option :value="600">600</option>
           </select>
         </label>
         <p class="pg__hint">
@@ -311,6 +339,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         v-model:date="date"
         v-model:view="view"
         :events="events"
+        :resources="resources"
         :time-zone="timeZone"
         :locale="locale"
         :theme="theme"
@@ -340,6 +369,17 @@ function onSlotDblClick(p: SlotPointerPayload) {
         @event-delete="onDelete"
         @select="onSelect"
         @unselect="log('unselect')"
+        @resource-click="(p) => log('resource-click', p.resource.title)"
+        @resource-toggle="
+          (p) => log('resource-toggle', `${p.resource.title}: ${p.expanded ? 'open' : 'closed'}`)
+        "
+        @visible-resources-change="
+          (p) =>
+            log(
+              'visible-resources-change',
+              `${p.resourceIds.length} rows: ${p.resourceIds[0]} … ${p.resourceIds.at(-1)}`,
+            )
+        "
       >
         <template v-if="customEvents" #time-event="{ title, timeText, color }">
           <div class="pg-event" :style="{ '--c': color ?? accent }">
@@ -361,6 +401,27 @@ function onSlotDblClick(p: SlotPointerPayload) {
         />
         <MonthView />
         <AgendaView />
+        <DayView
+          name="day-resources"
+          label="Day × crews"
+          :resources="['crews-1', 'crews-2', 'crews-3', 'cranes-1']"
+          :min-width="600"
+        />
+        <WeekView
+          name="week-resources"
+          label="Week × crews"
+          :resources="['crews-1', 'crews-2']"
+          group-by="date"
+          :min-width="600"
+        />
+        <TimelineView label="Timeline" day-start-time="06:00" day-end-time="20:00" />
+        <TimelineView name="timeline-week" label="Timeline week" period="week" />
+        <TimelineView
+          name="timeline-month"
+          label="Timeline month"
+          period="month"
+          :slot-width="56"
+        />
       </Scheduler>
     </main>
   </div>

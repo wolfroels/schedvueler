@@ -5,6 +5,9 @@ import type {
   EventOccurrence,
   RangeStrategy,
   RecurrenceEditScope,
+  ResourceAccessors,
+  ResourceId,
+  ResourceNode,
   Temporal,
   TimeGridLayoutAlgorithm,
   VisibleRange,
@@ -33,6 +36,8 @@ export interface SchedulerMessages {
   dragCancelled: string
   /** Announced when a range was selected. */
   selected: (when: string) => string
+  /** Heading of the timeline's resource column. */
+  resources: string
 }
 
 export const defaultMessages: SchedulerMessages = {
@@ -49,6 +54,7 @@ export const defaultMessages: SchedulerMessages = {
   eventChanged: (title, when) => `${title} moved to ${when}`,
   dragCancelled: 'Move cancelled',
   selected: (when) => `Selected ${when}`,
+  resources: 'Resources',
 }
 
 /** Extra attributes for an event or a cell; merged onto the element the scheduler renders. */
@@ -98,6 +104,15 @@ export interface SchedulerOptions<T> {
   nowIndicator?: boolean
   messages?: Partial<SchedulerMessages>
 
+  // --- resources ---
+  /**
+   * Resources (people, rooms, machines) for the timeline and resource columns. Events are linked
+   * with `resourceId` / `resourceIds`. Any shape works with `resourceAccessors`.
+   */
+  resources?: readonly unknown[]
+  /** Reads resource fields from custom resource objects. */
+  resourceAccessors?: Partial<ResourceAccessors<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
+
   // --- interaction ---
   /** Lets users move and resize events. Default false. */
   editable?: boolean
@@ -137,12 +152,16 @@ export interface DropInfo<T> {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  /** Resources the event would have after the drop. */
+  resourceIds: readonly ResourceId[]
 }
 
 export interface SelectInfo {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  /** Resource the range is selected on (resource columns, timeline rows). */
+  resourceId?: ResourceId
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -224,6 +243,8 @@ export interface SlotPointerPayload {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  /** Resource of the column or timeline row. */
+  resourceId?: ResourceId
   nativeEvent: MouseEvent
   element: HTMLElement
 }
@@ -264,6 +285,7 @@ export interface EventDragPayload<T> {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  resourceIds: readonly ResourceId[]
   /** False when `canDrop` refuses this spot. */
   valid: boolean
 }
@@ -286,9 +308,12 @@ export interface EventChangePayload<T> {
   oldStart: Temporal.ZonedDateTime
   oldEnd: Temporal.ZonedDateTime
   oldAllDay: boolean
+  oldResourceIds: readonly ResourceId[]
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  /** Resources after the change; differs from `oldResourceIds` when moved to another resource. */
+  resourceIds: readonly ResourceId[]
   /** True for generated occurrences of a recurring event. */
   recurring: boolean
   /**
@@ -323,7 +348,32 @@ export interface SelectPayload {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   allDay: boolean
+  /** Resource the range was selected on. */
+  resourceId?: ResourceId
   nativeEvent: PointerEvent | KeyboardEvent
+}
+
+export interface ResourcePointerPayload {
+  resource: ResourceNode<unknown>
+  view: string
+  nativeEvent: MouseEvent
+  element: HTMLElement
+}
+
+export interface ResourceTogglePayload {
+  resource: ResourceNode<unknown>
+  expanded: boolean
+}
+
+/** The resources shown in a timeline changed (scrolling, collapsing, navigating). */
+export interface VisibleResourcesPayload {
+  view: string
+  /** Ids of the rendered rows, including the overscan. */
+  resourceIds: ResourceId[]
+  start: Temporal.PlainDate
+  end: Temporal.PlainDate
+  startMs: number
+  endMs: number
 }
 
 export interface SchedulerEmits<T> {
@@ -367,13 +417,20 @@ export interface SchedulerEmits<T> {
   select: [payload: SelectPayload]
   /** The selection was cleared. */
   unselect: []
+  /** A resource label was clicked. */
+  'resource-click': [payload: ResourcePointerPayload]
+  /** A resource group was expanded or collapsed. */
+  'resource-toggle': [payload: ResourceTogglePayload]
+  /** Different timeline rows came into view. Use it to load events for just those resources. */
+  'visible-resources-change': [payload: VisibleResourcesPayload]
 }
 
 // ---------------------------------------------------------------------------------------------
 // Slot props
 // ---------------------------------------------------------------------------------------------
 
-export type EventVariant = 'time' | 'all-day' | 'month' | 'month-timed' | 'list' | 'agenda'
+export type EventVariant =
+  'time' | 'all-day' | 'month' | 'month-timed' | 'list' | 'agenda' | 'timeline'
 
 export interface EventSlotProps<T> {
   occurrence: EventOccurrence<T>
@@ -388,7 +445,10 @@ export interface EventSlotProps<T> {
   isStart: boolean
   isEnd: boolean
   isPast: boolean
+  /** The event's color, or else the color of its (first) resource. */
   color: string | undefined
+  /** Resource of the column or timeline row the event is shown in. */
+  resourceId: ResourceId | undefined
 }
 
 export interface ToolbarSlotProps {
@@ -417,6 +477,7 @@ export interface TimeLabelSlotProps {
 export interface TimeSlotSlotProps {
   view: string
   date: Temporal.PlainDate
+  resourceId?: ResourceId
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
   isToday: boolean
@@ -453,6 +514,26 @@ export interface AgendaDayHeaderSlotProps {
   count: number
 }
 
+export interface ResourceLabelSlotProps {
+  view: string
+  resource: ResourceNode<unknown>
+  title: string
+  /** Timeline only: nesting depth, and whether the group is expanded. */
+  depth: number
+  expanded: boolean
+  hasChildren: boolean
+  toggle(): void
+}
+
+export interface TimelineHeaderSlotProps {
+  view: string
+  date: Temporal.PlainDate
+  /** Wall-clock minute of the slot, or `undefined` for a day heading. */
+  minute: number | undefined
+  label: string
+  isToday: boolean
+}
+
 export interface NowIndicatorSlotProps {
   now: Temporal.ZonedDateTime
   label: string
@@ -462,7 +543,7 @@ type SlotFn<P> = (props: P) => VNodeChild
 
 /**
  * Every customizable part. View-specific event slots (`time-event`, `all-day-event`,
- * `month-event`, `agenda-event`) win over `event`; `event-content` only replaces what is inside the default chip.
+ * `month-event`, `agenda-event`, `timeline-event`) win over `event`; `event-content` only replaces what is inside the default chip.
  */
 export interface SchedulerSlots<T> {
   default?: () => VNodeChild
@@ -488,4 +569,11 @@ export interface SchedulerSlots<T> {
   'agenda-event'?: SlotFn<EventSlotProps<T>>
   'agenda-day-header'?: SlotFn<AgendaDayHeaderSlotProps>
   'agenda-empty'?: SlotFn<{ view: string; label: string }>
+  'timeline-event'?: SlotFn<EventSlotProps<T>>
+  /** A resource heading (time-grid columns) or row label (timeline). */
+  'resource-label'?: SlotFn<ResourceLabelSlotProps>
+  /** Top-left corner above the timeline's resource column. */
+  'resource-area-header'?: SlotFn<{ view: string; label: string }>
+  /** Day and slot headings of the timeline. */
+  'timeline-header'?: SlotFn<TimelineHeaderSlotProps>
 }

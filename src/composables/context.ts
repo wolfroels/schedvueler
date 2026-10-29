@@ -10,6 +10,8 @@ import type {
   EventAccessors,
   EventOccurrence,
   EventStore,
+  ResourceId,
+  ResourceNode,
   Temporal,
   TimeGridLayoutAlgorithm,
   TimeWindow,
@@ -71,6 +73,16 @@ export interface SchedulerContext<T = unknown> {
   today: ComputedRef<Temporal.PlainDate>
   /** Current time, updated every minute. */
   now: Readonly<ShallowRef<Temporal.ZonedDateTime>>
+
+  /** All resources in tree order (parents before their children). */
+  resources: ComputedRef<ResourceNode<unknown>[]>
+  resourceMap: ComputedRef<ReadonlyMap<ResourceId, ResourceNode<unknown>>>
+  /** Resources whose children are hidden. */
+  collapsedResources: Readonly<ShallowRef<ReadonlySet<ResourceId>>>
+  /** Resources not hidden inside a collapsed group. */
+  visibleResources: ComputedRef<ResourceNode<unknown>[]>
+  /** Expands or collapses a resource group; toggles when `expanded` is omitted. */
+  toggleResource(id: ResourceId, expanded?: boolean): void
 
   registerView(view: ViewRegistration): void
   unregisterView(view: ViewRegistration): void

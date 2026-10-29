@@ -23,9 +23,9 @@ export default defineConfigWithVueTs(
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   {
-    // `Scheduler` is the public component name.
+    // `Scheduler` and `Timeline` are public component names.
     name: 'app/component-names',
-    files: ['src/components/Scheduler.vue'],
+    files: ['src/components/Scheduler.vue', 'src/components/Timeline.vue'],
     rules: { 'vue/multi-word-component-names': 'off' },
   },
 

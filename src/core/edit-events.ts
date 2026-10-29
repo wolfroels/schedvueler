@@ -11,6 +11,7 @@ import {
   type RecurrenceRule,
   type RecurrenceSeries,
 } from './recurrence'
+import { sameResourceIds } from './resources'
 import type { EventId, EventOccurrence, SchedulerEvent } from './types'
 
 // Helpers that apply scheduler changes to arrays of the default `SchedulerEvent` shape and return
@@ -46,6 +47,18 @@ function formatTimes(
     end: times.end.withTimeZone(timeZone).toString(),
     allDay: false,
   }
+}
+
+/** The event with the resources from `times`, when the change moved it to other resources. */
+function withResources(
+  event: SchedulerEvent,
+  occurrence: EventOccurrence<SchedulerEvent>,
+  times: EventTimes,
+): SchedulerEvent {
+  const ids = times.resourceIds
+  if (!ids || sameResourceIds(ids, occurrence.resourceIds)) return event
+  const { resourceId: _id, resourceIds: _ids, ...rest } = event
+  return ids.length === 1 ? { ...rest, resourceId: ids[0] } : { ...rest, resourceIds: [...ids] }
 }
 
 function seriesOf(event: SchedulerEvent, timeZone: string): RecurrenceSeries {
@@ -142,6 +155,8 @@ function replace(events: readonly SchedulerEvent[], id: EventId, next: Scheduler
 /**
  * Applies new times to the event behind `occurrence`.
  *
+ * When `times.resourceIds` differs from the occurrence's, the edited event gets those resources.
+ *
  * For recurring events:
  * - "this" adds an exception event that replaces the occurrence
  * - "following" ends the series before the occurrence and starts a new series from the new time
@@ -163,7 +178,11 @@ export function applyEventEdit(
   const zone = event.timezone ?? options.timeZone
 
   if (!occurrence.recurring || !occurrence.recurrenceId) {
-    return replace(events, event.id, { ...event, ...formatTimes(times, zone) })
+    return replace(
+      events,
+      event.id,
+      withResources({ ...event, ...formatTimes(times, zone) }, occurrence, times),
+    )
   }
 
   const series = event
@@ -176,7 +195,7 @@ export function applyEventEdit(
       recurringEventId: series.id,
       recurrenceId: formatRecurrenceId(occurrence.recurrenceId),
     }
-    return [...events, exception]
+    return [...events, withResources(exception, occurrence, times)]
   }
 
   const info = seriesOf(series, options.timeZone)
@@ -188,13 +207,14 @@ export function applyEventEdit(
     const rest = dropExceptions(events, series.id, undefined, options.timeZone)
     const original = recurrencePlain(occurrence.recurrenceId)
     const moved = movedLocal(times, info.timeZone)
-    return replace(rest, series.id, {
+    const updated: SchedulerEvent = {
       ...series,
       ...fields,
       rrule: stringifyRRule(shiftWeekdays(info.rule, dayShift)),
       exdates: shiftDates(series.exdates, info.timeZone, original, moved),
       rdates: shiftDates(series.rdates, info.timeZone, original, moved),
-    })
+    }
+    return replace(rest, series.id, withResources(updated, occurrence, times))
   }
 
   const before = countOccurrencesBefore(info, recurrencePlain(occurrence.recurrenceId))
@@ -219,7 +239,7 @@ export function applyEventEdit(
   }
   const ended: SchedulerEvent = { ...series, rrule: stringifyRRule(truncated) }
   const rest = dropExceptions(events, series.id, occurrence.recurrenceId, options.timeZone)
-  return [...replace(rest, series.id, ended), next]
+  return [...replace(rest, series.id, ended), withResources(next, occurrence, times)]
 }
 
 /**

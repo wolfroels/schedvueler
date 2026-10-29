@@ -59,6 +59,11 @@
   --orb-month-event-gap: 2px;
   --orb-month-week-min-height: 6.5rem;
   --orb-now-width: 2px;
+  /* columns get narrower than this only by scrolling horizontally (resource columns) */
+  --orb-tg-column-min-width: 0px;
+  --orb-tl-resource-width: 12rem;
+  --orb-tl-day-heading-height: 2rem;
+  --orb-tl-slot-heading-height: 1.75rem;
 
   display: flex;
   flex-direction: column;
@@ -301,7 +306,8 @@
 
 .orb-event--time,
 .orb-event--all-day,
-.orb-event--month {
+.orb-event--month,
+.orb-event--timeline {
   padding: var(--orb-event-padding);
   background: var(--orb-event-bg);
   border-left: var(--orb-event-border-width) solid var(--orb-event-color);
@@ -309,7 +315,8 @@
 
 .orb-event--time:hover,
 .orb-event--all-day:hover,
-.orb-event--month:hover {
+.orb-event--month:hover,
+.orb-event--timeline:hover {
   background: var(--orb-event-bg-hover);
 }
 
@@ -366,6 +373,7 @@
 /* single-line events: all-day row and month bars */
 .orb-event--all-day,
 .orb-event--month,
+.orb-event--timeline,
 .orb-event--month-timed,
 .orb-event--list {
   align-items: center;
@@ -374,14 +382,16 @@
 }
 
 .orb-event--all-day.orb-event--continues-before,
-.orb-event--month.orb-event--continues-before {
+.orb-event--month.orb-event--continues-before,
+.orb-event--timeline.orb-event--continues-before {
   border-left-width: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 
 .orb-event--all-day.orb-event--continues-after,
-.orb-event--month.orb-event--continues-after {
+.orb-event--month.orb-event--continues-after,
+.orb-event--timeline.orb-event--continues-after {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -421,21 +431,22 @@
   border: 1px solid var(--orb-color-border);
   border-radius: var(--orb-radius);
   overflow: hidden;
-  --orb-tg-columns: var(--orb-gutter-width) repeat(var(--orb-tg-days), minmax(0, 1fr));
+  --orb-tg-columns: var(--orb-gutter-width)
+    repeat(var(--orb-tg-days), minmax(var(--orb-tg-column-min-width), 1fr));
 }
 
 .orb-tg__scroller {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
 }
 
 .orb-tg__head {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 60;
   background: var(--orb-color-bg);
   border-bottom: 1px solid var(--orb-color-border);
 }
@@ -523,7 +534,7 @@
 .orb-tg__allday {
   display: grid;
   grid-column: 2 / -1;
-  grid-template-columns: repeat(var(--orb-tg-days), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--orb-tg-days), minmax(var(--orb-tg-column-min-width), 1fr));
   grid-template-rows: repeat(var(--orb-allday-rows), var(--orb-allday-event-height));
   row-gap: var(--orb-event-gap);
   min-height: var(--orb-allday-min-height);
@@ -896,7 +907,8 @@
 
 /* all-day and month bars: left and right edges */
 .orb-event--all-day > .orb-event__resizer,
-.orb-event--month > .orb-event__resizer {
+.orb-event--month > .orb-event__resizer,
+.orb-event--timeline > .orb-event__resizer {
   top: 0;
   bottom: 0;
   width: var(--orb-resizer-size);
@@ -904,12 +916,14 @@
 }
 
 .orb-event--all-day > .orb-event__resizer--start,
-.orb-event--month > .orb-event__resizer--start {
+.orb-event--month > .orb-event__resizer--start,
+.orb-event--timeline > .orb-event__resizer--start {
   left: 0;
 }
 
 .orb-event--all-day > .orb-event__resizer--end,
-.orb-event--month > .orb-event__resizer--end {
+.orb-event--month > .orb-event__resizer--end,
+.orb-event--timeline > .orb-event__resizer--end {
   right: 0;
 }
 
@@ -1147,5 +1161,316 @@
   .orb-event--time > .orb-event__resizer--end::after {
     width: 1.5rem;
     height: 3px;
+  }
+}
+
+/* ---------------------------------------------------------------- resource columns ------------ */
+
+/* The time labels stay in view when resource columns scroll sideways. */
+.orb-tg__gutter,
+.orb-tg__corner,
+.orb-tg__allday-label {
+  position: sticky;
+  left: 0;
+  background: var(--orb-color-bg);
+}
+
+.orb-tg__gutter {
+  z-index: 55;
+}
+
+.orb-tg__corner,
+.orb-tg__allday-label {
+  z-index: 1;
+}
+
+.orb-tg__resource-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border-right: 1px solid var(--orb-color-border-subtle);
+  border-bottom: 1px solid var(--orb-color-border-subtle);
+  font-weight: var(--orb-font-weight-strong);
+  cursor: pointer;
+}
+
+.orb-tg__resource-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Spanning headers and the last column of each group mark the group edges. */
+.orb-tg__row > .orb-tg__resource-header:not(:last-child),
+.orb-tg__row > .orb-tg__day-header.is-group-end,
+.orb-tg__resource-header.is-group-end,
+.orb-tg__column.is-group-end,
+.orb-tg__allday-cell.is-group-end {
+  border-right-color: var(--orb-color-border);
+}
+
+/* ---------------------------------------------------------------- timeline -------------------- */
+
+.orb-tl {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  overflow: hidden;
+}
+
+.orb-tl__scroller {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.orb-tl__inner {
+  position: relative;
+  min-width: calc(var(--orb-tl-resource-width) + var(--orb-tl-slots) * var(--orb-tl-slot-width));
+}
+
+.orb-tl__head {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: var(--orb-tl-resource-width) minmax(0, 1fr);
+  background: var(--orb-color-bg);
+  border-bottom: 1px solid var(--orb-color-border);
+}
+
+.orb-tl__corner {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.5rem 0.75rem;
+  border-right: 1px solid var(--orb-color-border);
+  background: var(--orb-color-bg);
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+  font-weight: 500;
+}
+
+.orb-tl__days-row {
+  display: grid;
+  grid-template-columns: repeat(var(--orb-tl-days), minmax(0, 1fr));
+}
+
+.orb-tl__slots-row {
+  display: grid;
+  grid-template-columns: repeat(var(--orb-tl-slots), minmax(0, 1fr));
+  border-top: 1px solid var(--orb-color-border-subtle);
+}
+
+.orb-tl__day-heading {
+  display: flex;
+  min-width: 0;
+  min-height: var(--orb-tl-day-heading-height);
+  border-right: 1px solid var(--orb-color-border);
+}
+
+/* Sticks to the left edge so the date stays readable while scrolling through a long day. */
+.orb-tl__day-button {
+  position: sticky;
+  left: var(--orb-tl-resource-width);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  font-weight: var(--orb-font-weight-strong);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.orb-tl__day-button:hover {
+  background: var(--orb-color-hover);
+}
+
+.orb-tl__day-heading.is-today .orb-tl__day-button {
+  color: var(--orb-color-accent);
+}
+
+.orb-tl__slot-heading {
+  min-width: 0;
+  height: var(--orb-tl-slot-heading-height);
+  padding: 0.25rem 0.375rem;
+  overflow: hidden;
+  border-left: 1px solid transparent;
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+  white-space: nowrap;
+}
+
+.orb-tl__slot-heading.is-labelled {
+  border-left-color: var(--orb-color-border-subtle);
+}
+
+.orb-tl__body {
+  position: relative;
+}
+
+/* Day columns behind the rows: weekend and today shading, slot and day lines. */
+.orb-tl__day-columns {
+  position: absolute;
+  inset: 0 0 0 var(--orb-tl-resource-width);
+  display: grid;
+  grid-template-columns: repeat(var(--orb-tl-days), minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.orb-tl__day-column {
+  border-right: 1px solid var(--orb-color-border);
+  background-image: linear-gradient(to right, var(--orb-color-border-subtle) 1px, transparent 1px);
+  background-size: calc(100% * var(--orb-tl-days) / var(--orb-tl-slots)) 100%;
+}
+
+.orb-tl__day-column.is-weekend {
+  background-color: var(--orb-color-weekend);
+}
+
+.orb-tl__day-column.is-today {
+  background-color: var(--orb-color-today);
+}
+
+.orb-tl__now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: var(--orb-now-width);
+  margin-left: calc(var(--orb-now-width) / -2);
+  background: var(--orb-color-now);
+}
+
+/* Above the now line, which only shows through the empty parts of the lanes. */
+.orb-tl__row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: 100%;
+  display: grid;
+  grid-template-columns: var(--orb-tl-resource-width) minmax(0, 1fr);
+  border-bottom: 1px solid var(--orb-color-border-subtle);
+}
+
+.orb-tl__label {
+  position: sticky;
+  left: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0 0.5rem 0 calc(0.5rem + var(--orb-tl-depth, 0) * 1rem);
+  border-right: 1px solid var(--orb-color-border);
+  background: var(--orb-color-bg);
+}
+
+.orb-tl__row--group .orb-tl__label {
+  font-weight: var(--orb-font-weight-strong);
+}
+
+.orb-tl__row--group {
+  background: var(--orb-color-hover);
+}
+
+.orb-tl__toggle,
+.orb-tl__toggle-space {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.orb-tl__toggle {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--orb-color-text-muted);
+  cursor: pointer;
+}
+
+.orb-tl__toggle::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform 0.15s;
+}
+
+.orb-tl__toggle[aria-expanded='false']::before {
+  transform: rotate(-45deg);
+}
+
+.orb-tl__toggle:hover {
+  background: var(--orb-color-hover);
+}
+
+.orb-tl__resource-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.orb-tl__resource-title::before {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.375rem;
+  border-radius: 999px;
+  background: var(--orb-tl-resource-color, transparent);
+  vertical-align: 0.05em;
+}
+
+.orb-tl__lane {
+  position: relative;
+  min-width: 0;
+}
+
+.orb-tl__lane > .orb-event {
+  position: absolute;
+  z-index: 1;
+  height: var(--orb-tl-event-height);
+}
+
+.orb-tl__lane > .orb-tl__mirror {
+  z-index: 41;
+}
+
+.orb-tl__selection {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  z-index: 40;
+  border: 1px solid var(--orb-selection-border);
+  border-radius: var(--orb-event-radius);
+  background: var(--orb-selection-bg);
+  pointer-events: none;
+}
+
+@container orb-scheduler (max-width: 640px) {
+  .orb-tl {
+    --orb-tl-resource-width: 7.5rem;
   }
 }

@@ -1,4 +1,4 @@
-import { Temporal, type SchedulerEvent } from '../src'
+import { Temporal, type SchedulerEvent, type SchedulerResource } from '../src'
 
 const COLORS = [
   '#2563eb',
@@ -39,12 +39,41 @@ function mulberry32(seed: number) {
   }
 }
 
+const GROUPS = [
+  { id: 'cranes', title: 'Cranes', color: '#ea580c', names: ['Tower crane', 'Mobile crane'] },
+  { id: 'crews', title: 'Crews', color: '#2563eb', names: ['Concrete crew', 'Steel crew'] },
+  { id: 'rooms', title: 'Meeting rooms', color: '#16a34a', names: ['Room'] },
+]
+
+/**
+ * Resources in three groups. With `count` above the base set, more are added to the groups so
+ * the timeline has many rows to scroll.
+ */
+export function generateResources(count: number): SchedulerResource[] {
+  const out: SchedulerResource[] = []
+  const perGroup = Math.max(3, Math.ceil(count / GROUPS.length))
+  for (const group of GROUPS) {
+    out.push({ id: group.id, title: group.title, color: group.color })
+    for (let i = 1; i <= perGroup; i++) {
+      const name = group.names[(i - 1) % group.names.length]!
+      out.push({ id: `${group.id}-${i}`, title: `${name} ${i}`, parentId: group.id })
+    }
+  }
+  return out
+}
+
 /**
  * Generates `count` random events spread over ±60 days around `around`, plus a fixed set of
  * recurring and edge-case events.
  */
-export function generateEvents(count: number, around: Temporal.PlainDate): SchedulerEvent[] {
+export function generateEvents(
+  count: number,
+  around: Temporal.PlainDate,
+  resources: readonly SchedulerResource[] = [],
+): SchedulerEvent[] {
   const rand = mulberry32(42)
+  const leaves = resources.filter((r) => r.parentId != null).map((r) => r.id)
+  const resourceId = () => (leaves.length ? pick(leaves) : undefined)
   const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!
   const events: SchedulerEvent[] = []
   const spanDays = 120
@@ -61,6 +90,7 @@ export function generateEvents(count: number, around: Temporal.PlainDate): Sched
         start: day.toString(),
         end: day.add({ days: length }).toString(),
         color: pick(COLORS),
+        resourceId: resourceId(),
       })
       continue
     }
@@ -74,6 +104,7 @@ export function generateEvents(count: number, around: Temporal.PlainDate): Sched
       start: begin.toString(),
       end: begin.add({ minutes: duration }).toString(),
       color: pick(COLORS),
+      resourceId: resourceId(),
     })
   }
 
@@ -87,6 +118,7 @@ export function generateEvents(count: number, around: Temporal.PlainDate): Sched
       rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
       exdates: [monday.add({ days: 2 }).toPlainDateTime({ hour: 9 }).toString()],
       color: '#0891b2',
+      resourceIds: leaves.slice(0, 2),
     },
     {
       id: 'standup-moved',
@@ -111,6 +143,7 @@ export function generateEvents(count: number, around: Temporal.PlainDate): Sched
       start: monday.add({ days: 1 }).toPlainDateTime({ hour: 22 }).toString(),
       end: monday.add({ days: 2 }).toPlainDateTime({ hour: 6 }).toString(),
       color: '#ea580c',
+      resourceId: leaves[0],
     },
     {
       id: 'ny-call',
@@ -127,6 +160,7 @@ export function generateEvents(count: number, around: Temporal.PlainDate): Sched
       end: monday.add({ weeks: 2 }).toString(),
       rrule: null,
       color: '#16a34a',
+      resourceId: leaves[1],
     },
   )
   return events
