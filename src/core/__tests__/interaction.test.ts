@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Temporal } from '../temporal'
 import { EventStore } from '../events'
 import {
+  computeDrop,
   computeMove,
   computeResize,
   computeSelection,
@@ -251,5 +252,52 @@ describe('removeEventOccurrence', () => {
     const occ = occurrences([series, exception]).find((o) => o.id === 'ex')!
     const out = removeEventOccurrence([series, exception], occ, { timeZone: BXL })
     expect(occurrences(out).map((o) => o.start.day)).toEqual([26, 27, 29, 30, 31, 1])
+  })
+})
+
+describe('computeDrop', () => {
+  const tl = (date: string, minute: number, resourceId?: string): Hit => ({
+    zone: 'timeline',
+    date: d(date),
+    minute,
+    resourceId,
+  })
+
+  it('starts timed drops at the snapped time in the time grid', () => {
+    const out = computeDrop(time('2026-10-27', 607), { durationMinutes: 90 }, opts)
+    expect(fmt(out)).toBe('2026-10-27T10:00..2026-10-27T11:30')
+    expect(out.resourceIds).toEqual([])
+    // All-day templates still become timed in the grid, with the default length.
+    expect(fmt(computeDrop(time('2026-10-27', 600), { allDay: true }, opts))).toBe(
+      '2026-10-27T10:00..2026-10-27T11:00',
+    )
+  })
+
+  it('makes day drops all-day unless the template is timed', () => {
+    expect(fmt(computeDrop(day('2026-10-27', 'month'), { days: 3 }, opts))).toBe(
+      '2026-10-27..2026-10-30 all-day',
+    )
+    expect(
+      fmt(
+        computeDrop(
+          day('2026-10-27'),
+          { allDay: false, startMinute: 780, durationMinutes: 30 },
+          opts,
+        ),
+      ),
+    ).toBe('2026-10-27T13:00..2026-10-27T13:30')
+  })
+
+  it('uses the time on sub-day timelines and the day on day-slot timelines, with the resource', () => {
+    const hourly = computeDrop(tl('2026-10-27', 610, 'crane'), {}, opts)
+    expect(fmt(hourly)).toBe('2026-10-27T10:00..2026-10-27T11:00')
+    expect(hourly.resourceIds).toEqual(['crane'])
+    const daily = { ...opts, snapMinutes: 1440 }
+    expect(fmt(computeDrop(tl('2026-10-27', 610), {}, daily))).toBe(
+      '2026-10-27..2026-10-28 all-day',
+    )
+    expect(fmt(computeDrop(tl('2026-10-27', 610), { allDay: false }, daily))).toBe(
+      '2026-10-27T09:00..2026-10-27T10:00',
+    )
   })
 })

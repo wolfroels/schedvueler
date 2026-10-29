@@ -32,6 +32,7 @@ import {
 } from '../core'
 import { defaultMessages, type SchedulerOptions } from '../types'
 import { createCancelable, whenAllowed } from './cancelable'
+import { registerDropTarget } from './externalDrag'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
 import { trackSlotNames } from './useSchedulerView'
 import {
@@ -398,6 +399,9 @@ export function useScheduler<T>(
   }
   // Created after the context object because the controller reads options and emits through it.
   ctx.interaction = createInteraction(ctx as SchedulerContext<unknown>)
+  // Lets events dragged in from outside (v-orb-draggable) find this scheduler.
+  const unregisterDropTarget = registerDropTarget(ctx.interaction)
+  if (getCurrentScope()) onScopeDispose(unregisterDropTarget)
 
   provide(SchedulerContextKey, ctx as SchedulerContext<unknown>)
   return ctx

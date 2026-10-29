@@ -150,6 +150,17 @@ function onChange(p: EventChangedPayload<SchedulerEvent>) {
   show the preview in red and the drop reverts.
 - Touch: long-press (`longPressDelay`, 400 ms) starts a drag or selection, so scrolling still works.
 
+### Dragging new events in
+
+```vue
+<li v-orb-draggable="{ title: 'Inspection', duration: 90, data: job }">Inspection</li>
+<Scheduler :events="events" @event-receive="(p) => addEvent(p)" />
+```
+
+Any element outside the scheduler can be dragged into any view: the scheduler shows where it
+would land and `event-receive` gives you `start`, `end`, `allDay`, `resourceId` and your
+`data`. Details in [docs/API.md](docs/API.md#dragging-in-from-outside).
+
 ### Undo and redo
 
 ```ts

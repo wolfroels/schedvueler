@@ -1,5 +1,6 @@
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue'
 import {
+  computeDrop,
   computeMove,
   computeResize,
   computeSelection,
@@ -12,9 +13,9 @@ import {
   type Hit,
   type ResourceId,
 } from '../core'
-import type { EventChangeKind, SelectPayload } from '../types'
+import type { EventChangeKind, ExternalEventTemplate, SelectPayload } from '../types'
 import { createCancelable } from './cancelable'
-import type { SchedulerContext } from './context'
+import { parseTimeOfDay, type SchedulerContext } from './context'
 
 /** A rendered area that can tell what is under the pointer (a time grid, a month grid, ...). */
 export interface DragSurface {
@@ -38,7 +39,8 @@ export interface KeyboardStep {
 }
 
 export interface DragState {
-  kind: EventChangeKind | 'select'
+  /** `receive`: an event dragged in from outside the scheduler. */
+  kind: EventChangeKind | 'select' | 'receive'
   view: string
   occurrence: EventOccurrence<unknown> | undefined
   origin: Hit
@@ -91,7 +93,19 @@ export interface SchedulerInteraction {
   clearSelection(): void
   /** Drops optimistic changes whose events were replaced (called when events change). */
   prunePending(): void
+
+  // --- events dragged in from outside (see `startExternalDrag`) ---
+  /** Shows the preview for an outside event at (x, y); returns whether it is over this scheduler. */
+  receiveMove(template: ExternalEventTemplate, x: number, y: number): boolean
+  /** Removes the preview of an outside event. */
+  receiveLeave(): void
+  /** Drops the outside event where the preview is: emits `before-event-receive` and `event-receive`. */
+  receiveDrop(nativeEvent: PointerEvent): void
+  /** Scrolls a view when (x, y) is near its edge; returns whether it scrolled. */
+  scrollNear(x: number, y: number): boolean
 }
+
+const EXTERNAL_KEY = '__orb-external'
 
 const DRAG_THRESHOLD = 4
 const EDGE = 48
@@ -155,6 +169,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
   ) {
     const o = raw()
     if (kind === 'select') return o.canSelect ? o.canSelect(selectInfo(times)) : true
+    if (kind === 'receive') return true
     return o.canDrop && occ
       ? o.canDrop({
           occurrence: occ,
@@ -254,11 +269,133 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     ctx.emit('unselect', undefined)
   }
 
+  function scrollNear(x: number, y: number): boolean {
+    const edgeSpeed = (pos: number, start: number, end: number) =>
+      pos < start + EDGE ? -(start + EDGE - pos) / 3 : pos > end - EDGE ? (pos - end + EDGE) / 3 : 0
+    let scrolled = false
+    for (const surface of surfaces) {
+      const el = surface.scrollElement?.()
+      if (!el) continue
+      const rect = el.getBoundingClientRect()
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue
+      const dy = edgeSpeed(y, rect.top, rect.bottom)
+      const dx = el.scrollWidth > el.clientWidth ? edgeSpeed(x, rect.left, rect.right) : 0
+      if (dx || dy) {
+        el.scrollTop += dy
+        el.scrollLeft += dx
+        scrolled = true
+      }
+    }
+    return scrolled
+  }
+
+  // --- events dragged in from outside ----------------------------------------------------------
+
+  let receiving: ExternalEventTemplate | null = null
+
+  function receiveInfo(times: EventTimes) {
+    return {
+      start: times.start,
+      end: times.end,
+      allDay: times.allDay,
+      resourceIds: times.resourceIds ?? [],
+      resourceId: times.resourceIds?.[0],
+    }
+  }
+
+  /** A stand-in occurrence so the views can draw the preview like any other drag. */
+  function externalOccurrence(template: ExternalEventTemplate, times: EventTimes) {
+    const event = template.event ?? {
+      id: EXTERNAL_KEY,
+      title: template.title,
+      color: template.color,
+    }
+    return withTimes(
+      {
+        key: EXTERNAL_KEY,
+        id: EXTERNAL_KEY,
+        event,
+        recurring: false,
+        isException: false,
+      } as unknown as EventOccurrence<unknown>,
+      times,
+    )
+  }
+
+  function receiveMove(template: ExternalEventTemplate, x: number, y: number): boolean {
+    const found = hit(x, y)
+    if (!found) {
+      receiveLeave()
+      return false
+    }
+    receiving = template
+    const opts = computeOptions(found.surface.snapMinutes?.() ?? snapMinutes())
+    const preview = computeDrop(
+      found.hit,
+      {
+        allDay: template.allDay,
+        durationMinutes: template.duration,
+        days: template.days,
+        startMinute: template.startTime ? parseTimeOfDay(template.startTime, 540) : undefined,
+      },
+      opts,
+    )
+    const s = state.value
+    if (s?.kind === 'receive' && sameTimes(preview, s.preview)) return true
+    const canReceive = raw().canReceive
+    state.value = {
+      kind: 'receive',
+      view: ctx.activeViewName.value ?? '',
+      occurrence: externalOccurrence(template, preview),
+      origin: found.hit,
+      preview,
+      valid: canReceive ? canReceive({ ...receiveInfo(preview), template }) : true,
+    }
+    return true
+  }
+
+  function receiveLeave() {
+    if (state.value?.kind === 'receive') state.value = null
+  }
+
+  function receiveDrop(nativeEvent: PointerEvent) {
+    const s = state.value
+    const template = receiving
+    receiving = null
+    if (s?.kind !== 'receive' || !s.preview || !template) return
+    state.value = null
+    if (!s.valid) {
+      ctx.announce(ctx.options.value.messages.dragCancelled)
+      return
+    }
+    const times = s.preview
+    const { payload, settle } = createCancelable({
+      view: s.view,
+      ...receiveInfo(times),
+      template,
+      data: template.data,
+      nativeEvent,
+    })
+    ctx.emit('before-event-receive', payload)
+    const done = (ok: boolean) => {
+      if (!ok) {
+        ctx.announce(ctx.options.value.messages.dragCancelled)
+        return
+      }
+      const { preventDefault: _p, waitUntil: _w, defaultPrevented: _d, ...rest } = payload
+      ctx.emit('event-receive', rest)
+      ctx.announce(ctx.options.value.messages.eventChanged(template.title ?? '', describe(times)))
+    }
+    const result = settle()
+    if (typeof result === 'boolean') done(result)
+    else void result.then(done)
+  }
+
   // --- pointer gestures ------------------------------------------------------------------------
 
   function startGesture(
     e: PointerEvent,
-    kind: DragState['kind'],
+    kind: EventChangeKind | 'select',
     view: string,
     occ: EventOccurrence<unknown> | undefined,
   ) {
@@ -333,26 +470,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
     const autoScroll = () => {
       if (!active) return
-      const edgeSpeed = (pos: number, start: number, end: number) =>
-        pos < start + EDGE
-          ? -(start + EDGE - pos) / 3
-          : pos > end - EDGE
-            ? (pos - end + EDGE) / 3
-            : 0
-      for (const surface of surfaces) {
-        const el = surface.scrollElement?.()
-        if (!el) continue
-        const rect = el.getBoundingClientRect()
-        if (lastX < rect.left || lastX > rect.right || lastY < rect.top || lastY > rect.bottom)
-          continue
-        const dy = edgeSpeed(lastY, rect.top, rect.bottom)
-        const dx = el.scrollWidth > el.clientWidth ? edgeSpeed(lastX, rect.left, rect.right) : 0
-        if (dx || dy) {
-          el.scrollTop += dy
-          el.scrollLeft += dx
-          update(lastX, lastY)
-        }
-      }
+      if (scrollNear(lastX, lastY)) update(lastX, lastY)
       frame = requestAnimationFrame(autoScroll)
     }
 
@@ -438,6 +556,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     state,
     mirror,
     selection,
+    receiveMove,
+    receiveLeave,
+    receiveDrop,
+    scrollNear,
     applyPending(occurrences) {
       const map = pending.value
       if (!map.size) return occurrences

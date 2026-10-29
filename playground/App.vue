@@ -13,8 +13,11 @@ import {
   formatTimeRange,
   removeEventOccurrence,
   useHistory,
+  vOrbDraggable,
   type EventChangedPayload,
   type EventDeletePayload,
+  type EventReceivePayload,
+  type ExternalEventTemplate,
   type EventPointerPayload,
   type RecurrenceEditScope,
   type SelectPayload,
@@ -161,6 +164,42 @@ function onSelect(p: SelectPayload) {
   log('select', `created event ${fmtTimes(p)}`)
 }
 
+// --- dragging in from the sidebar ------------------------------------------------------------
+
+const templates: ExternalEventTemplate[] = [
+  { title: 'Inspection', color: '#0891b2', duration: 90 },
+  { title: 'Concrete pour', color: '#ea580c', duration: 240 },
+  {
+    title: 'Client call (14:00)',
+    color: '#db2777',
+    duration: 30,
+    allDay: false,
+    startTime: '14:00',
+  },
+  { title: 'Holiday', color: '#16a34a', allDay: true, days: 3 },
+]
+
+/** Adds the dropped event; one undo step. */
+function onReceive(p: EventReceivePayload) {
+  const t = p.template
+  const base = {
+    id: `drop-${Date.now()}`,
+    title: t.title,
+    color: t.color,
+    resourceId: p.resourceId,
+  }
+  history.commit(
+    [
+      ...events.value,
+      p.allDay
+        ? { ...base, start: p.start.toPlainDate().toString(), end: p.end.toPlainDate().toString() }
+        : { ...base, start: p.start.toString(), end: p.end.toString() },
+    ],
+    `Add ${t.title}`,
+  )
+  log('event-receive', `${t.title} → ${fmtTimes(p)}${p.resourceId ? ` @ ${p.resourceId}` : ''}`)
+}
+
 /** Shows how a before-event can ask the user (asynchronously) before a change is applied. */
 function beforeChange(p: {
   recurring: boolean
@@ -291,6 +330,16 @@ function onSlotDblClick(p: SlotPointerPayload) {
       </section>
 
       <section>
+        <h2>Drag into the scheduler</h2>
+        <ul class="pg__templates">
+          <li v-for="t in templates" :key="t.title" v-orb-draggable="t" :style="{ '--c': t.color }">
+            {{ t.title }}
+            <small>{{ t.allDay ? `all day, ${t.days ?? 1} d` : `${t.duration} min` }}</small>
+          </li>
+        </ul>
+      </section>
+
+      <section>
         <h2>Editing</h2>
         <div class="pg__history">
           <button
@@ -383,6 +432,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         :recurrence-edit-scope="scope"
         drill-down-view="day"
         :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
+        :can-receive="(info) => !blockWeekends || info.start.dayOfWeek < 6"
         @range-change="onRange"
         @navigate="(p) => log('navigate', `${p.reason}: ${p.from} → ${p.to}`)"
         @view-change="(p) => log('view-change', `${p.from} → ${p.to}`)"
@@ -399,6 +449,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         @event-resize="(p) => onChanged('event-resize', p)"
         @event-delete="onDelete"
         @select="onSelect"
+        @event-receive="onReceive"
         @unselect="log('unselect')"
         @resource-click="(p) => log('resource-click', p.resource.title)"
         @resource-toggle="
@@ -542,6 +593,31 @@ body {
 
 .pg__sidebar input[type='range'] {
   width: 8rem;
+}
+
+.pg__templates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg__templates li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-left: 3px solid var(--c);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  font-weight: 600;
+}
+
+.pg__templates small {
+  color: #64748b;
+  font-weight: 400;
 }
 
 .pg__history {

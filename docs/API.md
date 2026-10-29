@@ -10,6 +10,7 @@ from `orb-scheduler/core`. Types are in [src/types.ts](../src/types.ts) and
 - [Slots](#slots)
 - [Theming (CSS variables)](#theming)
 - [Editing helpers and undo/redo](#editing-helpers)
+- [Dragging new events in from outside](#dragging-in-from-outside)
 - [Headless use](#headless-use)
 - [Performance](#performance)
 
@@ -62,6 +63,7 @@ The root component. Views are its children; the first one is the default.
 | `can-drag` / `can-resize` | `(occurrence) => boolean` | – | Per-event permission. |
 | `can-drop` | `(info: DropInfo) => boolean` | – | Whether a move or resize may end here (`info` has the new `start`, `end`, `allDay`, `resourceIds`). Refused spots show in red and revert. |
 | `can-select` | `(info: SelectInfo) => boolean` | – | Whether a range may be selected. |
+| `can-receive` | `(info: ReceiveInfo) => boolean` | – | Whether an event dragged in from outside may be dropped here (`info` has `start`, `end`, `allDay`, `resourceId`, `template`). |
 | `recurrence-edit-scope` | `'this' \| 'following' \| 'all'` | `'this'` | Scope proposed for changes to recurring events. |
 | `long-press-delay` | `number` | `400` | Touch: ms to press before a drag or selection starts. |
 | `drill-down-view` | `string` | – | View opened when a date is clicked. |
@@ -188,6 +190,8 @@ cancelled when the promise rejects or resolves to `false`.
 | `event-drop`, `event-resize` | the same plus `revert()`. Update your data; call `revert()` if saving fails. |
 | `event-delete` | `occurrence`, `recurring`, `scope` (Delete/Backspace on an editable event) |
 | `select` | `start`, `end`, `allDay`, `resourceId?` |
+| `before-event-receive` ✋ | an event dragged in from outside is about to be dropped: `start`, `end`, `allDay`, `resourceIds`, `resourceId`, `template`, `data` |
+| `event-receive` | the same, after the drop. Add the event to your data. |
 | `unselect` | – |
 | `resource-click` | `resource` (node with `id`, `title`, `depth`, ...), `view` |
 | `resource-toggle` | `resource`, `expanded` |
@@ -267,6 +271,65 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
 
 Both edit helpers work on the default `SchedulerEvent` shape; with your own shape, follow the same
 logic with your fields.
+
+## Dragging in from outside
+
+Any element can become a source of new events, e.g. a list of unplanned jobs next to the
+scheduler. It works in every view and with several schedulers on the page.
+
+```vue
+<script setup lang="ts">
+import { vOrbDraggable, type EventReceivePayload, type ExternalEventTemplate } from 'orb-scheduler'
+
+const jobs: ExternalEventTemplate[] = [
+  { title: 'Inspection', color: '#0891b2', duration: 90, data: { jobId: 17 } },
+  { title: 'Holiday', allDay: true, days: 3 },
+]
+
+function onReceive(p: EventReceivePayload) {
+  events.value = [...events.value, {
+    id: crypto.randomUUID(),
+    title: p.template.title,
+    start: p.allDay ? p.start.toPlainDate().toString() : p.start.toString(),
+    end: p.allDay ? p.end.toPlainDate().toString() : p.end.toString(),
+    resourceId: p.resourceId,
+  }]
+}
+</script>
+
+<template>
+  <ul>
+    <li v-for="job in jobs" :key="job.title" v-orb-draggable="job">{{ job.title }}</li>
+  </ul>
+  <Scheduler :events="events" @event-receive="onReceive">...</Scheduler>
+</template>
+```
+
+Where it lands:
+
+| Dropped on | Result |
+| --- | --- |
+| A time grid (day, week, resource columns) | Timed, at the snapped drop time, for `duration` minutes (default `default-event-duration`). |
+| A day (month cell, all-day row, a timeline with day columns) | All-day for `days` days, or with `allDay: false` timed at `startTime` (default 09:00). |
+| A timeline with hour columns | Timed at the drop time, unless `allDay: true`. |
+| A resource column or timeline row | Also `resourceId` / `resourceIds` of that resource. |
+
+Template fields (all optional): `title`, `color`, `event` (an object in your own event shape,
+used to draw the preview with your accessors and slots; without it the preview uses
+`{ title, color }`), `data` (anything you need back), `allDay`, `duration`, `days`,
+`startTime`.
+
+- The scheduler under the pointer shows the event where it would land, like a normal drag; spots
+  refused by `can-receive` show it in red and the drop does nothing.
+- Outside the schedulers a small chip with the title follows the pointer (`.orb-drag-ghost`).
+- Escape cancels. On touch, a long press starts the drag, so the source list still scrolls.
+- `before-event-receive` can be cancelled or delayed with `waitUntil`, like the other
+  before-events.
+- For full control, call `startExternalDrag(pointerEvent, template, { longPressDelay?, ghost? })`
+  from your own `pointerdown` handler instead of using the directive. Bind `null` to the
+  directive to disable a source.
+- Not supported: native HTML5 drag and drop (e.g. files or items from other windows) and starting
+  this drag from the keyboard.
 
 ## Headless use
 

@@ -269,3 +269,49 @@ export function withTimes<T>(
     resourceIds: times.resourceIds ?? occurrence.resourceIds,
   })
 }
+
+/** What is known about an event dragged in from outside the scheduler. */
+export interface DropTemplate {
+  /** `true`: lands as an all-day event outside the time grid. `false`: always timed. */
+  allDay?: boolean
+  /** Length of the timed event in minutes. Defaults to `defaultDurationMinutes`. */
+  durationMinutes?: number
+  /** Length of the all-day event in days. Default 1. */
+  days?: number
+  /** Start minute of a timed event dropped on a day (month cell, all-day row). Default 540 (09:00). */
+  startMinute?: number
+}
+
+/**
+ * Times for an event dropped from outside at `hit`.
+ * - In the time grid (and on a timeline with sub-day slots) it starts at the snapped drop time.
+ * - On a day (month cell, all-day row, day-slot timeline) it is all-day, unless the template says
+ *   `allDay: false`, in which case it starts at `startMinute` that day.
+ * - It belongs to the resource under the pointer, if any.
+ */
+export function computeDrop(
+  hit: Hit,
+  template: DropTemplate,
+  options: InteractionOptions,
+): EventTimes {
+  const { timeZone, snapMinutes } = options
+  const resourceIds = hit.resourceId !== undefined ? [hit.resourceId] : []
+  const duration = template.durationMinutes ?? options.defaultDurationMinutes
+  // Pointer positions snap; the template's own start time is used as given.
+  const timedAt = (date: Temporal.PlainDate, minute: number, snap = true): EventTimes => {
+    const start = zonedAtMinute(date, snap ? snapDown(minute, snapMinutes) : minute, timeZone)
+    return { start, end: start.add({ minutes: duration }), allDay: false, resourceIds }
+  }
+  const onDay = (date: Temporal.PlainDate): EventTimes =>
+    template.allDay === false
+      ? timedAt(date, template.startMinute ?? 540, false)
+      : {
+          ...allDayTimes(date, date.add({ days: Math.max(1, template.days ?? 1) }), timeZone),
+          resourceIds,
+        }
+
+  if (hit.zone === 'time') return timedAt(hit.date, hit.minute)
+  if (hit.zone === 'timeline' && snapMinutes < 1440 && template.allDay !== true)
+    return timedAt(hit.date, hit.minute)
+  return onDay(hit.date)
+}

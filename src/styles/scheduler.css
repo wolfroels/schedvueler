@@ -1621,3 +1621,38 @@
   outline: 2px solid var(--orb-color-text);
   outline-offset: -2px;
 }
+
+/* ---------------------------------------------------------------- dragging in from outside ---- */
+
+/* Elements with v-orb-draggable. They live outside the scheduler, so no theme variables here. */
+.orb-draggable {
+  cursor: grab;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The chip that follows the pointer while it is not over a scheduler. */
+.orb-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  max-width: 14rem;
+  padding: 0.25rem 0.5rem;
+  overflow: hidden;
+  border-left: 3px solid var(--orb-event-color, #2563eb);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--orb-event-color, #2563eb) 18%, #ffffff);
+  box-shadow: 0 6px 16px -4px rgb(15 23 42 / 0.35);
+  color: #0f172a;
+  font:
+    600 0.75rem/1.3 system-ui,
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.orb-drag-ghost[hidden] {
+  display: none;
+}

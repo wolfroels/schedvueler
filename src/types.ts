@@ -136,6 +136,11 @@ export interface SchedulerOptions<T> {
   recurrenceEditScope?: RecurrenceEditScope
   /** Touch: how long to press before a drag or selection starts, in ms. Default 400. */
   longPressDelay?: number
+  /**
+   * Whether an event dragged in from outside (`v-orb-draggable`) may be dropped here. Refused spots
+   * show the preview in red and the drop does nothing.
+   */
+  canReceive?: (info: ReceiveInfo) => boolean
 
   // --- navigation ---
   /** View to open when a date (day header, month day number, agenda day) is clicked. */
@@ -154,6 +159,45 @@ export interface DropInfo<T> {
   allDay: boolean
   /** Resources the event would have after the drop. */
   resourceIds: readonly ResourceId[]
+}
+
+/**
+ * An event that can be dragged into any scheduler from outside, e.g. a sidebar item with
+ * `v-orb-draggable="template"`. All fields are optional.
+ */
+export interface ExternalEventTemplate<E = unknown> {
+  /** Shown on the drag preview (when `event` is not given) and the floating chip. */
+  title?: string
+  color?: string
+  /**
+   * An event object in your own shape, used to draw the preview with your accessors and slots.
+   * Defaults to `{ title, color }`.
+   */
+  event?: E
+  /** Anything you need back in `event-receive` (an id, the whole item, ...). */
+  data?: unknown
+  /**
+   * `true`: dropped on a day (month, all-day row, day-slot timeline) it becomes all-day; that is
+   * also the default. `false`: it is always timed, starting at `startTime` when dropped on a day.
+   * Dropped in a time grid it is always timed.
+   */
+  allDay?: boolean
+  /** Length when timed, in minutes. Defaults to `defaultEventDuration`. */
+  duration?: number
+  /** Length when all-day, in days. Default 1. */
+  days?: number
+  /** Start time when a timed template is dropped on a day, "HH:mm". Default "09:00". */
+  startTime?: string
+}
+
+export interface ReceiveInfo {
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  /** The resource under the pointer, as a list (empty outside resource views). */
+  resourceIds: readonly ResourceId[]
+  resourceId: ResourceId | undefined
+  template: ExternalEventTemplate
 }
 
 export interface SelectInfo {
@@ -353,6 +397,16 @@ export interface SelectPayload {
   nativeEvent: PointerEvent | KeyboardEvent
 }
 
+/** An event dragged in from outside was dropped. Add it to your data. */
+export interface EventReceivePayload extends ReceiveInfo {
+  view: string
+  /** `template.data`, for convenience. */
+  data: unknown
+  nativeEvent: PointerEvent
+}
+
+export type BeforeEventReceivePayload = EventReceivePayload & Cancelable
+
 export interface ResourcePointerPayload {
   resource: ResourceNode<unknown>
   view: string
@@ -415,6 +469,10 @@ export interface SchedulerEmits<T> {
   'event-delete': [payload: EventDeletePayload<T>]
   /** A range was selected by dragging (or Shift + arrows and Enter). */
   select: [payload: SelectPayload]
+  /** Before an event dragged in from outside is dropped. Cancelable. */
+  'before-event-receive': [payload: BeforeEventReceivePayload]
+  /** An event dragged in from outside was dropped here. Add it to your data. */
+  'event-receive': [payload: EventReceivePayload]
   /** The selection was cleared. */
   unselect: []
   /** A resource label was clicked. */
