@@ -1,0 +1,6 @@
+// Used by vite-plugin-dts to emit the published .d.ts files.
+{
+  "extends": "./tsconfig.app.json",
+  "include": ["env.d.ts", "src/**/*.ts", "src/**/*.vue"],
+  "exclude": ["src/**/__tests__/*"]
+}
