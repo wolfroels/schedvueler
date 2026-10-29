@@ -33,16 +33,24 @@
 
   /* events */
   --orb-event-color: var(--orb-color-accent);
-  --orb-event-bg: color-mix(in srgb, var(--orb-event-color) 14%, var(--orb-color-bg));
-  --orb-event-bg-hover: color-mix(in srgb, var(--orb-event-color) 22%, var(--orb-color-bg));
-  --orb-event-text: color-mix(in srgb, var(--orb-event-color) 55%, var(--orb-color-text));
+  /*
+   * Event fill and text are mixed from each event's own color (see .orb-event below); these set
+   * how much of it goes in. Override --orb-event-bg / --orb-event-text on .orb-event to replace
+   * the mix entirely.
+   */
+  --orb-event-bg-strength: 18%;
+  --orb-event-bg-hover-strength: 26%;
+  --orb-event-past-bg-strength: 9%;
+  --orb-event-text-strength: 40%;
+  --orb-event-text-base: var(--orb-color-text);
   --orb-event-border-width: 3px;
   --orb-event-radius: 6px;
   --orb-event-padding: 2px 6px;
   --orb-event-font-size: var(--orb-font-size-sm);
   --orb-event-gap: 2px;
   --orb-event-min-height: 1.25rem;
-  --orb-event-past-opacity: 0.65;
+  /* Past events get a lighter fill (see the strengths above); lower this to fade them too. */
+  --orb-event-past-opacity: 1;
 
   /* sizes */
   --orb-radius: 8px;
@@ -94,9 +102,11 @@
   --orb-color-weekend: rgb(255 255 255 / 0.015);
   --orb-color-now: #f87171;
   --orb-shadow-popover: 0 12px 32px -8px rgb(0 0 0 / 0.6);
-  --orb-event-bg: color-mix(in srgb, var(--orb-event-color) 24%, var(--orb-color-bg));
-  --orb-event-bg-hover: color-mix(in srgb, var(--orb-event-color) 34%, var(--orb-color-bg));
-  --orb-event-text: color-mix(in srgb, var(--orb-event-color) 35%, #ffffff);
+  --orb-event-bg-strength: 30%;
+  --orb-event-bg-hover-strength: 40%;
+  --orb-event-past-bg-strength: 16%;
+  --orb-event-text-strength: 22%;
+  --orb-event-text-base: #ffffff;
   color-scheme: dark;
 }
 
@@ -114,9 +124,11 @@
     --orb-color-weekend: rgb(255 255 255 / 0.015);
     --orb-color-now: #f87171;
     --orb-shadow-popover: 0 12px 32px -8px rgb(0 0 0 / 0.6);
-    --orb-event-bg: color-mix(in srgb, var(--orb-event-color) 24%, var(--orb-color-bg));
-    --orb-event-bg-hover: color-mix(in srgb, var(--orb-event-color) 34%, var(--orb-color-bg));
-    --orb-event-text: color-mix(in srgb, var(--orb-event-color) 35%, #ffffff);
+    --orb-event-bg-strength: 30%;
+    --orb-event-bg-hover-strength: 40%;
+    --orb-event-past-bg-strength: 16%;
+    --orb-event-text-strength: 22%;
+    --orb-event-text-base: #ffffff;
     color-scheme: dark;
   }
 }
@@ -293,6 +305,22 @@
 /* ---------------------------------------------------------------- events ---------------------- */
 
 .orb-event {
+  --orb-event-bg: color-mix(
+    in srgb,
+    var(--orb-event-color) var(--orb-event-bg-strength),
+    var(--orb-color-bg)
+  );
+  --orb-event-bg-hover: color-mix(
+    in srgb,
+    var(--orb-event-color) var(--orb-event-bg-hover-strength),
+    var(--orb-color-bg)
+  );
+  --orb-event-text: color-mix(
+    in srgb,
+    var(--orb-event-color) var(--orb-event-text-strength),
+    var(--orb-event-text-base)
+  );
+
   position: relative;
   display: flex;
   min-width: 0;
@@ -328,6 +356,11 @@
 }
 
 .orb-event--past {
+  --orb-event-bg: color-mix(
+    in srgb,
+    var(--orb-event-color) var(--orb-event-past-bg-strength),
+    var(--orb-color-bg)
+  );
   opacity: var(--orb-event-past-opacity);
 }
 
@@ -340,7 +373,7 @@
 
 .orb-event__time {
   flex: none;
-  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -222,13 +222,15 @@ All slots are available on `<Scheduler>` and on each view. Specific event slots 
 ## Theming
 
 Set CSS custom properties on `.orb-scheduler` (or any ancestor). `theme="dark"` / `"auto"` swap
-the color set; per-event colors come from the event's `color`.
+the color set; per-event colors come from the event's `color`. Each event's fill and text are mixed from its
+own color (or its resource's); the `*-strength` variables set how much. To replace the mix, set
+`--orb-event-bg`, `--orb-event-bg-hover` or `--orb-event-text` on `.orb-event`.
 
 | Group | Variables |
 | --- | --- |
 | Typography | `--orb-font-family`, `--orb-font-size`, `--orb-font-size-sm`, `--orb-font-size-title`, `--orb-font-weight-strong` |
 | Colors | `--orb-color-bg`, `--orb-color-surface`, `--orb-color-text`, `--orb-color-text-muted`, `--orb-color-border`, `--orb-color-border-subtle`, `--orb-color-accent`, `--orb-color-accent-contrast`, `--orb-color-hover`, `--orb-color-today`, `--orb-color-weekend`, `--orb-color-other-month`, `--orb-color-now`, `--orb-color-focus`, `--orb-shadow-popover` |
-| Events | `--orb-event-color`, `--orb-event-bg`, `--orb-event-bg-hover`, `--orb-event-text`, `--orb-event-border-width`, `--orb-event-radius`, `--orb-event-padding`, `--orb-event-font-size`, `--orb-event-gap`, `--orb-event-min-height`, `--orb-event-past-opacity` |
+| Events | `--orb-event-color` (default for events without a color), `--orb-event-bg-strength`, `--orb-event-bg-hover-strength`, `--orb-event-past-bg-strength`, `--orb-event-text-strength`, `--orb-event-text-base`, `--orb-event-border-width`, `--orb-event-radius`, `--orb-event-padding`, `--orb-event-font-size`, `--orb-event-gap`, `--orb-event-min-height`, `--orb-event-past-opacity` |
 | Sizes | `--orb-radius`, `--orb-toolbar-gap`, `--orb-control-height`, `--orb-gutter-width`, `--orb-slot-height`, `--orb-day-header-height`, `--orb-allday-event-height`, `--orb-allday-min-height`, `--orb-month-header-height`, `--orb-month-daynum-height`, `--orb-month-event-height`, `--orb-month-event-gap`, `--orb-month-week-min-height`, `--orb-now-width` |
 | Resources and timeline | `--orb-tg-column-min-width`, `--orb-tl-resource-width`, `--orb-tl-day-heading-height`, `--orb-tl-slot-heading-height` |
 | Year | `--orb-year-month-min-width` |

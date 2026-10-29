@@ -80,18 +80,12 @@ export function useMonthGrid<T>(
     return labels
   })
 
-  const weeks = computed<MonthWeek<T>[]>(() => {
+  /** Week rows without the drag preview, so dragging never re-packs the other events. */
+  const baseWeeks = computed<MonthWeek<T>[]>(() => {
     const { range, hiddenDays, maxRows } = cfg.value
     const { locale, timeZone } = ctx.options.value
     const today = ctx.today.value
-    // While dragging, the preview takes the place of the original.
-    const mirror = ctx.interaction.mirror.value as
-      (EventOccurrence<T> & { sourceKey: string }) | null
-    const occurrences = mirror
-      ? [...ctx.occurrences.value.filter((o) => o.key !== mirror.sourceKey), mirror].sort(
-          (a, b) => a.startMs - b.startMs || b.endMs - b.startMs - (a.endMs - a.startMs),
-        )
-      : ctx.occurrences.value
+    const occurrences = ctx.occurrences.value
     const sel = ctx.interaction.selection.value
     const selStart = sel?.times.start.withTimeZone(timeZone).toPlainDate()
     const selEnd = sel
@@ -153,7 +147,7 @@ export function useMonthGrid<T>(
           isStart: s.isStart,
           isEnd: s.isEnd,
           variant: bar ? 'month' : 'month-timed',
-          mirror: occ === mirror,
+          mirror: false,
         })
       })
       const more = layout.hiddenPerColumn
@@ -163,6 +157,41 @@ export function useMonthGrid<T>(
       result.push({ key: start.toString(), cells, events, more, rowCount: layout.rowCount })
     }
     return result
+  })
+
+  /**
+   * Week rows with the drag preview drawn over them: in the row of the original when it is in the
+   * same week, otherwise in the first row. The preview does not take part in the layout, so the
+   * other events stay where they are while dragging.
+   */
+  const weeks = computed<MonthWeek<T>[]>(() => {
+    const base = baseWeeks.value
+    const mirror = ctx.interaction.mirror.value as
+      (EventOccurrence<T> & { sourceKey: string }) | null
+    if (!mirror) return base
+    const { timeZone } = ctx.options.value
+    return base.map((week) => {
+      const days = week.cells.map((c) => c.date)
+      const spans = spanRow([mirror], days, timeZone)
+      if (!spans.length) return week
+      const source = week.events.find((e) => e.occurrence.key === mirror.sourceKey)
+      const previews = spans.map((s): MonthEventLayout<T> => {
+        const bar =
+          mirror.allDay || s.endCol - s.startCol > 1 || mirror.endMs - mirror.startMs >= 86_400_000
+        return {
+          key: mirror.key,
+          occurrence: mirror,
+          startCol: s.startCol,
+          endCol: s.endCol,
+          row: source?.row ?? 0,
+          isStart: s.isStart,
+          isEnd: s.isEnd,
+          variant: bar ? 'month' : 'month-timed',
+          mirror: true,
+        }
+      })
+      return { ...week, events: [...week.events, ...previews] }
+    })
   })
 
   /** Occurrences per visible day, computed once per change instead of per cell. */

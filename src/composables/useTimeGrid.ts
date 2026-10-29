@@ -170,17 +170,10 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return { occurrence: m, inAllDayRow: m.allDay && cfg.value.allDaySlot }
   })
 
-  const allDay = computed(() => {
+  /** All-day spans in column units, split per resource column group. */
+  function allDaySpans(occurrences: readonly EventOccurrence<T>[]) {
     const { days } = cfg.value
     const tz = ctx.options.value.timeZone
-    const m = mirror.value
-    // While dragging in the all-day row, the preview takes the place of the original.
-    const occurrences = m?.inAllDayRow
-      ? [
-          ...partitioned.value.allDay.filter((o) => o.key !== m.occurrence.sourceKey),
-          m.occurrence as unknown as EventOccurrence<T>,
-        ]
-      : partitioned.value.allDay
     const spans: {
       occurrence: EventOccurrence<T>
       startCol: number
@@ -208,6 +201,12 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
         }
       }
     })
+    return spans
+  }
+
+  /** The all-day row without the drag preview, so dragging never re-packs the other events. */
+  const allDayBase = computed(() => {
+    const spans = allDaySpans(partitioned.value.allDay)
     const layout = layoutDayGridRow(
       spans.map((s) => ({ start: s.startCol, end: s.endCol })),
       columns.value.length,
@@ -220,9 +219,32 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
       row: layout.rows[i]!,
       isStart: s.isStart,
       isEnd: s.isEnd,
-      mirror: s.occurrence === m?.occurrence,
+      mirror: false,
     }))
     return { items, rowCount: layout.rowCount }
+  })
+
+  /**
+   * The all-day row with the drag preview drawn over it: in the row of the original, or the first
+   * row. The row never grows or re-packs while dragging, so nothing jumps vertically.
+   */
+  const allDay = computed(() => {
+    const base = allDayBase.value
+    const m = mirror.value
+    if (!m?.inAllDayRow) return base
+    const occ = m.occurrence as unknown as EventOccurrence<T>
+    const source = base.items.find((i) => i.occurrence.key === m.occurrence.sourceKey)
+    const previews = allDaySpans([occ]).map((s): AllDayEventLayout<T> => ({
+      key: `${occ.key}@${s.startCol}`,
+      occurrence: occ,
+      startCol: s.startCol,
+      endCol: s.endCol,
+      row: source?.row ?? 0,
+      isStart: s.isStart,
+      isEnd: s.isEnd,
+      mirror: true,
+    }))
+    return { items: [...base.items, ...previews], rowCount: base.rowCount }
   })
 
   /**

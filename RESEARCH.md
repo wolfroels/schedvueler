@@ -181,4 +181,9 @@ Every cancellable payload is `{ ..., preventDefault(), waitUntil(promise) }`.
 
 # Known bBugs
 1. the opacity of the events is too low and it is not as readable
-2. dragging a event over to another day causes it to weirdly behave in the drag vertically=
+2. dragging a event over to another day causes it to weirdly behave in the drag vertically
+
+**Fixed** (after phase 6):
+- 1: past events were faded with opacity 0.65, text included. They now get a lighter fill with full-strength text; all events got a stronger fill and darker text (`--orb-event-*-strength` variables).
+- 2: the drag preview took part in the row layout of the month grid and the all-day row, so other events jumped between rows while dragging, and dragging a timed event over the all-day row grew that row and shifted the grid. The preview is now drawn over the existing rows (in its original's row) without re-packing anything.
+- 3 (found while fixing 1): event fill and text ignored the event's own `color`; the color variables were resolved on the scheduler root, so every event used the accent color. Only the left border was colored. They are now mixed per event.
