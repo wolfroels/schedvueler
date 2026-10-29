@@ -42,6 +42,19 @@ const fmt = (t: EventTimes | null) =>
 describe('computeMove', () => {
   const ev = one({ id: 1, start: '2026-10-27T09:10', end: '2026-10-27T10:10' })
 
+  it('moves to an earlier day at a later time, and to a later day at an earlier time', () => {
+    // Mixed directions used to throw (a Temporal duration cannot mix signs), freezing the preview.
+    expect(fmt(computeMove(ev, time('2026-10-27', 570), time('2026-10-26', 690), opts))).toBe(
+      '2026-10-26T11:10..2026-10-26T12:10',
+    )
+    expect(fmt(computeMove(ev, time('2026-10-27', 570), time('2026-10-28', 450), opts))).toBe(
+      '2026-10-28T07:10..2026-10-28T08:10',
+    )
+    expect(
+      fmt(computeResize(ev, 'end', time('2026-10-27', 610), time('2026-10-26', 1430), opts)),
+    ).toBe('2026-10-27T09:10..2026-10-27T09:25')
+  })
+
   it('moves by the snapped distance and keeps odd minutes', () => {
     // Grabbed at 09:30, dropped at 11:07 -> +97 min snaps to +90.
     expect(fmt(computeMove(ev, time('2026-10-27', 570), time('2026-10-29', 667), opts))).toBe(

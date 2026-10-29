@@ -46,10 +46,12 @@ function shiftWallClock(
   minutes: number,
   timeZone: string,
 ): Temporal.ZonedDateTime {
+  // One duration field: Temporal rejects mixed signs such as { days: -1, minutes: 60 }. A plain
+  // date-time has no DST, so a day is always 1440 minutes here.
   return value
     .withTimeZone(timeZone)
     .toPlainDateTime()
-    .add({ days, minutes })
+    .add({ minutes: days * 1440 + minutes })
     .toZonedDateTime(timeZone, { disambiguation: 'compatible' })
 }
 
