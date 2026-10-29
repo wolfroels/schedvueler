@@ -11,6 +11,8 @@ import {
   segmentByDay,
   spanRow,
   verticalPosition,
+  withTimes,
+  zonedAtMinute,
   type DaySegment,
   type EventOccurrence,
   type TimeGridLayoutAlgorithm,
@@ -56,6 +58,16 @@ export interface TimedEventLayout<T> {
   order: number
 }
 
+export interface TimeGridOverlay {
+  key: string
+  kind: 'mirror' | 'selection'
+  segment: DaySegment<unknown>
+  top: number
+  height: number
+  /** False when the drag preview is over a spot `canDrop` refuses. */
+  valid: boolean
+}
+
 export interface AllDayEventLayout<T> {
   key: string
   occurrence: EventOccurrence<T>
@@ -64,6 +76,8 @@ export interface AllDayEventLayout<T> {
   row: number
   isStart: boolean
   isEnd: boolean
+  /** This item is the drag preview. */
+  mirror: boolean
 }
 
 /** Headless time-grid layout: columns, time rows, positioned events and the now line. */
@@ -108,9 +122,24 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return cfg.value.allDaySlot ? parts : { allDay: [], timed: ctx.occurrences.value }
   })
 
+  const mirror = computed(() => {
+    const m = ctx.interaction.mirror.value
+    // All-day events dropped in the grid show there even when the grid has no all-day row.
+    if (!m) return null
+    return { occurrence: m, inAllDayRow: m.allDay && cfg.value.allDaySlot }
+  })
+
   const allDay = computed(() => {
     const { days } = cfg.value
-    const spans = spanRow(partitioned.value.allDay, days, ctx.options.value.timeZone)
+    const m = mirror.value
+    // While dragging in the all-day row, the preview takes the place of the original.
+    const occurrences = m?.inAllDayRow
+      ? [
+          ...partitioned.value.allDay.filter((o) => o.key !== m.occurrence.sourceKey),
+          m.occurrence as unknown as EventOccurrence<T>,
+        ]
+      : partitioned.value.allDay
+    const spans = spanRow(occurrences, days, ctx.options.value.timeZone)
     const layout = layoutDayGridRow(
       spans.map((s) => ({ start: s.startCol, end: s.endCol })),
       days.length,
@@ -123,8 +152,64 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
       row: layout.rows[i]!,
       isStart: s.isStart,
       isEnd: s.isEnd,
+      mirror: s.occurrence === m?.occurrence,
     }))
     return { items, rowCount: layout.rowCount }
+  })
+
+  /**
+   * Blocks drawn over the day columns without taking part in the overlap layout: the drag preview
+   * of a timed event and a timed selection.
+   */
+  const overlays = computed<TimeGridOverlay[][]>(() => {
+    const { days, dayStartMinute, dayEndMinute } = cfg.value
+    const tz = ctx.options.value.timeZone
+    const result: TimeGridOverlay[][] = days.map(() => [])
+    const place = (
+      occ: EventOccurrence<unknown>,
+      kind: TimeGridOverlay['kind'],
+      valid: boolean,
+    ) => {
+      segmentByDay([occ], days, tz).forEach((segments, i) => {
+        for (const segment of segments) {
+          const pos = verticalPosition(
+            segment.startMinute,
+            segment.endMinute,
+            dayStartMinute,
+            dayEndMinute,
+          )
+          if (pos) result[i]!.push({ key: `${kind}@${i}`, kind, segment, valid, ...pos })
+        }
+      })
+    }
+    const m = mirror.value
+    if (m && !m.inAllDayRow) place(m.occurrence, 'mirror', m.occurrence.valid)
+    const sel = ctx.interaction.selection.value
+    if (sel && !sel.times.allDay) {
+      place(
+        withTimes({ key: 'selection' } as EventOccurrence<unknown>, sel.times),
+        'selection',
+        true,
+      )
+    }
+    return result
+  })
+
+  /** Columns covered by an all-day selection. */
+  const allDaySelection = computed(() => {
+    const sel = ctx.interaction.selection.value
+    if (!sel || !sel.times.allDay) return null
+    const { days } = cfg.value
+    const start = sel.times.start.toPlainDate()
+    const end = sel.times.end.toPlainDate()
+    const cols = days
+      .map((d, i) =>
+        Temporal.PlainDate.compare(d, start) >= 0 && Temporal.PlainDate.compare(d, end) < 0
+          ? i
+          : -1,
+      )
+      .filter((i) => i >= 0)
+    return cols.length ? { startCol: cols[0]!, endCol: cols[cols.length - 1]! + 1 } : null
   })
 
   const timed = computed<TimedEventLayout<T>[][]>(() => {
@@ -175,13 +260,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
   /** Start and end of a slot in a column, for slot-click payloads and the `time-slot` slot. */
   function slotRange(date: Temporal.PlainDate, startMinute: number, endMinute: number) {
     const tz = ctx.options.value.timeZone
-    const toZoned = (minute: number) =>
-      minute >= 1440
-        ? date.add({ days: 1 }).toZonedDateTime({ timeZone: tz })
-        : date
-            .toPlainDateTime({ hour: Math.floor(minute / 60), minute: minute % 60 })
-            .toZonedDateTime(tz, { disambiguation: 'compatible' })
-    return { start: toZoned(startMinute), end: toZoned(endMinute) }
+    return { start: zonedAtMinute(date, startMinute, tz), end: zonedAtMinute(date, endMinute, tz) }
   }
 
   /** Start and end of a whole day, for all-day slot clicks. */
@@ -194,5 +273,5 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     }
   }
 
-  return { columns, slots, allDay, timed, nowLine, slotRange, dayRange }
+  return { columns, slots, allDay, timed, overlays, allDaySelection, nowLine, slotRange, dayRange }
 }

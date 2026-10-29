@@ -4,6 +4,7 @@ import type {
   EventAccessors,
   EventOccurrence,
   RangeStrategy,
+  RecurrenceEditScope,
   Temporal,
   TimeGridLayoutAlgorithm,
   VisibleRange,
@@ -22,6 +23,16 @@ export interface SchedulerMessages {
   noEvents: string
   /** Label of the overflow link, e.g. "+3 more". */
   more: (count: number) => string
+  /** Number of events on a day, read out with month cells. */
+  eventCount: (count: number) => string
+  /** Screen-reader hint on editable events. */
+  dragHint: string
+  /** Announced after an event was moved or resized. */
+  eventChanged: (title: string, when: string) => string
+  /** Announced when a drag was cancelled. */
+  dragCancelled: string
+  /** Announced when a range was selected. */
+  selected: (when: string) => string
 }
 
 export const defaultMessages: SchedulerMessages = {
@@ -32,6 +43,12 @@ export const defaultMessages: SchedulerMessages = {
   close: 'Close',
   noEvents: 'No events',
   more: (count) => `+${count} more`,
+  eventCount: (count) => (count === 1 ? '1 event' : `${count} events`),
+  dragHint:
+    'Press Alt and the arrow keys to move, Alt Shift and the arrow keys to resize, Delete to remove.',
+  eventChanged: (title, when) => `${title} moved to ${when}`,
+  dragCancelled: 'Move cancelled',
+  selected: (when) => `Selected ${when}`,
 }
 
 /** Extra attributes for an event or a cell; merged onto the element the scheduler renders. */
@@ -80,6 +97,46 @@ export interface SchedulerOptions<T> {
   /** Show the current-time line. Default true. */
   nowIndicator?: boolean
   messages?: Partial<SchedulerMessages>
+
+  // --- interaction ---
+  /** Lets users move and resize events. Default false. */
+  editable?: boolean
+  /** Overrides `editable` for moving. */
+  eventDraggable?: boolean
+  /** Overrides `editable` for resizing. */
+  eventResizable?: boolean
+  /** Lets users select a range by dragging over empty slots. Default false. */
+  selectable?: boolean
+  /** Minutes that moves, resizes and selections snap to. Defaults to `slotDuration`. */
+  snapDuration?: number
+  /** Whether this occurrence may be moved. */
+  canDrag?: (occurrence: EventOccurrence<T>) => boolean
+  /** Whether this occurrence may be resized. */
+  canResize?: (occurrence: EventOccurrence<T>) => boolean
+  /** Whether a move or resize may end here. Invalid targets are shown and dropping there reverts. */
+  canDrop?: (info: DropInfo<T>) => boolean
+  /** Whether a range may be selected. */
+  canSelect?: (info: SelectInfo) => boolean
+  /** Scope proposed for changes to recurring events. Default "this". */
+  recurrenceEditScope?: RecurrenceEditScope
+  /** Touch: how long to press before a drag or selection starts, in ms. Default 400. */
+  longPressDelay?: number
+}
+
+export type EventChangeKind = 'move' | 'resize-start' | 'resize-end'
+
+export interface DropInfo<T> {
+  occurrence: EventOccurrence<T>
+  kind: EventChangeKind
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+}
+
+export interface SelectInfo {
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -179,6 +236,85 @@ export interface MoreClickPayload<T> extends Cancelable {
 }
 
 /** Events emitted by `<Scheduler>`, besides the `update:date` / `update:view` model updates. */
+export interface EventDragStartPayload<T> extends Cancelable {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  kind: EventChangeKind
+  nativeEvent: PointerEvent | KeyboardEvent
+}
+
+export interface EventDragPayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  kind: EventChangeKind
+  /** Where the event would land now. */
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  /** False when `canDrop` refuses this spot. */
+  valid: boolean
+}
+
+export interface EventDragCancelPayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  kind: EventChangeKind
+  /** "escape", "invalid" (dropped where not allowed), "unchanged" or "prevented" (a before-event refused it). */
+  reason: 'escape' | 'invalid' | 'unchanged' | 'prevented'
+}
+
+/** A move or resize of an event. */
+export interface EventChangePayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  kind: EventChangeKind
+  oldStart: Temporal.ZonedDateTime
+  oldEnd: Temporal.ZonedDateTime
+  oldAllDay: boolean
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  /** True for generated occurrences of a recurring event. */
+  recurring: boolean
+  /**
+   * Which occurrences the change is for. Starts as `recurrenceEditScope`; set it in the
+   * before-event (e.g. after asking the user) and the after-event carries your choice.
+   */
+  scope: RecurrenceEditScope
+  nativeEvent: PointerEvent | KeyboardEvent
+}
+
+export type BeforeEventChangePayload<T> = EventChangePayload<T> & Cancelable
+
+export interface EventChangedPayload<T> extends EventChangePayload<T> {
+  /**
+   * The scheduler shows the new position right away, until `events` changes. Call `revert()` to
+   * put the event back, e.g. when saving fails.
+   */
+  revert(): void
+}
+
+export interface EventDeletePayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  recurring: boolean
+  scope: RecurrenceEditScope
+  nativeEvent: KeyboardEvent
+}
+
+export interface SelectPayload {
+  view: string
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  nativeEvent: PointerEvent | KeyboardEvent
+}
+
 export interface SchedulerEmits<T> {
   /** The visible range changed. Use it to load events for that range. */
   'range-change': [payload: RangeChangePayload]
@@ -199,6 +335,27 @@ export interface SchedulerEmits<T> {
   'date-click': [payload: DateClickPayload]
   /** Before the "+N more" popover opens. Cancelable. */
   'more-click': [payload: MoreClickPayload<T>]
+
+  /** A move or resize starts (pointer passed the threshold, or long press). Cancelable. */
+  'event-drag-start': [payload: EventDragStartPayload<T>]
+  /** The previewed position changed during a drag. */
+  'event-drag': [payload: EventDragPayload<T>]
+  /** A drag ended without a change. */
+  'event-drag-cancel': [payload: EventDragCancelPayload<T>]
+  /** Before a moved event is committed. Cancelable; set `scope` here for recurring events. */
+  'before-event-drop': [payload: BeforeEventChangePayload<T>]
+  /** An event was moved. Update your data; call `revert()` if that fails. */
+  'event-drop': [payload: EventChangedPayload<T>]
+  /** Before a resized event is committed. Cancelable. */
+  'before-event-resize': [payload: BeforeEventChangePayload<T>]
+  /** An event was resized. Update your data; call `revert()` if that fails. */
+  'event-resize': [payload: EventChangedPayload<T>]
+  /** The user pressed Delete on an editable event. Remove it from your data to delete it. */
+  'event-delete': [payload: EventDeletePayload<T>]
+  /** A range was selected by dragging (or Shift + arrows and Enter). */
+  select: [payload: SelectPayload]
+  /** The selection was cleared. */
+  unselect: []
 }
 
 // ---------------------------------------------------------------------------------------------

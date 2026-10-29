@@ -161,6 +161,24 @@ export function minutesIntoDay(value: Temporal.ZonedDateTime | Temporal.PlainDat
   return value.hour * 60 + value.minute + value.second / 60
 }
 
+/**
+ * The moment `minute` minutes of wall-clock time into `date`. 1440 is the start of the next day.
+ * Times skipped by DST move forward, as RFC 5545 prescribes.
+ */
+export function zonedAtMinute(
+  date: Temporal.PlainDate,
+  minute: number,
+  timeZone: string,
+): Temporal.ZonedDateTime {
+  const whole = Math.round(minute)
+  const days = Math.floor(whole / 1440)
+  const rest = whole - days * 1440
+  return date
+    .add({ days })
+    .toPlainDateTime({ hour: Math.floor(rest / 60), minute: rest % 60 })
+    .toZonedDateTime(timeZone, { disambiguation: 'compatible' })
+}
+
 export function isSameDay(a: Temporal.PlainDate, b: Temporal.PlainDate): boolean {
   return Temporal.PlainDate.compare(a, b) === 0
 }

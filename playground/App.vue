@@ -6,8 +6,14 @@ import {
   Scheduler,
   Temporal,
   WeekView,
+  applyEventEdit,
   formatTimeRange,
+  removeEventOccurrence,
+  type EventChangedPayload,
+  type EventDeletePayload,
   type EventPointerPayload,
+  type RecurrenceEditScope,
+  type SelectPayload,
   type RangeChangePayload,
   type SchedulerEvent,
   type SlotPointerPayload,
@@ -24,12 +30,18 @@ const eventLayout = ref<'columns' | 'stack'>('columns')
 const hideWeekends = ref(false)
 const slotDuration = ref(30)
 const customEvents = ref(false)
+const editable = ref(true)
+const selectable = ref(true)
+const blockWeekends = ref(false)
+const scope = ref<RecurrenceEditScope>('this')
+const confirmRecurring = ref(false)
 
 const accent = ref('#2563eb')
 const slotHeight = ref(36)
 const eventRadius = ref(6)
 const monthEventHeight = ref(22)
 
+const scheduler = ref<{ clearSelection(): void }>()
 const date = ref<string>()
 const view = ref('week')
 
@@ -73,6 +85,78 @@ function onEventClick(p: EventPointerPayload<SchedulerEvent>) {
     `${title(p.event)}${o.allDay ? '' : ` (${formatTimeRange(o.start, o.end, locale.value)})`}`,
   )
 }
+// --- editing ---------------------------------------------------------------------------------
+
+const fmtTimes = (p: {
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+}) =>
+  p.allDay
+    ? `${p.start.toPlainDate()} (all day)`
+    : `${p.start.toPlainDate()} ${formatTimeRange(p.start, p.end, locale.value)}`
+
+/** Applies a drop or resize to the data; the scheduler keeps showing it until `events` changes. */
+function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
+  events.value = applyEventEdit(events.value, p.occurrence, p, {
+    scope: p.scope,
+    timeZone: timeZone.value,
+  })
+  log(name, `${title(p.event)} → ${fmtTimes(p)}${p.recurring ? ` [${p.scope}]` : ''}`)
+}
+
+function onDelete(p: EventDeletePayload<SchedulerEvent>) {
+  events.value = removeEventOccurrence(events.value, p.occurrence, {
+    scope: p.scope,
+    timeZone: timeZone.value,
+  })
+  log('event-delete', `${title(p.event)}${p.recurring ? ` [${p.scope}]` : ''}`)
+}
+
+function onSelect(p: SelectPayload) {
+  const id = `new-${Date.now()}`
+  events.value = [
+    ...events.value,
+    p.allDay
+      ? {
+          id,
+          title: 'New event',
+          start: p.start.toPlainDate().toString(),
+          end: p.end.toPlainDate().toString(),
+          color: '#ca8a04',
+        }
+      : {
+          id,
+          title: 'New event',
+          start: p.start.toString(),
+          end: p.end.toString(),
+          color: '#ca8a04',
+        },
+  ]
+  scheduler.value?.clearSelection()
+  log('select', `created event ${fmtTimes(p)}`)
+}
+
+/** Shows how a before-event can ask the user (asynchronously) before a change is applied. */
+function beforeChange(p: {
+  recurring: boolean
+  scope: RecurrenceEditScope
+  waitUntil(x: Promise<unknown>): void
+}) {
+  if (!p.recurring || !confirmRecurring.value) return
+  p.waitUntil(
+    new Promise<boolean>((resolve) =>
+      setTimeout(() => {
+        const answer = window.prompt('Change which occurrences? this / following / all', p.scope)
+        if (answer === 'this' || answer === 'following' || answer === 'all') {
+          p.scope = answer
+          resolve(true)
+        } else resolve(false)
+      }),
+    ),
+  )
+}
+
 function onSlotDblClick(p: SlotPointerPayload) {
   // Adding an event creates a new array; the store re-reads only the new object.
   const id = `new-${Date.now()}`
@@ -109,7 +193,11 @@ function onSlotDblClick(p: SlotPointerPayload) {
             <option :value="20000">20 000</option>
           </select>
         </label>
-        <p class="pg__hint">Double-click an empty slot to add an event.</p>
+        <p class="pg__hint">
+          Drag over empty slots to create an event, drag events to move them, drag their edges to
+          resize. Keyboard: Alt+arrows move, Alt+Shift+arrows resize, Delete removes, arrows walk
+          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…5.
+        </p>
       </section>
 
       <section>
@@ -154,6 +242,26 @@ function onSlotDblClick(p: SlotPointerPayload) {
         <label class="pg__check">
           <input v-model="customEvents" type="checkbox" /> Custom event slot
         </label>
+      </section>
+
+      <section>
+        <h2>Editing</h2>
+        <label class="pg__check"><input v-model="editable" type="checkbox" /> Editable</label>
+        <label class="pg__check"><input v-model="selectable" type="checkbox" /> Selectable</label>
+        <label class="pg__check">
+          <input v-model="blockWeekends" type="checkbox" /> Refuse drops on weekends
+        </label>
+        <label>
+          Recurring scope
+          <select v-model="scope">
+            <option value="this">this</option>
+            <option value="following">following</option>
+            <option value="all">all</option>
+          </select>
+        </label>
+        <label class="pg__check">
+          <input v-model="confirmRecurring" type="checkbox" /> Ask for scope (prompt)
+        </label>
         <label class="pg__check">
           <input
             type="checkbox"
@@ -193,6 +301,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
 
     <main class="pg__main">
       <Scheduler
+        ref="scheduler"
         v-model:date="date"
         v-model:view="view"
         :events="events"
@@ -203,6 +312,10 @@ function onSlotDblClick(p: SlotPointerPayload) {
         :event-layout="eventLayout"
         :hidden-days="hideWeekends ? [6, 7] : []"
         :style="cssVars"
+        :editable="editable"
+        :selectable="selectable"
+        :recurrence-edit-scope="scope"
+        :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
         @range-change="onRange"
         @navigate="(p) => log('navigate', `${p.reason}: ${p.from} → ${p.to}`)"
         @view-change="(p) => log('view-change', `${p.from} → ${p.to}`)"
@@ -211,6 +324,15 @@ function onSlotDblClick(p: SlotPointerPayload) {
         @slot-dblclick="onSlotDblClick"
         @date-click="(p) => log('date-click', p.date.toString())"
         @more-click="(p) => log('more-click', `${p.date}: ${p.hiddenCount} hidden`)"
+        @event-drag-start="(p) => log('event-drag-start', `${title(p.event)} (${p.kind})`)"
+        @event-drag-cancel="(p) => log('event-drag-cancel', `${title(p.event)}: ${p.reason}`)"
+        @before-event-drop="beforeChange"
+        @before-event-resize="beforeChange"
+        @event-drop="(p) => onChanged('event-drop', p)"
+        @event-resize="(p) => onChanged('event-resize', p)"
+        @event-delete="onDelete"
+        @select="onSelect"
+        @unselect="log('unselect')"
       >
         <template v-if="customEvents" #time-event="{ title, timeText, color }">
           <div class="pg-event" :style="{ '--c': color ?? accent }">

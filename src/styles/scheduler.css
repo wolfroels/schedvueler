@@ -817,3 +817,146 @@
     transition: none !important;
   }
 }
+
+/* ---------------------------------------------------------------- interaction ----------------- */
+
+.orb-scheduler {
+  --orb-selection-bg: color-mix(in srgb, var(--orb-color-accent) 16%, transparent);
+  --orb-selection-border: color-mix(in srgb, var(--orb-color-accent) 55%, transparent);
+  --orb-mirror-shadow: 0 6px 16px -4px rgb(15 23 42 / 0.35);
+  --orb-invalid-color: #dc2626;
+  --orb-resizer-size: 6px;
+}
+
+.orb-event--draggable {
+  cursor: grab;
+}
+
+.orb-event__resizer {
+  position: absolute;
+  z-index: 1;
+  opacity: 0;
+  touch-action: none;
+}
+
+.orb-event:hover > .orb-event__resizer,
+.orb-event:focus-visible > .orb-event__resizer {
+  opacity: 1;
+}
+
+/* timed events: top and bottom edges */
+.orb-event--time > .orb-event__resizer {
+  left: 0;
+  right: 0;
+  height: var(--orb-resizer-size);
+  cursor: ns-resize;
+}
+
+.orb-event--time > .orb-event__resizer--start {
+  top: 0;
+}
+
+.orb-event--time > .orb-event__resizer--end {
+  bottom: 0;
+}
+
+.orb-event--time > .orb-event__resizer--end::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 1rem;
+  height: 2px;
+  margin-left: -0.5rem;
+  border-radius: 2px;
+  background: var(--orb-event-color);
+  opacity: 0.6;
+}
+
+/* all-day and month bars: left and right edges */
+.orb-event--all-day > .orb-event__resizer,
+.orb-event--month > .orb-event__resizer {
+  top: 0;
+  bottom: 0;
+  width: var(--orb-resizer-size);
+  cursor: ew-resize;
+}
+
+.orb-event--all-day > .orb-event__resizer--start,
+.orb-event--month > .orb-event__resizer--start {
+  left: 0;
+}
+
+.orb-event--all-day > .orb-event__resizer--end,
+.orb-event--month > .orb-event__resizer--end {
+  right: 0;
+}
+
+.orb-event--drag-source {
+  opacity: 0.4;
+}
+
+.orb-event--mirror {
+  z-index: 50 !important;
+  pointer-events: none;
+  box-shadow: var(--orb-mirror-shadow);
+  background: var(--orb-event-bg-hover);
+}
+
+.orb-tg__events > .orb-tg__mirror {
+  left: 0;
+  width: calc(100% - var(--orb-event-gap));
+}
+
+.orb-event--invalid {
+  --orb-event-color: var(--orb-invalid-color);
+  outline: 2px dashed var(--orb-invalid-color);
+  outline-offset: -2px;
+  cursor: not-allowed;
+}
+
+.orb-tg__selection {
+  position: absolute;
+  left: 0;
+  right: calc(var(--orb-event-gap) * -1);
+  z-index: 40;
+  border: 1px solid var(--orb-selection-border);
+  border-radius: var(--orb-event-radius);
+  background: var(--orb-selection-bg);
+  pointer-events: none;
+}
+
+.orb-tg__allday-selection {
+  grid-row: 1 / -1;
+  margin: -3px 0 -5px;
+  background: var(--orb-selection-bg);
+  pointer-events: none;
+}
+
+.orb-month__cell.is-selected {
+  background: var(--orb-selection-bg);
+}
+
+.orb-tg__slot:focus-visible,
+.orb-month__cell:focus-visible {
+  outline: 2px solid var(--orb-color-focus);
+  outline-offset: -2px;
+}
+
+.orb-dragging,
+.orb-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.orb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

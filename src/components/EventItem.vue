@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatTime, formatTimeRange, type EventOccurrence } from '../core'
+import { formatDate, formatTime, formatTimeRange, type EventOccurrence } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
-import type { EventSlotProps, EventVariant } from '../types'
+import type { EventChangeKind, EventSlotProps, EventVariant } from '../types'
 import { RenderSlot } from './RenderSlot'
 
 const props = withDefaults(
@@ -14,11 +14,16 @@ const props = withDefaults(
     resolve: SlotResolver
     isStart?: boolean
     isEnd?: boolean
+    /** Render as the drag preview: no handlers, not focusable. */
+    mirror?: boolean
+    /** For the drag preview: false when the current spot is not allowed. */
+    valid?: boolean
   }>(),
-  { isStart: true, isEnd: true },
+  { isStart: true, isEnd: true, mirror: false, valid: true },
 )
 
 const ctx = useSchedulerContext()
+const interaction = ctx.interaction
 
 const SLOT_NAMES: Record<EventVariant, string[]> = {
   time: ['time-event', 'event'],
@@ -58,6 +63,32 @@ const eventSlot = computed(() => props.resolve(...SLOT_NAMES[props.variant]))
 const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
 
+const draggable = computed(
+  () => !props.mirror && props.variant !== 'list' && interaction.canDrag(props.occurrence),
+)
+// Timed events resize on the time grid only; all-day events in day rows.
+const resizable = computed(
+  () =>
+    !props.mirror &&
+    (props.variant === 'time' ||
+      (props.occurrence.allDay && (props.variant === 'all-day' || props.variant === 'month'))) &&
+    interaction.canResize(props.occurrence),
+)
+const isDragSource = computed(() => {
+  const s = interaction.state.value
+  return !props.mirror && !!s?.preview && s.occurrence?.key === props.occurrence.key
+})
+
+const ariaLabel = computed(() => {
+  const p = slotProps.value
+  const date = formatDate(props.occurrence.start.toPlainDate(), ctx.options.value.locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return [p.title, date, p.timeText].filter(Boolean).join(', ')
+})
+
 function payload<E extends Event>(nativeEvent: E) {
   return {
     occurrence: props.occurrence,
@@ -68,11 +99,52 @@ function payload<E extends Event>(nativeEvent: E) {
   }
 }
 
+function onPointerDown(e: PointerEvent, kind: EventChangeKind) {
+  if (props.mirror) return
+  if (kind !== 'move') e.stopPropagation()
+  interaction.pointerDownOnEvent(e, props.occurrence, kind, props.view)
+}
+
+const ARROWS: Record<string, { days?: number; minutes?: number }> = {
+  ArrowLeft: { days: -1 },
+  ArrowRight: { days: 1 },
+  ArrowUp: { minutes: -1 },
+  ArrowDown: { minutes: 1 },
+}
+
 function onKeydown(e: KeyboardEvent) {
   ctx.emit('event-keydown', payload(e))
-  if (!e.defaultPrevented && (e.key === 'Enter' || e.key === ' ')) {
+  if (e.defaultPrevented) return
+  if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
     ;(e.currentTarget as HTMLElement).click()
+    return
+  }
+  const arrow = ARROWS[e.key]
+  if (arrow && e.altKey) {
+    // Alt + arrows moves by a snap step or a day; with Shift it resizes the end instead.
+    const snap = ctx.options.value.raw.snapDuration ?? ctx.options.value.slotDuration
+    const step = { days: arrow.days, minutes: arrow.minutes && arrow.minutes * snap }
+    interaction.keyboardChange(
+      e,
+      props.occurrence,
+      e.shiftKey ? 'resize-end' : 'move',
+      props.view,
+      step,
+    )
+    return
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && (draggable.value || resizable.value)) {
+    e.preventDefault()
+    const occ = props.occurrence
+    ctx.emit('event-delete', {
+      occurrence: occ,
+      event: occ.event,
+      view: props.view,
+      recurring: occ.recurring,
+      scope: ctx.options.value.raw.recurrenceEditScope ?? 'this',
+      nativeEvent: e,
+    })
   }
 }
 </script>
@@ -84,22 +156,29 @@ function onKeydown(e: KeyboardEvent) {
       `orb-event--${variant}`,
       {
         'orb-event--custom': eventSlot,
-        'orb-event--past': slotProps.isPast,
+        'orb-event--past': slotProps.isPast && !mirror,
         'orb-event--continues-before': !isStart,
         'orb-event--continues-after': !isEnd,
+        'orb-event--draggable': draggable,
+        'orb-event--drag-source': isDragSource,
+        'orb-event--mirror': mirror,
+        'orb-event--invalid': mirror && !valid,
       },
     ]"
     :style="slotProps.color ? { '--orb-event-color': slotProps.color } : undefined"
-    role="button"
-    tabindex="0"
-    :aria-label="slotProps.timeText ? `${slotProps.title}, ${slotProps.timeText}` : slotProps.title"
+    :role="mirror ? undefined : 'button'"
+    :tabindex="mirror ? undefined : 0"
+    :aria-hidden="mirror ? 'true' : undefined"
+    :aria-label="mirror ? undefined : ariaLabel"
+    :aria-describedby="draggable || resizable ? ctx.hintId : undefined"
     v-bind="extraAttrs"
-    @click="ctx.emit('event-click', payload($event))"
-    @dblclick="ctx.emit('event-dblclick', payload($event))"
-    @contextmenu="ctx.emit('event-contextmenu', payload($event))"
-    @mouseenter="ctx.emit('event-mouseenter', payload($event))"
-    @mouseleave="ctx.emit('event-mouseleave', payload($event))"
-    @keydown="onKeydown"
+    @pointerdown="onPointerDown($event, 'move')"
+    @click="!mirror && ctx.emit('event-click', payload($event))"
+    @dblclick="!mirror && ctx.emit('event-dblclick', payload($event))"
+    @contextmenu="!mirror && ctx.emit('event-contextmenu', payload($event))"
+    @mouseenter="!mirror && ctx.emit('event-mouseenter', payload($event))"
+    @mouseleave="!mirror && ctx.emit('event-mouseleave', payload($event))"
+    @keydown="!mirror && onKeydown($event)"
   >
     <RenderSlot v-if="eventSlot" :fn="eventSlot" :scope="slotProps" />
     <RenderSlot v-else :fn="contentSlot" :scope="slotProps">
@@ -119,5 +198,20 @@ function onKeydown(e: KeyboardEvent) {
         <span class="orb-event__title">{{ slotProps.title }}</span>
       </template>
     </RenderSlot>
+
+    <template v-if="resizable">
+      <span
+        v-if="isStart"
+        class="orb-event__resizer orb-event__resizer--start"
+        aria-hidden="true"
+        @pointerdown="onPointerDown($event, 'resize-start')"
+      />
+      <span
+        v-if="isEnd"
+        class="orb-event__resizer orb-event__resizer--end"
+        aria-hidden="true"
+        @pointerdown="onPointerDown($event, 'resize-end')"
+      />
+    </template>
   </div>
 </template>

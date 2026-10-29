@@ -26,6 +26,8 @@ export interface MonthCell {
   isToday: boolean
   isPast: boolean
   isOtherMonth: boolean
+  /** Inside the current selection. */
+  isSelected: boolean
 }
 
 export interface MonthEventLayout<T> {
@@ -37,6 +39,8 @@ export interface MonthEventLayout<T> {
   isStart: boolean
   isEnd: boolean
   variant: Extract<EventVariant, 'month' | 'month-timed'>
+  /** This item is the drag preview. */
+  mirror: boolean
 }
 
 export interface MonthMoreLink {
@@ -79,7 +83,25 @@ export function useMonthGrid<T>(
     const { range, hiddenDays, maxRows } = cfg.value
     const { locale, timeZone } = ctx.options.value
     const today = ctx.today.value
-    const occurrences = ctx.occurrences.value
+    // While dragging, the preview takes the place of the original.
+    const mirror = ctx.interaction.mirror.value as
+      (EventOccurrence<T> & { sourceKey: string }) | null
+    const occurrences = mirror
+      ? [...ctx.occurrences.value.filter((o) => o.key !== mirror.sourceKey), mirror].sort(
+          (a, b) => a.startMs - b.startMs || b.endMs - b.startMs - (a.endMs - a.startMs),
+        )
+      : ctx.occurrences.value
+    const sel = ctx.interaction.selection.value
+    const selStart = sel?.times.start.withTimeZone(timeZone).toPlainDate()
+    const selEnd = sel
+      ? sel.times.allDay
+        ? sel.times.end.toPlainDate()
+        : sel.times.end
+            .withTimeZone(timeZone)
+            .subtract({ nanoseconds: 1 })
+            .toPlainDate()
+            .add({ days: 1 })
+      : undefined
     const result: MonthWeek<T>[] = []
 
     for (
@@ -101,6 +123,11 @@ export function useMonthGrid<T>(
           isToday: cmp === 0,
           isPast: cmp < 0,
           isOtherMonth: !rangeContains(range.active, date),
+          isSelected:
+            !!selStart &&
+            !!selEnd &&
+            Temporal.PlainDate.compare(date, selStart) >= 0 &&
+            Temporal.PlainDate.compare(date, selEnd) < 0,
         }
       })
 
@@ -125,6 +152,7 @@ export function useMonthGrid<T>(
           isStart: s.isStart,
           isEnd: s.isEnd,
           variant: bar ? 'month' : 'month-timed',
+          mirror: occ === mirror,
         })
       })
       const more = layout.hiddenPerColumn

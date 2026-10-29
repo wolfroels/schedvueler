@@ -3,8 +3,9 @@
 Modular scheduler and calendar components for Vue 3: views as child components, a slot for every
 part, typed emits, full RRULE recurrence and time-zone support, and a framework-free core.
 
-> Status: in development. Phases 1–2 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
-> day/week/N-day/month views). Drag & drop, agenda/mobile and the resource timeline are next.
+> Status: in development. Phases 1–3 of [RESEARCH.md](RESEARCH.md) are done (core, root component,
+> day/week/N-day/month views, drag/resize/select, keyboard). Agenda/mobile and the resource
+> timeline are next.
 
 ## Quick start
 
@@ -66,11 +67,53 @@ const accessors = { id: (b: Booking) => b.bookingId, start: (b) => b.from, end: 
 Treat event objects as immutable: replace an object (or the array) to change it. Unchanged objects
 are not re-read, so adding one event to 10 000 is cheap.
 
+## Editing
+
+```vue
+<Scheduler :events="events" editable selectable @event-drop="onChange" @event-resize="onChange"
+  @event-delete="onDelete" @select="onSelect" />
+```
+
+```ts
+import { applyEventEdit, removeEventOccurrence } from 'orb-scheduler'
+
+function onChange(p: EventChangedPayload<SchedulerEvent>) {
+  // For recurring events p.scope says "this", "following" or "all".
+  events.value = applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone })
+}
+```
+
+- The scheduler shows the new position immediately and keeps it until `events` changes; call
+  `p.revert()` if saving fails.
+- `before-event-drop` / `before-event-resize` are cancelable and can wait for a promise (e.g. a
+  "this / following / all" dialog); set `p.scope` there.
+- `canDrag`, `canResize`, `canDrop` and `canSelect` decide per event or per spot; refused spots
+  show the preview in red and the drop reverts.
+- Touch: long-press (`longPressDelay`, 400 ms) starts a drag or selection, so scrolling still works.
+
+### Keyboard
+
+| Keys | Action |
+| --- | --- |
+| Arrows | Move focus over slots / day cells (past the edge goes to the previous/next period) |
+| Shift + arrows, then Enter | Select a range |
+| Enter / Space | Click the focused slot or event |
+| Alt + arrows | Move the focused event by a snap step / a day |
+| Alt + Shift + arrows | Resize the focused event |
+| Delete / Backspace | `event-delete` for the focused event |
+| PageUp / PageDown, T | Previous / next period, today |
+| Alt + 1…9 | Switch view |
+| Escape | Cancel a drag, clear the selection |
+
+Changes are announced to screen readers through a live region; texts are in `messages`.
+
 ## Emits
 
 `range-change` (load data for the visible range), `navigate` and `view-change` (cancelable),
 `event-click` / `-dblclick` / `-contextmenu` / `-mouseenter` / `-mouseleave` / `-keydown`,
-`slot-click` / `-dblclick` / `-contextmenu`, `date-click`, `more-click` (cancelable), plus
+`slot-click` / `-dblclick` / `-contextmenu`, `date-click`, `more-click` (cancelable),
+`event-drag-start` (cancelable), `event-drag`, `event-drag-cancel`, `before-event-drop` /
+`event-drop`, `before-event-resize` / `event-resize`, `event-delete`, `select`, `unselect`, plus
 `update:date` and `update:view` for `v-model`.
 
 Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.

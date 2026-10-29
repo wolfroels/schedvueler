@@ -21,6 +21,7 @@ import type {
   SchedulerOptions,
   SchedulerViewDefinition,
 } from '../types'
+import type { SchedulerInteraction } from './useInteraction'
 
 export interface ViewRegistration {
   id: symbol
@@ -86,6 +87,15 @@ export interface SchedulerContext<T = unknown> {
    * slot up outside the render of the component owning it reads this to stay current.
    */
   slotsVersion: Readonly<Ref<number>>
+
+  /** Drag, resize, selection and optimistic updates. */
+  interaction: SchedulerInteraction
+  /** Id of the hidden keyboard hint referenced by editable events. */
+  hintId: string
+  /** Latest screen-reader announcement. */
+  announcement: Readonly<Ref<string>>
+  /** Announces a message to screen readers through the live region. */
+  announce(message: string): void
 }
 
 export const SchedulerContextKey: InjectionKey<SchedulerContext<unknown>> = Symbol('orb-scheduler')

@@ -8,6 +8,7 @@ import {
   provide,
   shallowRef,
   toValue,
+  useId,
   useSlots,
   watch,
   type MaybeRefOrGetter,
@@ -22,11 +23,13 @@ import {
   rangeToWindow,
   systemTimeZone,
   timeGridLayouts,
+  type EventOccurrence,
   type VisibleRange,
   weekStartForLocale,
 } from '../core'
 import { defaultMessages, type SchedulerOptions } from '../types'
 import { createCancelable, whenAllowed } from './cancelable'
+import { createInteraction, type SchedulerInteraction } from './useInteraction'
 import {
   SchedulerContextKey,
   parseTimeOfDay,
@@ -183,7 +186,8 @@ export function useScheduler<T>(
   const timeWindow = computed(() =>
     range.value ? rangeToWindow(range.value, timeZone.value) : undefined,
   )
-  const occurrences = computed(() => {
+  // Occurrences straight from the store, before optimistic drag/resize results are applied.
+  const queried = computed(() => {
     void version.value
     return timeWindow.value ? store.query(timeWindow.value) : []
   })
@@ -247,6 +251,13 @@ export function useScheduler<T>(
   const slotsVersion = shallowRef(0)
   if (getCurrentInstance()) onBeforeUpdate(() => slotsVersion.value++)
 
+  const occurrences = computed(
+    () => ctx.interaction.applyPending(queried.value) as EventOccurrence<T>[],
+  )
+  watch(version, () => ctx.interaction.prunePending())
+
+  const announcement = shallowRef('')
+
   const ctx: SchedulerContext<T> = {
     options: resolved,
     accessors,
@@ -290,7 +301,17 @@ export function useScheduler<T>(
     emit,
     slots,
     slotsVersion,
+    interaction: undefined as unknown as SchedulerInteraction,
+    hintId: `${useId() ?? 'orb'}-hint`,
+    announcement,
+    announce(message) {
+      // Clear first so repeating the same message is announced again.
+      announcement.value = ''
+      setTimeout(() => (announcement.value = message), 50)
+    },
   }
+  // Created after the context object because the controller reads options and emits through it.
+  ctx.interaction = createInteraction(ctx as SchedulerContext<unknown>)
 
   provide(SchedulerContextKey, ctx as SchedulerContext<unknown>)
   return ctx

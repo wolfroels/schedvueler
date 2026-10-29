@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { formatDate, type EventOccurrence, type Temporal, type VisibleRange } from '../core'
+import {
+  computeSelection,
+  formatDate,
+  type EventOccurrence,
+  type Hit,
+  type Temporal,
+  type VisibleRange,
+} from '../core'
 import { createCancelable, whenAllowed } from '../composables/cancelable'
 import { useSchedulerContext } from '../composables/context'
 import { useMonthGrid, type MonthCell, type MonthMoreLink } from '../composables/useMonthGrid'
@@ -17,6 +24,7 @@ const props = defineProps<{
 }>()
 
 const ctx = useSchedulerContext()
+const interaction = ctx.interaction
 
 // --- "auto" rows: as many event rows as fit in a week row ---------------------------------------
 
@@ -92,6 +100,124 @@ function onDateClick(cell: MonthCell, e: MouseEvent) {
     nativeEvent: e,
     element: e.currentTarget as HTMLElement,
   })
+}
+
+/** Pointerdown on empty space starts a selection (when enabled); events handle their own. */
+function onEmptyPointerDown(e: PointerEvent) {
+  if ((e.target as HTMLElement).closest('.orb-event, .orb-month__more')) return
+  interaction.pointerDownOnSlot(e, props.view)
+}
+
+function cellLabel(cell: MonthCell) {
+  const date = formatDate(cell.date, ctx.options.value.locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const count = occurrencesOn(cell.date).length
+  return count ? `${date}, ${ctx.options.value.messages.eventCount(count)}` : date
+}
+
+// --- hit testing for drag, resize and select ---------------------------------------------------
+
+const body = ref<HTMLElement>()
+const weekEls: HTMLElement[] = []
+
+function setWeekEl(el: unknown, index: number) {
+  if (el) weekEls[index] = el as HTMLElement
+}
+
+function hitTest(x: number, y: number): Hit | null {
+  const list = weekEls.slice(0, weeks.value.length)
+  if (!list.length || !root.value?.isConnected) return null
+  const rects = list.map((w) => w.getBoundingClientRect())
+  const first = rects[0]!
+  if (x < first.left || x > first.right) return null
+  // Above or below the grid counts as the first or last week, so dragging out keeps a target.
+  let index = rects.findIndex((r) => y >= r.top && y < r.bottom)
+  if (index < 0) index = y < first.top ? 0 : rects.length - 1
+  const week = weeks.value[index]!
+  const col = Math.min(
+    week.cells.length - 1,
+    Math.max(0, Math.floor(((x - first.left) / first.width) * week.cells.length)),
+  )
+  return { zone: 'month', date: week.cells[col]!.date }
+}
+
+let unregister: (() => void) | undefined
+onMounted(() => {
+  unregister = interaction.registerSurface({ hitTest, scrollElement: () => body.value })
+})
+onBeforeUnmount(() => unregister?.())
+
+// --- keyboard: roving focus over the day cells -----------------------------------------------
+
+const focusKey = shallowRef<string>()
+const selectionAnchor = shallowRef<Hit>()
+const flatCells = computed(() => weeks.value.flatMap((w) => w.cells))
+const activeKey = computed(() => {
+  const cells = flatCells.value
+  if (focusKey.value && cells.some((c) => c.key === focusKey.value)) return focusKey.value
+  return (cells.find((c) => c.isToday) ?? cells.find((c) => !c.isOtherMonth) ?? cells[0])?.key
+})
+
+function focusCellKey(key: string) {
+  focusKey.value = key
+  nextTick(() => root.value?.querySelector<HTMLElement>(`[data-date="${key}"]`)?.focus())
+}
+
+function onCellKeydown(e: KeyboardEvent, cell: MonthCell) {
+  const cells = flatCells.value
+  const cols = weekdays.value.length
+  const index = cells.findIndex((c) => c.key === cell.key)
+  const moves: Record<string, number> = {
+    ArrowLeft: -1,
+    ArrowRight: 1,
+    ArrowUp: -cols,
+    ArrowDown: cols,
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    if (e.target !== e.currentTarget) return
+    e.preventDefault()
+    const sel = interaction.selection.value
+    if (selectionAnchor.value && sel && sel.view === props.view) {
+      interaction.setSelection(props.view, sel.times, e)
+      selectionAnchor.value = undefined
+    } else {
+      ;(e.currentTarget as HTMLElement).click()
+    }
+    return
+  }
+  const move = moves[e.key]
+  if (move === undefined) return
+  e.preventDefault()
+  const target = index + move
+  if (target < 0 || target >= cells.length) {
+    // Past the edge: go to the previous or next month and keep the weekday.
+    if (target < 0) ctx.prev()
+    else ctx.next()
+    return
+  }
+  const next = cells[target]!
+  if (e.shiftKey && interaction.selectable) {
+    const anchor = selectionAnchor.value ?? { zone: 'month' as const, date: cell.date }
+    selectionAnchor.value = anchor
+    const times = computeSelection(
+      anchor,
+      { zone: 'month', date: next.date },
+      {
+        timeZone: ctx.options.value.timeZone,
+        snapMinutes: ctx.options.value.slotDuration,
+        defaultDurationMinutes: 60,
+      },
+    )
+    interaction.setSelection(props.view, times)
+  } else if (selectionAnchor.value) {
+    selectionAnchor.value = undefined
+    interaction.clearSelection()
+  }
+  focusCellKey(next.key)
 }
 
 // --- "+N more" popover -----------------------------------------------------------------------
@@ -177,8 +303,14 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       </div>
     </div>
 
-    <div class="orb-month__body">
-      <div v-for="(week, wi) in weeks" :key="week.key" class="orb-month__week" role="row">
+    <div ref="body" class="orb-month__body" @pointerdown="onEmptyPointerDown">
+      <div
+        v-for="(week, wi) in weeks"
+        :key="week.key"
+        :ref="(el) => setWeekEl(el, wi)"
+        class="orb-month__week"
+        role="row"
+      >
         <div
           v-for="cell in week.cells"
           :key="cell.key"
@@ -188,15 +320,27 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             'is-past': cell.isPast,
             'is-other-month': cell.isOtherMonth,
             'is-weekend': cell.date.dayOfWeek >= 6,
+            'is-selected': cell.isSelected,
           }"
           role="gridcell"
+          :tabindex="cell.key === activeKey ? 0 : -1"
+          :data-date="cell.key"
+          :aria-label="cellLabel(cell)"
+          :aria-selected="cell.isSelected"
           :aria-current="cell.isToday ? 'date' : undefined"
+          @keydown="onCellKeydown($event, cell)"
+          @focus="focusKey = cell.key"
           @click="onCell('slot-click', cell, $event)"
           @dblclick="onCell('slot-dblclick', cell, $event)"
           @contextmenu="onCell('slot-contextmenu', cell, $event)"
         >
           <RenderSlot :fn="resolve('month-cell')" :scope="{ view, ...cell }">
-            <button type="button" class="orb-month__daynum" @click.stop="onDateClick(cell, $event)">
+            <button
+              type="button"
+              class="orb-month__daynum"
+              tabindex="-1"
+              @click.stop="onDateClick(cell, $event)"
+            >
               {{ cell.dayNumber }}
             </button>
           </RenderSlot>
@@ -213,6 +357,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             :resolve="resolve"
             :is-start="item.isStart"
             :is-end="item.isEnd"
+            :mirror="item.mirror"
+            :valid="interaction.mirror.value?.valid ?? true"
             :style="{
               gridColumn: `${item.startCol + 1} / ${item.endCol + 1}`,
               gridRow: item.row + 1,
