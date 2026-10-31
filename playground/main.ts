@@ -1,4 +1,4 @@
 import { createApp } from 'vue'
-import App from './App.vue'
+import PlaygroundRoot from './PlaygroundRoot.vue'
 
-createApp(App).mount('#app')
+createApp(PlaygroundRoot).mount('#app')

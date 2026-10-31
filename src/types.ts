@@ -64,6 +64,81 @@ export interface ElementAttrs {
   [attr: string]: unknown
 }
 
+/** Every element that can be reached with `pt`, and that carries `data-orb-part`. */
+export type SchedulerPart =
+  | 'root'
+  | 'body'
+  | 'toolbar'
+  | 'toolbarStart'
+  | 'toolbarCenter'
+  | 'toolbarEnd'
+  | 'prevButton'
+  | 'nextButton'
+  | 'todayButton'
+  | 'title'
+  | 'viewSwitcher'
+  | 'viewButton'
+  | 'event'
+  | 'eventTitle'
+  | 'eventTime'
+  | 'eventDot'
+  | 'resizer'
+  | 'selection'
+  | 'nowIndicator'
+  | 'timeGrid'
+  | 'gridHead'
+  | 'dayHeader'
+  | 'resourceHeader'
+  | 'allDayLabel'
+  | 'allDayRow'
+  | 'allDayCell'
+  | 'gutter'
+  | 'timeLabel'
+  | 'column'
+  | 'timeSlot'
+  | 'monthGrid'
+  | 'monthWeekday'
+  | 'monthWeek'
+  | 'monthCell'
+  | 'monthDayNumber'
+  | 'moreLink'
+  | 'popover'
+  | 'popoverHeader'
+  | 'popoverTitle'
+  | 'popoverClose'
+  | 'popoverList'
+  | 'year'
+  | 'yearMonth'
+  | 'yearMonthTitle'
+  | 'yearWeekday'
+  | 'yearDay'
+  | 'agenda'
+  | 'agendaEmpty'
+  | 'agendaDay'
+  | 'agendaDayButton'
+  | 'agendaRow'
+  | 'timeline'
+  | 'timelineCorner'
+  | 'timelineDayHeading'
+  | 'timelineSlotHeading'
+  | 'timelineRow'
+  | 'resourceLabel'
+  | 'resourceToggle'
+  | 'timelineLane'
+
+/**
+ * Attributes passed through to the parts of the scheduler: classes, styles, `data-*`, listeners.
+ * A function receives what is known about that element. Keep the object stable (define it outside
+ * the template): a new object on every render re-renders every part.
+ */
+export type SchedulerPt = Partial<
+  Record<
+    SchedulerPart,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ElementAttrs | ((scope: Record<string, any>) => ElementAttrs | undefined)
+  >
+>
+
 export type EventLayoutOption = 'columns' | 'stack' | TimeGridLayoutAlgorithm
 
 /** Options shared by every view. Views can override most of them with their own props. */
@@ -100,6 +175,8 @@ export interface SchedulerOptions<T> {
   eventOrder?: (a: EventOccurrence<T>, b: EventOccurrence<T>) => number
   /** Extra class/style/attributes per event. Must be a pure function. */
   eventAttrs?: (occurrence: EventOccurrence<T>) => ElementAttrs | undefined
+  /** Attributes for any part of the scheduler. See the slots and parts page in the playground. */
+  pt?: SchedulerPt
   /** Show the current-time line. Default true. */
   nowIndicator?: boolean
   messages?: Partial<SchedulerMessages>
@@ -507,6 +584,10 @@ export interface EventSlotProps<T> {
   color: string | undefined
   /** Resource of the column or timeline row the event is shown in. */
   resourceId: ResourceId | undefined
+  /** This is the preview of a drag. */
+  isMirror: boolean
+  /** For a drag preview: false over a spot that is not allowed. */
+  valid: boolean
 }
 
 export interface ToolbarSlotProps {
@@ -608,6 +689,14 @@ export interface NowIndicatorSlotProps {
   label: string
 }
 
+export interface SelectionSlotProps {
+  view: string
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  resourceId: ResourceId | undefined
+}
+
 type SlotFn<P> = (props: P) => VNodeChild
 
 /**
@@ -621,17 +710,38 @@ export interface SchedulerSlots<T> {
   'toolbar-center'?: SlotFn<ToolbarSlotProps>
   'toolbar-end'?: SlotFn<ToolbarSlotProps>
   title?: SlotFn<ToolbarSlotProps>
+  /** The previous button. */
+  'nav-prev'?: SlotFn<{ prev(): void; label: string }>
+  /** The next button. */
+  'nav-next'?: SlotFn<{ next(): void; label: string }>
+  /** The today button. */
+  'today-button'?: SlotFn<{ today(): void; label: string }>
+  /** The whole view switcher. */
+  'view-switcher'?: SlotFn<ToolbarSlotProps>
+  /** One button of the view switcher. */
+  'view-button'?: SlotFn<{
+    view: { name: string; label: string; active: boolean }
+    setView(name: string): void
+  }>
   event?: SlotFn<EventSlotProps<T>>
   'event-content'?: SlotFn<EventSlotProps<T>>
   'time-event'?: SlotFn<EventSlotProps<T>>
   'all-day-event'?: SlotFn<EventSlotProps<T>>
   'month-event'?: SlotFn<EventSlotProps<T>>
+  /** The preview shown during a drag, instead of the normal event slots. */
+  'drag-preview'?: SlotFn<EventSlotProps<T>>
+  /** The inside of a resize handle. */
+  'resize-handle'?: SlotFn<{ edge: 'start' | 'end'; variant: EventVariant }>
+  /** The inside of the selected range (time grid, all-day row, timeline). */
+  selection?: SlotFn<SelectionSlotProps>
   'day-header'?: SlotFn<DayHeaderSlotProps>
   'all-day-label'?: SlotFn<{ label: string }>
   'time-label'?: SlotFn<TimeLabelSlotProps>
   'time-slot'?: SlotFn<TimeSlotSlotProps>
   'month-weekday'?: SlotFn<{ weekday: number; label: string }>
   'month-cell'?: SlotFn<MonthCellSlotProps>
+  /** The inside of the day number button in a month cell. */
+  'month-day-number'?: SlotFn<MonthCellSlotProps>
   'more-link'?: SlotFn<MoreLinkSlotProps<T>>
   'more-popover'?: SlotFn<MorePopoverSlotProps<T>>
   'now-indicator'?: SlotFn<NowIndicatorSlotProps>

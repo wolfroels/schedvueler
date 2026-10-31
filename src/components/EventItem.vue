@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, mergeProps, onMounted, ref } from 'vue'
 import {
   formatDate,
   formatTime,
   formatTimeRange,
   type EventOccurrence,
   type ResourceId,
+  type Temporal,
 } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
@@ -30,6 +31,8 @@ const props = withDefaults(
     resourceId?: ResourceId
     /** Minutes per keyboard step; defaults to the scheduler's snap. */
     snapMinutes?: number
+    /** Date a drag counts from, when the event is not drawn on its date (a popover's list). */
+    originDate?: Temporal.PlainDate
   }>(),
   { isStart: true, isEnd: true, mirror: false, valid: true },
 )
@@ -88,19 +91,22 @@ const slotProps = computed<EventSlotProps<unknown>>(() => {
       accessors.color(occ.event) ??
       ctx.resourceMap.value.get(props.resourceId ?? occ.resourceIds[0]!)?.color,
     resourceId: props.resourceId,
+    isMirror: props.mirror,
+    valid: props.valid,
   }
 })
 
-const eventSlot = computed(() => props.resolve(...SLOT_NAMES[props.variant]))
+const eventSlot = computed(() =>
+  props.mirror
+    ? props.resolve('drag-preview', ...SLOT_NAMES[props.variant])
+    : props.resolve(...SLOT_NAMES[props.variant]),
+)
+const handleSlot = computed(() => props.resolve('resize-handle'))
 const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
 
 const draggable = computed(
-  () =>
-    !props.mirror &&
-    props.variant !== 'list' &&
-    props.variant !== 'agenda' &&
-    interaction.canDrag(props.occurrence),
+  () => !props.mirror && props.variant !== 'agenda' && interaction.canDrag(props.occurrence),
 )
 // Timed events resize on the time grid and timeline; all-day events in day rows and the timeline.
 const resizable = computed(
@@ -110,6 +116,12 @@ const resizable = computed(
       props.variant === 'timeline' ||
       (props.occurrence.allDay && (props.variant === 'all-day' || props.variant === 'month'))) &&
     interaction.canResize(props.occurrence),
+)
+// Moving and deleting from the keyboard also work where dragging does not, such as the agenda.
+const canEdit = computed(
+  () =>
+    !props.mirror &&
+    (interaction.canDrag(props.occurrence) || interaction.canResize(props.occurrence)),
 )
 const isDragSource = computed(() => {
   const s = interaction.state.value
@@ -139,7 +151,7 @@ function payload<E extends Event>(nativeEvent: E) {
 function onPointerDown(e: PointerEvent, kind: EventChangeKind) {
   if (props.mirror) return
   if (kind !== 'move') e.stopPropagation()
-  interaction.pointerDownOnEvent(e, props.occurrence, kind, props.view)
+  interaction.pointerDownOnEvent(e, props.occurrence, kind, props.view, props.originDate)
 }
 
 const ARROWS: Record<string, { days?: number; minutes?: number }> = {
@@ -199,7 +211,7 @@ function onKeydown(e: KeyboardEvent) {
     )
     return
   }
-  if ((e.key === 'Delete' || e.key === 'Backspace') && (draggable.value || resizable.value)) {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && canEdit.value) {
     e.preventDefault()
     const occ = props.occurrence
     ctx.emit('event-delete', {
@@ -237,7 +249,7 @@ function onKeydown(e: KeyboardEvent) {
     :aria-hidden="mirror ? 'true' : undefined"
     :aria-label="mirror ? undefined : ariaLabel"
     :aria-describedby="draggable || resizable ? ctx.hintId : undefined"
-    v-bind="extraAttrs"
+    v-bind="mergeProps(ctx.part('event', { occurrence, variant, mirror }), extraAttrs)"
     @pointerdown="onPointerDown($event, 'move')"
     @click="!mirror && ctx.emit('event-click', payload($event))"
     @dblclick="!mirror && ctx.emit('event-dblclick', payload($event))"
@@ -249,24 +261,29 @@ function onKeydown(e: KeyboardEvent) {
     <RenderSlot v-if="eventSlot" :fn="eventSlot" :scope="slotProps" />
     <RenderSlot v-else :fn="contentSlot" :scope="slotProps">
       <template v-if="variant === 'agenda'">
-        <span class="orb-event__time">{{ slotProps.timeText }}</span>
-        <span class="orb-event__dot" aria-hidden="true" />
-        <span class="orb-event__title">{{ slotProps.title }}</span>
+        <span class="orb-event__time" v-bind="ctx.part('eventTime')">{{ slotProps.timeText }}</span>
+        <span class="orb-event__dot" v-bind="ctx.part('eventDot')" aria-hidden="true" />
+        <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
       </template>
       <template v-else-if="variant === 'month-timed' || variant === 'list'">
-        <span class="orb-event__dot" aria-hidden="true" />
-        <span v-if="slotProps.timeText" class="orb-event__time">{{ slotProps.timeText }}</span>
-        <span class="orb-event__title">{{ slotProps.title }}</span>
-      </template>
-      <template v-else-if="variant === 'time' || variant === 'timeline'">
-        <span class="orb-event__title">{{ slotProps.title }}</span>
-        <span class="orb-event__time">{{ slotProps.timeText }}</span>
-      </template>
-      <template v-else>
-        <span v-if="slotProps.timeText && isStart" class="orb-event__time">{{
+        <span class="orb-event__dot" v-bind="ctx.part('eventDot')" aria-hidden="true" />
+        <span v-if="slotProps.timeText" class="orb-event__time" v-bind="ctx.part('eventTime')">{{
           slotProps.timeText
         }}</span>
-        <span class="orb-event__title">{{ slotProps.title }}</span>
+        <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
+      </template>
+      <template v-else-if="variant === 'time' || variant === 'timeline'">
+        <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
+        <span class="orb-event__time" v-bind="ctx.part('eventTime')">{{ slotProps.timeText }}</span>
+      </template>
+      <template v-else>
+        <span
+          v-if="slotProps.timeText && isStart"
+          class="orb-event__time"
+          v-bind="ctx.part('eventTime')"
+          >{{ slotProps.timeText }}</span
+        >
+        <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
       </template>
     </RenderSlot>
 
@@ -274,15 +291,21 @@ function onKeydown(e: KeyboardEvent) {
       <span
         v-if="isStart"
         class="orb-event__resizer orb-event__resizer--start"
+        v-bind="ctx.part('resizer', { edge: 'start' })"
         aria-hidden="true"
         @pointerdown="onPointerDown($event, 'resize-start')"
-      />
+      >
+        <RenderSlot v-if="handleSlot" :fn="handleSlot" :scope="{ edge: 'start', variant }" />
+      </span>
       <span
         v-if="isEnd"
         class="orb-event__resizer orb-event__resizer--end"
+        v-bind="ctx.part('resizer', { edge: 'end' })"
         aria-hidden="true"
         @pointerdown="onPointerDown($event, 'resize-end')"
-      />
+      >
+        <RenderSlot v-if="handleSlot" :fn="handleSlot" :scope="{ edge: 'end', variant }" />
+      </span>
     </template>
   </div>
 </template>

@@ -49,8 +49,8 @@ function formatTimes(
   }
 }
 
-/** Like `formatTimes`, as wall-clock times for an exception of a series without its own zone. */
-function floatingTimes(
+/** Like `formatTimes`, as wall-clock times, for events that follow the zone they are shown in. */
+function wallClockTimes(
   times: EventTimes,
   timeZone: string,
 ): Pick<SchedulerEvent, 'start' | 'end' | 'allDay'> {
@@ -113,7 +113,7 @@ function movedSeriesTimes(
   zone: string,
   occurrence: EventOccurrence<SchedulerEvent>,
   times: EventTimes,
-): { fields: Pick<SchedulerEvent, 'start' | 'end' | 'allDay' | 'timezone'>; dayShift: number } {
+): { fields: Pick<SchedulerEvent, 'start' | 'end' | 'allDay'>; dayShift: number } {
   const oldDate = occurrence.start.withTimeZone(zone).toPlainDate()
   const newStartLocal = times.start.withTimeZone(zone)
   const dayShift = daysBetween(oldDate, newStartLocal.toPlainDate())
@@ -127,12 +127,11 @@ function movedSeriesTimes(
         start: firstDate.toString(),
         end: firstDate.add({ days: span }).toString(),
         allDay: true,
-        timezone: zone,
       },
       dayShift,
     }
   }
-  // Wall-clock fields plus an explicit zone, so the series keeps its local time across DST.
+  // Wall-clock fields, so the series keeps its local time across DST.
   const start = firstDate.toPlainDateTime(newStartLocal.toPlainTime())
   const durationMinutes = (times.end.epochMilliseconds - times.start.epochMilliseconds) / 60_000
   return {
@@ -140,7 +139,6 @@ function movedSeriesTimes(
       start: start.toString({ smallestUnit: 'minute' }),
       end: start.add({ minutes: durationMinutes }).toString({ smallestUnit: 'minute' }),
       allDay: false,
-      timezone: zone,
     },
     dayShift,
   }
@@ -228,11 +226,9 @@ export function applyEventEdit(
   }
 
   if (!occurrence.recurring || !occurrence.recurrenceId) {
-    return replace(
-      events,
-      event.id,
-      withResources({ ...event, ...formatTimes(times, zone) }, occurrence, times),
-    )
+    const floating = event.timezone == null && parseDateInput(event.start).kind === 'floating'
+    const fields = floating ? wallClockTimes(times, zone) : formatTimes(times, zone)
+    return replace(events, event.id, withResources({ ...event, ...fields }, occurrence, times))
   }
 
   const series = event
@@ -240,7 +236,7 @@ export function applyEventEdit(
     const { rrule: _rrule, exdates: _ex, rdates: _rd, ...base } = series
     const exception: SchedulerEvent = {
       ...base,
-      ...(series.timezone == null ? floatingTimes(times, zone) : formatTimes(times, zone)),
+      ...(series.timezone == null ? wallClockTimes(times, zone) : formatTimes(times, zone)),
       id: createId(series),
       recurringEventId: series.id,
       recurrenceId: storedRecurrenceId(series, occurrence.recurrenceId),

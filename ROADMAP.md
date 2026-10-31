@@ -7,11 +7,16 @@ Written 2026-10-31 from the [full review in RESEARCH.md](RESEARCH.md#4-full-revi
 
 **Goal:** the free, Vue-native scheduler with what others charge for (resource timeline, drag and drop, recurrence), which stays headless-friendly, typed and fast at 10 000+ events.
 
+**Customization rules for every new feature:**
+- Every new element gets a slot where someone could want other content, a `pt` part name and `data-orb-part`, and CSS variables for its colors and sizes.
+- Add it to `playground/anatomy.ts` so it appears on the [slots and parts page](playground/PartsPage.vue).
+- Behavior lives in core or a headless composable first; the component is a default on top. Nothing is only reachable through the built-in UI.
+
 **Order:** phases 7 and 8 come first, because new features should land on correct edits and a browser test suite. Phases 9 to 14 can overlap once those are done.
 
 ## Phase 7: Fix the known bugs
 
-B1 to B7 are done and removed from Known bugs. Write a failing test first wherever a test can reach it.
+All done. Also fixed along the way: a slot added later with `v-if` left the old elements in place (found by the slots and parts page), and dragging an event out of the month popover landed it on the wrong day (found by the browser tests).
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
@@ -21,19 +26,19 @@ B1 to B7 are done and removed from Known bugs. Write a failing test first wherev
 | [x] | B4 | Releasing a moved event outside the scheduler cancels the drag | P0 | S |
 | [x] | B5 | Always `preventDefault` Alt+arrows on events, and announce refused moves | P0 | S |
 | [x] | B6 | Keep focus on the event after a keyboard move or view change | P0 | M |
-| [ ] | B8 | `DayView` inherits `hidden-days`; a hidden anchor moves to the next visible day; N-day views count visible days | P1 | S |
-| [ ] | B9 | Auto-scroll zones start below the sticky header and beside the resource column | P1 | S |
-| [ ] | B10 | Delete works on every event variant that the keyboard can edit | P1 | S |
-| [ ] | B11 | Popover: draggable styling, closes when a drag starts, list updates after changes | P1 | S |
-| [ ] | B12 | `allDay` with a date-time end includes that day | P1 | S |
-| [ ] | B13 | Warn on duplicate ids and on ids that collide as strings | P1 | S |
-| [ ] | B14 | Validate props: warn in dev, fall back instead of throwing | P1 | M |
-| [ ] | B15 | Keep edited events floating when they were floating (wall-clock output) | P1 | S |
-| [ ] | B16 | Keep views in declaration order when one is toggled with `v-if` | P2 | M |
-| [ ] | B17 | Remember the preferred day of the month while navigating | P2 | S |
-| [ ] | B18 | Support or clearly reject SECONDLY; warn at the expansion limit; accept lowercase rules | P2 | S |
-| [ ] | B19 | Allow custom view shortcuts; fix the playground hint | P3 | S |
-| [ ] | B20 | Cancel active gestures on unmount | P3 | S |
+| [x] | B8 | `DayView` inherits `hidden-days`; a hidden anchor moves to the next visible day; N-day views count visible days | P1 | S |
+| [x] | B9 | Auto-scroll zones start below the sticky header and beside the resource column | P1 | S |
+| [x] | B10 | Delete works on every event variant that the keyboard can edit | P1 | S |
+| [x] | B11 | Popover: draggable styling, closes when a drag starts, list updates after changes | P1 | S |
+| [x] | B12 | `allDay` with a date-time end includes that day | P1 | S |
+| [x] | B13 | Warn on duplicate ids and on ids that collide as strings | P1 | S |
+| [x] | B14 | Validate props: warn in dev, fall back instead of throwing | P1 | M |
+| [x] | B15 | Keep edited events floating when they were floating (wall-clock output) | P1 | S |
+| [x] | B16 | Keep views in declaration order when one is toggled with `v-if` | P2 | M |
+| [x] | B17 | Remember the preferred day of the month while navigating | P2 | S |
+| [x] | B18 | Reject SECONDLY with a warning; warn at the expansion limit; allow `X-` rule parts | P2 | S |
+| [x] | B19 | Fix the playground hint (views past the ninth use the switcher; custom shortcuts are item 15.20) | P3 | S |
+| [x] | B20 | Cancel active gestures on unmount | P3 | S |
 
 B7 (RTL) is fixed for drag, keyboard and layout; the remaining work is item 13.4.
 
@@ -41,13 +46,15 @@ B7 (RTL) is fixed for drag, keyboard and layout; the remaining work is item 13.4
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 8.1 | Browser tests with Playwright in Chromium, Firefox and WebKit: drag, resize, select, keyboard, touch for every view | P0 | L |
+| [x] | 8.1 | Browser tests with Playwright in Chromium, Firefox and WebKit (`e2e/`): drag, resize, select, keyboard and rendering across the views. Touch runs in Chromium only and covers the week view | P0 | L |
+| [ ] | 8.10 | Touch tests beyond Chromium's week view: other views, swipe navigation, Firefox and WebKit on real devices | P1 | M |
 | [ ] | 8.2 | Component tests for slots, emits and props; visual regression for each view in light and dark | P1 | M |
 | [ ] | 8.3 | CI: lint, types, unit, browser, build, bundle-size budget | P0 | S |
 | [ ] | 8.4 | Package: `LICENSE`, version, remove `private`, changelog, release flow, `publint` and type checks | P0 | S |
 | [ ] | 8.5 | Verify SSR hydration in Nuxt: stable ids, no time or locale mismatch, no `window` at import | P1 | M |
 | [ ] | 8.6 | Docs site with live examples, migration notes and recipes (editor dialog, lazy loading, server sync) | P1 | L |
 | [ ] | 8.7 | Stabilize the public API: mark internals, freeze names before 1.0 | P1 | M |
+| [x] | 8.9 | Passthrough: `pt` prop and `data-orb-part` on every element, plus the slots and parts page | P1 | M |
 | [ ] | 8.8 | Fill the promised API gaps: anchor `element` / rect on `select`, `event-drop` and `event-delete`; `before-event-delete`; `scrollToTime()`, `scrollToEvent()`, `getEvents()` | P1 | M |
 
 ## Phase 9: Availability and rules
@@ -144,6 +151,38 @@ This is the free, differentiating feature, so it should be the strongest part.
 | [ ] | 14.9 | Sync recipes for Google Calendar, Microsoft Graph and CalDAV | P3 | M |
 | [ ] | 14.10 | Plugin API (`{ name, install(ctx) }`), as sketched in RESEARCH.md | P3 | L |
 | [ ] | 14.11 | Real-time updates: incoming changes during a drag, and showing who is editing | P3 | L |
+
+## Phase 15: Standout features
+
+Things that would make people pick this scheduler over the others. Each follows the customization rules above.
+
+| Done | ID | Item | Slots and parts | Priority | Effort |
+|---|---|---|---|---|---|
+| [ ] | 15.1 | `useAvailability`: find free time across resources for a given length (`findSlots`, `nextFree`) | Headless; `suggestion` slot to show results in the grid | P1 | M |
+| [ ] | 15.2 | Conflict radar: mark overlapping events and list them, per resource | `conflict-badge` slot, `conflict` part, `useConflicts` | P1 | M |
+| [ ] | 15.3 | Live drag tooltip with the time, length and conflicts | `drag-tooltip` slot, `dragTooltip` part | P1 | S |
+| [ ] | 15.4 | Draft mode: try changes as tentative events, compare, then apply or discard them all | `draft-bar` slot, `useDraft` | P2 | L |
+| [ ] | 15.5 | Mini calendar navigator that shows busy days and the visible range | `<SchedulerMiniCalendar>` with its own slots | P1 | M |
+| [ ] | 15.6 | Calendars as layers: toggle sets of events, with a legend | `legend` and `legend-item` slots, `useCalendars` | P1 | M |
+| [ ] | 15.7 | Filter and search that dims or hides events without changing the data | `event-filter` prop, `orb-event--dimmed` | P1 | S |
+| [ ] | 15.8 | Buffer time: setup and cleanup blocks attached to an event, which move with it | `event-buffer` slot, `eventBuffer` part | P2 | M |
+| [ ] | 15.9 | Timeline zoom with Ctrl + scroll and pinch, keeping the point under the pointer | `zoom-control` slot | P2 | M |
+| [ ] | 15.10 | Timeline minimap showing the whole range and busy areas | `minimap` slot and part | P3 | M |
+| [ ] | 15.11 | Utilization heatmap over timeline rows and day cells | `utilization` slot and part | P2 | M |
+| [ ] | 15.12 | Sticky event titles: long bars keep their title in view while scrolling | `--orb-event-sticky-title` | P2 | S |
+| [ ] | 15.13 | Event stacks: collapse many overlapping events into one expandable group | `event-stack` slot, `eventStack` part | P2 | M |
+| [ ] | 15.14 | Time scale compression: empty hours shrink so busy hours get the room | `time-fold` slot, `timeFold` part | P3 | M |
+| [ ] | 15.15 | Animated moves between positions, dates and views, off with reduced motion | `--orb-transition-*` | P2 | M |
+| [ ] | 15.16 | Density and theme presets; a whole theme generated from one color | `density` prop, `createTheme(color)` | P2 | S |
+| [ ] | 15.17 | Undo toast after a change | `undo-toast` slot, works with `useHistory` | P2 | S |
+| [ ] | 15.18 | Quick add from text ("Lunch friday 12:30 for 1h"), with a pluggable parser | Headless `parseQuickAdd`; `quick-add` slot | P3 | M |
+| [ ] | 15.19 | Command palette actions: go to date, switch view, find an event | Headless `useCommands` | P3 | S |
+| [ ] | 15.20 | Custom keyboard map, including view shortcuts | `keymap` prop | P2 | S |
+| [ ] | 15.21 | Recurrence edit dialog logic: which scope to ask, and what each answer changes | Headless `useRecurrenceScope`, recipe with slots | P1 | S |
+| [ ] | 15.22 | Happening now: live progress on running events and a countdown to the next | `event-progress` slot, `--orb-event-progress` | P3 | S |
+| [ ] | 15.23 | World clock overlap: mark hours that suit several time zones | `time-zone-band` slot and part | P3 | M |
+| [ ] | 15.24 | Presence: show who is viewing or dragging what | `presence` slot and part | P3 | M |
+| [ ] | 15.25 | Theme and `pt` playground that exports the code you built on the slots and parts page | Playground only | P3 | M |
 
 ## Definition of feature complete (1.0)
 

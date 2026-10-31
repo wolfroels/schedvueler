@@ -22,6 +22,8 @@ export interface RangeStrategy {
   range(anchor: Temporal.PlainDate): VisibleRange
   /** Moves the anchor one step forward (`1`) or back (`-1`). */
   step(anchor: Temporal.PlainDate, direction: 1 | -1): Temporal.PlainDate
+  /** Steps go by month or year, so a day clamped by a short month should come back afterwards. */
+  keepsDayOfMonth?: boolean
 }
 
 function sameRange(range: DateRange): VisibleRange {
@@ -33,15 +35,39 @@ export interface DayRangeOptions {
   days?: number
   /** Days moved per navigation step. Defaults to `days`. */
   stepDays?: number
+  /** ISO weekdays that do not count: `days` visible days are shown, skipping these. */
+  hiddenDays?: readonly number[]
 }
 
 /** One or more consecutive days starting at the anchor (day view, 3-day view, ...). */
 export function dayStrategy(options: DayRangeOptions = {}): RangeStrategy {
   const days = options.days ?? 1
   const stepDays = options.stepDays ?? days
+  const hidden = options.hiddenDays ?? []
+  const visible = (date: Temporal.PlainDate) => !hidden.includes(date.dayOfWeek)
+  // Hiding every day would never end; treat it as hiding none.
+  if (!hidden.length || [1, 2, 3, 4, 5, 6, 7].every((d) => hidden.includes(d))) {
+    return {
+      range: (anchor) => sameRange({ start: anchor, end: anchor.add({ days }) }),
+      step: (anchor, direction) => anchor.add({ days: stepDays * direction }),
+    }
+  }
+  /** Moves `count` visible days from a visible date. */
+  const walk = (from: Temporal.PlainDate, count: number, direction: 1 | -1) => {
+    let date = from
+    for (let left = count; left > 0;) {
+      date = date.add({ days: direction })
+      if (visible(date)) left--
+    }
+    return date
+  }
+  const firstVisible = (date: Temporal.PlainDate) => (visible(date) ? date : walk(date, 1, 1))
   return {
-    range: (anchor) => sameRange({ start: anchor, end: anchor.add({ days }) }),
-    step: (anchor, direction) => anchor.add({ days: stepDays * direction }),
+    range(anchor) {
+      const start = firstVisible(anchor)
+      return sameRange({ start, end: walk(start, days - 1, 1).add({ days: 1 }) })
+    },
+    step: (anchor, direction) => walk(firstVisible(anchor), stepDays, direction),
   }
 }
 
@@ -89,6 +115,7 @@ export function monthStrategy(options: MonthRangeOptions = {}): RangeStrategy {
       return { start, end, active: { start: activeStart, end: activeEnd } }
     },
     step: (anchor, direction) => anchor.add({ months: direction }),
+    keepsDayOfMonth: true,
   }
 }
 
@@ -100,6 +127,7 @@ export function yearStrategy(): RangeStrategy {
       return sameRange({ start, end: start.add({ years: 1 }) })
     },
     step: (anchor, direction) => anchor.add({ years: direction }),
+    keepsDayOfMonth: true,
   }
 }
 

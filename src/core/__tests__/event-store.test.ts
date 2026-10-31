@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Temporal } from '../temporal'
 import { EventStore, groupByDay, partitionAllDay, segmentByDay, spanRow } from '../events'
-import { rangeDays, rangeToWindow, weekStrategy } from '../range'
+import { dayStrategy, rangeDays, rangeToWindow, weekStrategy } from '../range'
 import { createAccessors, type SchedulerEvent } from '../types'
 
 const BXL = 'Europe/Brussels'
@@ -312,5 +312,48 @@ describe('hasException', () => {
     const at = (time: string) => Temporal.ZonedDateTime.from(`${time}[${BXL}]`)
     expect(store.hasException('s', at('2026-10-27T09:00'))).toBe(true)
     expect(store.hasException('s', at('2026-10-28T09:00'))).toBe(false)
+  })
+})
+
+describe('event data edge cases', () => {
+  const zone = 'Europe/Brussels'
+
+  it('includes the last day of an all-day event with a date-time end', () => {
+    const store = new EventStore<SchedulerEvent>(
+      [{ id: 1, start: '2026-05-04T09:00', end: '2026-05-06T17:00', allDay: true }],
+      { timeZone: zone },
+    )
+    const window = rangeToWindow({ start: d('2026-05-01'), end: d('2026-05-10') }, zone)
+    expect(store.query(window)[0]!.end.toPlainDate().toString()).toBe('2026-05-07')
+  })
+
+  it('reports ids that collide', () => {
+    const onInvalidEvent = vi.fn()
+    new EventStore<SchedulerEvent>(
+      [
+        { id: 1, start: '2026-05-04' },
+        { id: '1', start: '2026-05-05' },
+      ],
+      { timeZone: zone, onInvalidEvent },
+    )
+    expect(onInvalidEvent).toHaveBeenCalledOnce()
+  })
+})
+
+describe('dayStrategy with hidden days', () => {
+  const strategy = dayStrategy({ hiddenDays: [6, 7] })
+
+  it('moves a hidden anchor to the next visible day', () => {
+    expect(strategy.range(d('2026-10-31')).start.toString()).toBe('2026-11-02')
+  })
+
+  it('steps over hidden days both ways', () => {
+    expect(strategy.step(d('2026-10-30'), 1).toString()).toBe('2026-11-02')
+    expect(strategy.step(d('2026-11-02'), -1).toString()).toBe('2026-10-30')
+  })
+
+  it('shows the requested number of visible days', () => {
+    const range = dayStrategy({ days: 3, hiddenDays: [6, 7] }).range(d('2026-10-30'))
+    expect(rangeDays(range, [6, 7]).map(String)).toEqual(['2026-10-30', '2026-11-02', '2026-11-03'])
   })
 })

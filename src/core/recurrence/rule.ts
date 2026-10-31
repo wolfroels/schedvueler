@@ -164,6 +164,8 @@ export function parseRRule(input: string): RecurrenceRule {
         })
         break
       default:
+        // RFC 5545 allows private extensions.
+        if (key.startsWith('X-')) break
         throw new RRuleError(`Unsupported rule part "${key}"`)
     }
   }

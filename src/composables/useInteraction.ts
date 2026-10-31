@@ -13,6 +13,7 @@ import {
   type EventTimes,
   type Hit,
   type ResourceId,
+  type Temporal,
 } from '../core'
 import type { EventChangeKind, ExternalEventTemplate, SelectPayload } from '../types'
 import { createCancelable } from './cancelable'
@@ -23,6 +24,8 @@ export interface DragSurface {
   hitTest(clientX: number, clientY: number): Hit | null
   /** Scroll container to auto-scroll near its edges while dragging. */
   scrollElement?: () => HTMLElement | null | undefined
+  /** The part of it not covered by sticky headers. Defaults to the whole element. */
+  scrollArea?: () => { left: number; top: number; right: number; bottom: number } | undefined
   /** Minutes to snap gestures that start on this surface to. Defaults to the scheduler's. */
   snapMinutes?: () => number
 }
@@ -79,6 +82,8 @@ export interface SchedulerInteraction {
     occurrence: EventOccurrence<unknown>,
     kind: EventChangeKind,
     view: string,
+    /** Date the gesture counts from, when the event is not drawn on its date (a popover's list). */
+    originDate?: Temporal.PlainDate,
   ): void
   /** Pointerdown on an empty slot or day cell. */
   pointerDownOnSlot(e: PointerEvent, view: string): void
@@ -95,6 +100,8 @@ export interface SchedulerInteraction {
   clearSelection(): void
   /** Drops optimistic changes whose events were replaced (called when events change). */
   prunePending(): void
+  /** Ends a gesture in progress, e.g. when the scheduler goes away. */
+  stopGesture(): void
   /** Whether a newly shown event should take the focus, after a keyboard change re-created it. */
   claimFocus(occurrence: EventOccurrence<unknown>): boolean
 
@@ -119,6 +126,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
   const committedSelection = shallowRef<Selection | null>(null)
   const pending = shallowRef(new Map<string, PendingChange>())
   const surfaces = new Set<DragSurface>()
+  let endGesture: (() => void) | undefined
 
   const raw = () => ctx.options.value.raw
   const snapMinutes = () => raw().snapDuration ?? ctx.options.value.slotDuration
@@ -320,7 +328,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     for (const surface of surfaces) {
       const el = surface.scrollElement?.()
       if (!el) continue
-      const rect = el.getBoundingClientRect()
+      const rect = surface.scrollArea?.() ?? el.getBoundingClientRect()
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue
       const dy = edgeSpeed(y, rect.top, rect.bottom)
       const dx = el.scrollWidth > el.clientWidth ? edgeSpeed(x, rect.left, rect.right) : 0
@@ -442,11 +450,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     kind: EventChangeKind | 'select',
     view: string,
     occ: EventOccurrence<unknown> | undefined,
+    originDate?: Temporal.PlainDate,
   ) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     const found = hit(e.clientX, e.clientY)
     if (!found) return
-    const origin = found.hit
+    const origin = originDate ? { ...found.hit, date: originDate } : found.hit
     const opts = computeOptions(found.surface.snapMinutes?.() ?? snapMinutes())
 
     const touch = e.pointerType !== 'mouse'
@@ -461,6 +470,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     let frame = 0
 
     const cleanup = () => {
+      endGesture = undefined
       clearTimeout(longPress)
       cancelAnimationFrame(frame)
       window.removeEventListener('pointermove', onMove)
@@ -595,6 +605,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       commit(occ!, kind, view, s.preview, ev)
     }
 
+    endGesture = () => {
+      cleanup()
+      if (active) abort('escape')
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
@@ -628,10 +642,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       surfaces.add(surface)
       return () => surfaces.delete(surface)
     },
-    pointerDownOnEvent(e, occ, kind, view) {
+    pointerDownOnEvent(e, occ, kind, view, originDate) {
       if (kind === 'move' ? !canDrag(occ) : !canResize(occ)) return
       clearSelection()
-      startGesture(e, kind, view, occ)
+      startGesture(e, kind, view, occ, originDate)
     },
     pointerDownOnSlot(e, view) {
       clearSelection()
@@ -692,6 +706,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     },
     clearSelection,
     claimFocus,
+    stopGesture: () => endGesture?.(),
     prunePending() {
       const map = pending.value
       if (!map.size) return

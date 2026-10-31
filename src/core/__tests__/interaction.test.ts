@@ -176,7 +176,13 @@ describe('applyEventEdit', () => {
     const occ = occurrences([plain])[0]!
     const out = applyEventEdit([plain, other], occ, at('2026-10-29', 14), { timeZone: BXL })
     expect(out[1]).toBe(other)
-    expect(out[0]!.start).toBe('2026-10-29T14:00:00+01:00[Europe/Brussels]')
+    // Still a wall-clock time, like the value it replaces.
+    expect(out[0]!.start).toBe('2026-10-29T14:00:00')
+    const exact = { ...plain, start: '2026-10-27T09:00+01:00', end: '2026-10-27T10:00+01:00' }
+    const pinned = applyEventEdit([exact], occurrences([exact])[0]!, at('2026-10-29', 14), {
+      timeZone: BXL,
+    })
+    expect(pinned[0]!.start).toBe('2026-10-29T14:00:00+01:00[Europe/Brussels]')
   })
 
   it('"this" adds an exception for one occurrence', () => {

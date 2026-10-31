@@ -291,6 +291,15 @@ function openMore(more: MonthMoreLink, e: MouseEvent) {
   })
 }
 
+// The list stays current while open; a drag from it needs the grid underneath.
+const popoverOccurrences = computed(() => (popover.value ? occurrencesOn(popover.value.date) : []))
+watch(
+  () => interaction.state.value?.preview,
+  (preview) => {
+    if (preview) closePopover()
+  },
+)
+
 function closePopover() {
   if (!popover.value) return
   popover.value = undefined
@@ -313,13 +322,20 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
   <div
     ref="root"
     class="orb-month"
+    v-bind="ctx.part('monthGrid')"
     :class="{ 'orb-month--compact': compact }"
     role="grid"
     :aria-label="ctx.title.value"
     :style="{ '--orb-month-cols': weekdays.length, '--orb-month-rows': maxRows }"
   >
     <div class="orb-month__head" role="row">
-      <div v-for="wd in weekdays" :key="wd.weekday" class="orb-month__weekday" role="columnheader">
+      <div
+        v-for="wd in weekdays"
+        :key="wd.weekday"
+        class="orb-month__weekday"
+        v-bind="ctx.part('monthWeekday', wd)"
+        role="columnheader"
+      >
         <RenderSlot :fn="resolve('month-weekday')" :scope="wd">{{ wd.label }}</RenderSlot>
       </div>
     </div>
@@ -330,12 +346,14 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         :key="week.key"
         :ref="(el) => setWeekEl(el, wi)"
         class="orb-month__week"
+        v-bind="ctx.part('monthWeek')"
         role="row"
       >
         <div
           v-for="(cell, ci) in week.cells"
           :key="cell.key"
           class="orb-month__cell"
+          v-bind="ctx.part('monthCell', cell)"
           :class="{
             'is-today': cell.isToday,
             'is-past': cell.isPast,
@@ -361,10 +379,13 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             <button
               type="button"
               class="orb-month__daynum"
+              v-bind="ctx.part('monthDayNumber', cell)"
               tabindex="-1"
               @click.stop="onDateClick(cell, $event)"
             >
-              {{ cell.dayNumber }}
+              <RenderSlot :fn="resolve('month-day-number')" :scope="{ view, ...cell }">
+                {{ cell.dayNumber }}
+              </RenderSlot>
             </button>
             <span v-if="compact" class="orb-month__dots" aria-hidden="true">
               <span
@@ -405,6 +426,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             :key="`more-${more.col}`"
             type="button"
             class="orb-month__more"
+            v-bind="ctx.part('moreLink', more)"
             :style="{ gridColumn: more.col + 1, gridRow: maxRows }"
             @click="openMore(more, $event)"
           >
@@ -428,6 +450,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
       v-if="popover"
       ref="popoverEl"
       class="orb-popover"
+      v-bind="ctx.part('popover')"
       role="dialog"
       :aria-label="popover.title"
       tabindex="-1"
@@ -439,29 +462,33 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
         :scope="{
           date: popover.date,
           title: popover.title,
-          occurrences: popover.occurrences,
+          occurrences: popoverOccurrences,
           close: closePopover,
         }"
       >
-        <div class="orb-popover__header">
-          <span class="orb-popover__title">{{ popover.title }}</span>
+        <div class="orb-popover__header" v-bind="ctx.part('popoverHeader')">
+          <span class="orb-popover__title" v-bind="ctx.part('popoverTitle')">{{
+            popover.title
+          }}</span>
           <button
             type="button"
             class="orb-button orb-button--icon orb-button--ghost"
+            v-bind="ctx.part('popoverClose')"
             :aria-label="ctx.options.value.messages.close"
             @click="closePopover"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
-        <div class="orb-popover__list">
+        <div class="orb-popover__list" v-bind="ctx.part('popoverList')">
           <EventItem
-            v-for="occ in popover.occurrences"
+            v-for="occ in popoverOccurrences"
             :key="occ.key"
             :occurrence="occ"
             variant="list"
             :view="view"
             :resolve="resolve"
+            :origin-date="popover.date"
           />
         </div>
       </RenderSlot>

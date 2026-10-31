@@ -125,6 +125,7 @@ function wholeMonth(): RangeStrategy {
       return { ...active, active }
     },
     step: month.step,
+    keepsDayOfMonth: true,
   }
 }
 

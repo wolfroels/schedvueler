@@ -21,6 +21,8 @@ import type {
   ElementAttrs,
   SchedulerMessages,
   SchedulerOptions,
+  SchedulerPart,
+  SchedulerPt,
   SchedulerViewDefinition,
 } from '../types'
 import type { SchedulerInteraction } from './useInteraction'
@@ -28,6 +30,8 @@ import type { SchedulerInteraction } from './useInteraction'
 export interface ViewRegistration {
   id: symbol
   definition: ComputedRef<SchedulerViewDefinition>
+  /** Where the view sits in the document, to keep views in declaration order. */
+  node: () => Node | null
 }
 
 /** Options after defaults are applied. */
@@ -44,6 +48,7 @@ export interface ResolvedOptions<T> {
   scrollMinute: number
   eventLayout: TimeGridLayoutAlgorithm
   eventAttrs: ((occurrence: EventOccurrence<T>) => ElementAttrs | undefined) | undefined
+  pt: SchedulerPt | undefined
   nowIndicator: boolean
   messages: SchedulerMessages
   raw: SchedulerOptions<T>
@@ -86,6 +91,8 @@ export interface SchedulerContext<T = unknown> {
 
   registerView(view: ViewRegistration): void
   unregisterView(view: ViewRegistration): void
+  /** Puts the views back in declaration order, after one was added later with `v-if`. */
+  sortViews(): void
   prev(): void
   next(): void
   goToday(): void
@@ -96,6 +103,8 @@ export interface SchedulerContext<T = unknown> {
   /** Re-reads the events, e.g. after mutating event objects in place. */
   refresh(): void
 
+  /** Attributes for a part: its `data-orb-part` name and whatever `pt` gives it. */
+  part(name: SchedulerPart, scope?: object): Record<string, unknown>
   /** Emits a scheduler event. Payload types are checked at the call sites in components. */
   emit(name: string, payload: unknown): void
   /** Slots given to the root `<Scheduler>`. */

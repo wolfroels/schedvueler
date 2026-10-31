@@ -210,8 +210,18 @@ Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 `time-event`, `all-day-event`, `month-event`, `day-header`, `all-day-label`, `time-label`,
 `time-slot`, `month-weekday`, `month-cell`, `more-link`, `more-popover`, `now-indicator`,
 `agenda-event`, `agenda-day-header`, `agenda-empty`, `timeline-event`, `timeline-header`,
-`resource-label`, `resource-area-header`, `year-day`, `year-month-header`.
+`resource-label`, `resource-area-header`, `year-day`, `year-month-header`, `nav-prev`, `nav-next`,
+`today-button`, `view-switcher`, `view-button`, `drag-preview`, `resize-handle`, `selection`,
+`month-day-number`.
 See [docs/API.md](docs/API.md#slots) for the props each one receives.
+
+## Passthrough
+
+Every element has a part name. `:pt="{ todayButton: { class: 'my-button' } }"` adds classes, styles,
+attributes or listeners to it without replacing it; a function gets details per element. The
+playground's slots and parts page (`npm run dev`, then `#/parts`) shows on a live scheduler what
+each part and slot is called and what connects to what. See
+[docs/API.md](docs/API.md#passthrough-pt).
 
 ## Theming
 
@@ -243,6 +253,7 @@ composables (`useScheduler`, `useSchedulerView`, `useTimeGrid`, `useMonthGrid`, 
 npm install
 npm run dev        # playground on http://localhost:6173
 npm test           # unit tests, against native Temporal and the polyfill
+npm run test:e2e   # browser tests in Chromium, Firefox and WebKit (first: npx playwright install)
 npm run build      # type-check + library build into dist/
 npm run lint
 npm run playground:build && npm run playground:preview   # production playground, for measuring

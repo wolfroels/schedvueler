@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { rangeDays } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
+import { validMinutes } from '../composables/validate'
 import type { SchedulerSlots } from '../types'
 import Timeline from './Timeline.vue'
 import { periodView, type TimelineSettings, type TimelineViewProps } from './view-props'
@@ -36,7 +37,7 @@ const days = computed(() =>
 
 const settings = computed<TimelineSettings>(() => {
   const singleDay = props.period === 'day' && (props.days ?? 1) === 1
-  const slotDuration = props.slotDuration ?? (singleDay ? 60 : 1440)
+  const slotDuration = validMinutes(props.slotDuration, singleDay ? 60 : 1440, 'slotDuration')
   const raw = ctx.options.value.raw
   return {
     slotDuration,

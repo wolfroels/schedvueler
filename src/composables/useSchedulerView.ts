@@ -1,7 +1,9 @@
 import {
   computed,
+  getCurrentInstance,
   onBeforeUnmount,
   onBeforeUpdate,
+  onMounted,
   shallowRef,
   type ComputedRef,
   type ShallowRef,
@@ -26,8 +28,14 @@ export function useSchedulerView<T = unknown>(
 ): SchedulerViewHandle<T> {
   const ctx = useSchedulerContext<T>()
   const def = computed(definition)
-  const registration: ViewRegistration = { id: Symbol(def.value.name), definition: def }
+  const instance = getCurrentInstance()
+  const registration: ViewRegistration = {
+    id: Symbol(def.value.name),
+    definition: def,
+    node: () => (instance?.subTree?.el as Node | null | undefined) ?? null,
+  }
   ctx.registerView(registration)
+  onMounted(() => ctx.sortViews())
   onBeforeUnmount(() => ctx.unregisterView(registration))
   return { ctx, definition: def, isActive: computed(() => ctx.activeView.value === registration) }
 }

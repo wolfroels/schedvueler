@@ -36,6 +36,7 @@
     "format": "prettier --write --experimental-cli src/",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "playground:build": "vite build --config vite.playground.config.ts",
     "playground:preview": "vite preview --config vite.playground.config.ts"
   },
@@ -47,6 +48,7 @@
     "temporal-polyfill": "^1.0.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^24.13.4",
     "@vitejs/plugin-vue": "^6.0.8",

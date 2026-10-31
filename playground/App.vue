@@ -253,6 +253,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
   <div class="pg" :data-theme="theme">
     <aside class="pg__sidebar">
       <h1>orb-scheduler</h1>
+      <a class="pg__link" href="#/parts">Slots and parts →</a>
 
       <section>
         <h2>Data</h2>
@@ -277,7 +278,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         <p class="pg__hint">
           Drag over empty slots to create an event, drag events to move them, drag their edges to
           resize. Keyboard: Alt+arrows move, Alt+Shift+arrows resize, Delete removes, arrows walk
-          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…6. Click a date to
+          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…9. Click a date to
           open its day. On touch: swipe to navigate, long-press to drag.
         </p>
       </section>
@@ -563,6 +564,10 @@ body {
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.pg__link {
+  color: #2563eb;
 }
 
 .pg__sidebar section {

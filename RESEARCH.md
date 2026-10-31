@@ -210,14 +210,14 @@ The core is strong: the architecture is clean, the RRULE engine held up well, ro
 | Cancel | Escape during a drag, `event-drag-cancel` | OK |
 | After a drag | The click that follows is swallowed | OK |
 | Selection | Drag to create in week, month and timeline; double-click to create | OK |
-| Month | Move, all-day resize, "+N more" popover, compact dots with tap-to-list | OK, except B11 |
+| Month | Move, all-day resize, "+N more" popover, compact dots with tap-to-list | OK |
 | Year | Heatmap, day drill-down, month title opens the month | OK |
-| Agenda | Rows, keyboard move | OK, except B10 |
+| Agenda | Rows, keyboard move | OK |
 | Timeline | Move across rows, resize, select, collapse groups | OK |
 | Virtualization | 600 resources: 22 to 29 rows in the DOM, about 440 nodes | OK |
 | Resource columns | Grouped by resource and by date (rendering only) | OK |
 | Recurrence edits | this / following / all, weekday shift, exdates moving along, undo of following and all | OK |
-| RRULE | BYSETPOS (in playground data), BYWEEKNO, BYYEARDAY, BYHOUR/BYMINUTE, WKST + INTERVAL, 31st of the month, Feb 29, impossible rules do not hang, year 2100 in 1 ms | OK, except B18 |
+| RRULE | BYSETPOS (in playground data), BYWEEKNO, BYYEARDAY, BYHOUR/BYMINUTE, WKST + INTERVAL, 31st of the month, Feb 29, impossible rules do not hang, year 2100 in 1 ms | OK |
 | DST | Spring gap moves 02:30 to 03:30; autumn repeat uses the first 02:30 | OK |
 | Invalid events | Bad dates, RRULEs and zones are skipped and the rest still shows | OK |
 | Dragging in from outside | Time grid, month, `startTime`, releasing outside does nothing | OK |
@@ -226,15 +226,15 @@ The core is strong: the architecture is clean, the RRULE engine held up well, ro
 | Touch (simulated) | Swipe navigation, long-press drag | OK |
 | Server rendering | `renderToString` produces events and columns | OK |
 
-**Fixed since this review:** the seven high-priority bugs (B1 to B7), including the recurring-edit failures in this table.
+**Fixed since this review:** all bugs in the review (B1 to B20), including the failures this table mentioned.
 
 **Earlier known bugs:** the low-opacity event text and the jumping during drags were re-checked and stay fixed. While dragging in month view no other event moved, the all-day row kept its height, and past events have opacity 1. They are removed from the list below.
 
 ### Bugs
-See **Known bugs** at the end of this file. "Confirmed" means it was reproduced; "from code" means it was found by reading the code and not reproduced.
+The review found 20 bugs (B1 to B20). They are fixed; see phase 7 in [ROADMAP.md](ROADMAP.md).
 
 ### Weak spots that are not bugs
-- **Tests:** all 8 test files cover core (the 16 runs are those files against native Temporal and the polyfill). There are no component or browser tests, which is why bugs such as B8 and B9 got through. Drag behavior, focus and rendering have no safety net.
+- **Tests:** all 8 test files cover core (the 16 runs are those files against native Temporal and the polyfill). There are no component or browser tests, which is why several of the review's bugs got through. Drag behavior, focus and rendering have no safety net.
 - **Performance at the high end:** only rows are virtualized, not time or events. With 20 000 events:
 
   | View | DOM nodes | Events rendered | Next period (dev build) |
@@ -275,21 +275,6 @@ Compared with FullCalendar Premium, Bryntum, Mobiscroll, Syncfusion and DHTMLX. 
 
 # Known bugs
 
-Found by the 2026-10-31 review unless noted. Remove an item once it is fixed. Priority and the fix order are in [ROADMAP.md](ROADMAP.md).
+None open. Add new ones here, and remove them once fixed.
 
-**Medium**
-- **B8. `<DayView>` ignores the scheduler's `hidden-days` (confirmed).** With weekends hidden, Day still shows Saturday and "3 days" shows Sat, Sun, Mon, though the docs say views inherit it. [DayView.vue:34](src/components/DayView.vue:34). With the prop set on the view itself, a hidden anchor date should give a grid with no columns (from code).
-- **B9. Auto-scroll upward is out of reach (confirmed).** The top edge zone is measured from the scroller, which sits under the 111 px sticky header. Holding just under the header or over the all-day row scrolls nothing, and crossing the all-day row turns the preview into an all-day event. The sticky resource column on a timeline should have the same effect on leftward scrolling (from code). `scrollNear` in [useInteraction.ts:272](src/composables/useInteraction.ts:272).
-- **B10. Delete does nothing in the agenda (confirmed).** The check depends on `draggable`, which is false for agenda rows, although Alt+arrows does move them. [EventItem.vue:194](src/components/EventItem.vue:194).
-- **B11. Dragging from the "+N more" popover is half-supported (confirmed).** It works, but the event has no draggable styling, and the popover stays open after the drop and after an undo.
-- **B12. `allDay: true` with a date-time `end` loses the last day (confirmed).** `start: 05-04T09:00, end: 05-06T17:00, allDay: true` shows until 05-06 00:00, so 05-06 is missing. [normalize.ts:90](src/core/events/normalize.ts:90).
-- **B13. Colliding event ids silently lose events (confirmed).** `1` and `"1"` become one event, with no warning. Duplicate ids should go the same way (from code). [normalize.ts:43](src/core/events/normalize.ts:43).
-- **B14. Bad props crash or blank the scheduler (confirmed).** An invalid `time-zone` or `locale` throws during render. `day-start-time` after `day-end-time` gives an empty grid with no message. `slot-duration="0"` throws (from code). `week-start="9"` is accepted. There is no validation or dev warning.
-- **B15. Editing a floating event pins it to one zone (confirmed).** `09:00` becomes `10:00+02:00[Europe/Brussels]` after a move, so it stops following the display zone, unlike the unedited events next to it. [edit-events.ts:46](src/core/edit-events.ts:46).
-
-**Low**
-- **B16. A view toggled with `v-if` goes to the end of the switcher (from code).** Registration appends, though the docs promise declaration order. [useScheduler.ts:348](src/composables/useScheduler.ts:348).
-- **B17. Month navigation drifts the anchor date (confirmed).** From Jan 31: Feb 28, Mar 28, Apr 28. Opening Day view afterwards should land on the 28th. [range.ts:91](src/core/range.ts:91).
-- **B18. RRULE gaps despite "full support" (confirmed).** `FREQ=SECONDLY` gives no occurrences. A minutely rule stops silently at 10 000 of about 44 640 in a month. Lowercase rules are rejected, though RFC 5545 is case-insensitive.
-- **B19. Alt+digit cannot reach views past the ninth (confirmed).** The playground has 12 views, and its hint still says Alt+1…6.
-- **B20. Unmounting during a drag leaves window listeners until pointer up (from code).** [useInteraction.ts:547](src/composables/useInteraction.ts:547).
+**Correction to the 2026-10-31 review:** B18 said lowercase RRULEs are rejected. They are accepted; that probe failed because it also contained an unknown part (`foo=bar`). Unknown parts are still rejected, except `X-` extensions, and the event is skipped with a warning. `FREQ=SECONDLY` is unsupported in the same way.

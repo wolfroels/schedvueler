@@ -125,8 +125,8 @@ watch(
 </script>
 
 <template>
-  <div class="orb-agenda" :aria-label="ctx.title.value" role="group">
-    <div v-if="!rows.length" class="orb-agenda__empty">
+  <div class="orb-agenda" v-bind="ctx.part('agenda')" :aria-label="ctx.title.value" role="group">
+    <div v-if="!rows.length" class="orb-agenda__empty" v-bind="ctx.part('agendaEmpty')">
       <RenderSlot
         :fn="resolve('agenda-empty')"
         :scope="{ view, label: ctx.options.value.messages.noEvents }"
@@ -144,6 +144,7 @@ watch(
           <div
             v-if="row.type === 'day'"
             class="orb-agenda__day"
+            v-bind="ctx.part('agendaDay', row)"
             :class="{ 'is-today': row.isToday }"
             :style="rowStyle(index, start)"
             :data-row="index"
@@ -162,6 +163,7 @@ watch(
               <button
                 type="button"
                 class="orb-agenda__day-button"
+                v-bind="ctx.part('agendaDayButton', row)"
                 :aria-current="row.isToday ? 'date' : undefined"
                 @click="onDateClick(row.date, $event)"
               >
@@ -172,6 +174,7 @@ watch(
           <div
             v-else
             class="orb-agenda__row"
+            v-bind="ctx.part('agendaRow', row)"
             :style="rowStyle(index, start)"
             :data-row="index"
             role="listitem"

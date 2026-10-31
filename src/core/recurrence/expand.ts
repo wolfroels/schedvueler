@@ -19,6 +19,8 @@ export interface RecurrenceSeries {
 /** One generated instance: its original start in the series' own terms. */
 export type RecurrenceStart = Temporal.PlainDate | Temporal.ZonedDateTime
 
+let warnedLimit = false
+
 export interface ExpandOptions {
   /** Zone used to place all-day occurrences on the timeline. */
   displayTimeZone: string
@@ -175,7 +177,12 @@ export function expandSeries(
     if (startMs >= window.endMs) break
     if (isExcluded(value, exclusions) || !overlaps(startMs, value)) continue
     results.set(value, occurrence)
-    if (results.size >= limit) break
+    if (results.size >= limit) {
+      if (!warnedLimit)
+        console.warn(`[orb-scheduler] Stopped a recurring event at ${limit} occurrences.`)
+      warnedLimit = true
+      break
+    }
   }
 
   for (const rdate of series.rdates ?? []) {

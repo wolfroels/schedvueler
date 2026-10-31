@@ -1,0 +1,11 @@
+// TSConfig for the Playwright tests. They run in Node.js, and their callbacks in the browser.
+{
+  "extends": "./tsconfig.node.json",
+  "include": ["e2e/**/*.ts"],
+  "exclude": ["e2e/fixture/**/*"],
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "noUncheckedIndexedAccess": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo"
+  }
+}

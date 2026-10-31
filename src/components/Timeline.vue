@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { type Hit, type ResourceNode, type Temporal } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
+import { visibleHours } from '../composables/validate'
 import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/useTimeline'
 import type { ResourceLabelSlotProps } from '../types'
 import EventItem from './EventItem.vue'
@@ -36,21 +37,27 @@ const rowResources = computed(() => {
 function slotsPerDay(s: TimelineSettings): number {
   if (s.slotDuration >= 1440) return 1
   const o = ctx.options.value
-  const start = parseTimeOfDay(s.dayStartTime, o.dayStartMinute)
-  const end = parseTimeOfDay(s.dayEndTime, o.dayEndMinute)
+  const [start, end] = visibleHours(
+    parseTimeOfDay(s.dayStartTime, o.dayStartMinute),
+    parseTimeOfDay(s.dayEndTime, o.dayEndMinute),
+  )
   return Math.max(1, Math.ceil((end - start) / s.slotDuration))
 }
 
 const config = computed(() => {
   const s = props.settings
   const o = ctx.options.value
+  const [dayStartMinute, dayEndMinute] = visibleHours(
+    parseTimeOfDay(s.dayStartTime, o.dayStartMinute),
+    parseTimeOfDay(s.dayEndTime, o.dayEndMinute),
+  )
   return {
     days: props.days,
     resources: rowResources.value,
     slotDuration: s.slotDuration,
     slotLabelInterval: s.slotLabelInterval ?? Math.max(60, s.slotDuration),
-    dayStartMinute: parseTimeOfDay(s.dayStartTime, o.dayStartMinute),
-    dayEndMinute: parseTimeOfDay(s.dayEndTime, o.dayEndMinute),
+    dayStartMinute,
+    dayEndMinute,
     eventHeight: s.eventHeight,
     laneGap: 2,
     rowPadding: 4,
@@ -75,6 +82,13 @@ const {
 } = useTimeline(ctx, config)
 
 const snapMinutes = () => props.settings.snapDuration
+
+const selectionScope = computed(() => {
+  const sel = interaction.selection.value
+  return sel
+    ? { view: props.view, ...sel.times, resourceId: sel.times.resourceIds?.[0] }
+    : undefined
+})
 const pct = (fraction: number) => `${fraction * 100}%`
 
 const rootStyle = computed(() => ({
@@ -177,6 +191,7 @@ function onEmptyPointerDown(e: PointerEvent) {
 // --- hit testing ---------------------------------------------------------------------------------
 
 const root = ref<HTMLElement>()
+const corner = ref<HTMLElement>()
 
 function hitTest(x: number, y: number): Hit | null {
   if (!root.value?.isConnected || !body.value || !timeHead.value || !rows.value.length) return null
@@ -192,6 +207,20 @@ onMounted(() => {
   unregister = interaction.registerSurface({
     hitTest,
     scrollElement: () => scroller.value,
+    scrollArea: () => {
+      const rect = scroller.value?.getBoundingClientRect()
+      const axis = timeHead.value?.getBoundingClientRect()
+      if (!rect || !axis) return undefined
+      // Not under the sticky time head, nor under the sticky resource column on its side.
+      const resources = corner.value?.offsetWidth ?? 0
+      const rtl = isRtl(scroller.value!)
+      return {
+        left: rtl ? rect.left : rect.left + resources,
+        top: axis.bottom,
+        right: rtl ? rect.right - resources : rect.right,
+        bottom: rect.bottom,
+      }
+    },
     snapMinutes,
   })
 })
@@ -260,11 +289,18 @@ function eventTop(lane: number) {
 </script>
 
 <template>
-  <div ref="root" class="orb-tl" role="group" :aria-label="ctx.title.value" :style="rootStyle">
+  <div
+    ref="root"
+    class="orb-tl"
+    v-bind="ctx.part('timeline')"
+    role="group"
+    :aria-label="ctx.title.value"
+    :style="rootStyle"
+  >
     <div ref="scroller" class="orb-tl__scroller">
       <div class="orb-tl__inner">
         <div class="orb-tl__head">
-          <div class="orb-tl__corner">
+          <div ref="corner" class="orb-tl__corner" v-bind="ctx.part('timelineCorner')">
             <RenderSlot
               :fn="resolve('resource-area-header')"
               :scope="{ view, label: messages.resources }"
@@ -278,6 +314,7 @@ function eventTop(lane: number) {
                 v-for="day in dayList"
                 :key="day.key"
                 class="orb-tl__day-heading"
+                v-bind="ctx.part('timelineDayHeading', { day })"
                 :class="{ 'is-today': day.isToday, 'is-weekend': day.isWeekend }"
               >
                 <button
@@ -307,6 +344,7 @@ function eventTop(lane: number) {
                   v-for="slot in slots"
                   :key="slot.minute"
                   class="orb-tl__slot-heading"
+                  v-bind="ctx.part('timelineSlotHeading', { day, slot })"
                   :class="{ 'is-labelled': !!slot.label }"
                 >
                   <RenderSlot
@@ -343,6 +381,7 @@ function eventTop(lane: number) {
             <div
               v-if="ctx.options.value.nowIndicator && nowPosition !== null"
               class="orb-tl__now"
+              v-bind="ctx.part('nowIndicator')"
               :style="{ insetInlineStart: pct(nowPosition) }"
             >
               <RenderSlot
@@ -356,16 +395,22 @@ function eventTop(lane: number) {
             v-for="{ row, start } in rendered"
             :key="row.key"
             class="orb-tl__row"
+            v-bind="ctx.part('timelineRow', { resource: row.resource })"
             :class="{ 'orb-tl__row--group': row.resource.childIds.length > 0 }"
             :style="{ height: `${row.height}px`, transform: `translateY(${start}px)` }"
             role="group"
             :aria-label="row.resource.title"
           >
-            <div class="orb-tl__label" :style="{ '--orb-tl-depth': row.resource.depth }">
+            <div
+              class="orb-tl__label"
+              v-bind="ctx.part('resourceLabel', { resource: row.resource })"
+              :style="{ '--orb-tl-depth': row.resource.depth }"
+            >
               <button
                 v-if="row.resource.childIds.length"
                 type="button"
                 class="orb-tl__toggle"
+                v-bind="ctx.part('resourceToggle', { resource: row.resource })"
                 :aria-expanded="!ctx.collapsedResources.value.has(row.resource.id)"
                 :aria-label="row.resource.title"
                 @click="ctx.toggleResource(row.resource.id)"
@@ -387,6 +432,7 @@ function eventTop(lane: number) {
             </div>
             <div
               class="orb-tl__lane"
+              v-bind="ctx.part('timelineLane', { resource: row.resource })"
               @pointerdown="onEmptyPointerDown"
               @click="onLane('slot-click', row, $event)"
               @dblclick="onLane('slot-dblclick', row, $event)"
@@ -396,9 +442,12 @@ function eventTop(lane: number) {
                 <div
                   v-if="overlay.kind === 'selection'"
                   class="orb-tl__selection"
+                  v-bind="ctx.part('selection')"
                   :style="{ insetInlineStart: pct(overlay.left), width: pct(overlay.width) }"
                   aria-hidden="true"
-                />
+                >
+                  <RenderSlot :fn="resolve('selection')" :scope="selectionScope" />
+                </div>
                 <EventItem
                   v-else
                   class="orb-tl__mirror"

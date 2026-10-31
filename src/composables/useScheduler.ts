@@ -32,6 +32,7 @@ import {
 } from '../core'
 import { defaultMessages, type SchedulerOptions } from '../types'
 import { createCancelable, whenAllowed } from './cancelable'
+import { validLocale, validMinutes, validTimeZone, validWeekStart, visibleHours } from './validate'
 import { registerDropTarget } from './externalDrag'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
 import { trackSlotNames } from './useSchedulerView'
@@ -94,8 +95,12 @@ export function useScheduler<T>(
   const emit = hooks.emit ?? (() => {})
   const slots = hooks.slots ?? useSlots()
 
-  const timeZone = computed(() => raw.value.timeZone ?? systemTimeZone())
-  const locale = computed(() => raw.value.locale ?? defaultLocale())
+  const timeZone = computed(() =>
+    raw.value.timeZone ? validTimeZone(raw.value.timeZone, systemTimeZone) : systemTimeZone(),
+  )
+  const locale = computed(() =>
+    raw.value.locale ? validLocale(raw.value.locale, defaultLocale) : defaultLocale(),
+  )
 
   // Templates often pass fresh arrays and objects on every render (`:hidden-days="[6, 7]"`).
   // Keeping the previous object when nothing really changed spares every view and event from
@@ -103,19 +108,24 @@ export function useScheduler<T>(
   const resolved = computed<ResolvedOptions<T>>((old) => {
     const o = raw.value
     const layout = o.eventLayout ?? 'columns'
+    const [dayStartMinute, dayEndMinute] = visibleHours(
+      parseTimeOfDay(o.dayStartTime, 0),
+      parseTimeOfDay(o.dayEndTime, 1440),
+    )
     const next: ResolvedOptions<T> = {
       timeZone: timeZone.value,
       locale: locale.value,
-      weekStart: o.weekStart ?? weekStartForLocale(locale.value),
+      weekStart: validWeekStart(o.weekStart) ?? weekStartForLocale(locale.value),
       hiddenDays: o.hiddenDays ?? [],
       hour12: o.hour12,
-      slotDuration: o.slotDuration ?? 30,
-      slotLabelInterval: o.slotLabelInterval ?? 60,
-      dayStartMinute: parseTimeOfDay(o.dayStartTime, 0),
-      dayEndMinute: parseTimeOfDay(o.dayEndTime, 1440),
+      slotDuration: validMinutes(o.slotDuration, 30, 'slotDuration'),
+      slotLabelInterval: validMinutes(o.slotLabelInterval, 60, 'slotLabelInterval'),
+      dayStartMinute,
+      dayEndMinute,
       scrollMinute: parseTimeOfDay(o.scrollTime, 480),
       eventLayout: typeof layout === 'function' ? layout : timeGridLayouts[layout],
       eventAttrs: o.eventAttrs,
+      pt: o.pt,
       nowIndicator: o.nowIndicator ?? true,
       messages: { ...defaultMessages, ...o.messages },
       raw: o,
@@ -266,13 +276,20 @@ export function useScheduler<T>(
     })
   }
 
+  // Month steps clamp short months (Jan 31 to Feb 28). Remember the 31 so March is the 31st again.
+  let lastStep: { date: Temporal.PlainDate; day: number } | undefined
+
   const step = (direction: 1 | -1) => {
-    const view = activeView.value
-    if (view)
-      navigate(
-        view.definition.value.strategy.step(date.value, direction),
-        direction > 0 ? 'next' : 'prev',
-      )
+    const strategy = activeView.value?.definition.value.strategy
+    if (!strategy) return
+    const from = date.value
+    let to = strategy.step(from, direction)
+    if (strategy.keepsDayOfMonth) {
+      const day = lastStep?.date.equals(from) ? lastStep.day : from.day
+      to = to.with({ day: Math.min(day, to.daysInMonth) })
+      lastStep = { date: to, day }
+    }
+    navigate(to, direction > 0 ? 'next' : 'prev')
   }
 
   // --- range-change ----------------------------------------------------------------------------
@@ -311,6 +328,14 @@ export function useScheduler<T>(
   watch(version, () => ctx.interaction.prunePending())
 
   const announcement = shallowRef('')
+
+  // One shared object per part: most parts have no `pt`, and some render hundreds of times.
+  const plainParts = new Map<string, Record<string, unknown>>()
+  function plainPart(name: string) {
+    let attrs = plainParts.get(name)
+    if (!attrs) plainParts.set(name, (attrs = { 'data-orb-part': name }))
+    return attrs
+  }
 
   const ctx: SchedulerContext<T> = {
     options: resolved,
@@ -351,6 +376,16 @@ export function useScheduler<T>(
     unregisterView(view) {
       views.value = views.value.filter((v) => v !== view)
     },
+    sortViews() {
+      const before = views.value
+      const sorted = [...before].sort((a, b) => {
+        const x = a.node()
+        const y = b.node()
+        if (!x || !y) return 0
+        return x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+      })
+      if (sorted.some((v, i) => v !== before[i])) views.value = sorted
+    },
     prev: () => step(-1),
     next: () => step(1),
     goToday: () => navigate(today.value, 'today'),
@@ -385,6 +420,12 @@ export function useScheduler<T>(
       store.setEvents(raw.value.events ?? [])
       version.value = store.version
     },
+    part(name, scope) {
+      const value = resolved.value.pt?.[name]
+      if (!value) return plainPart(name)
+      const attrs = typeof value === 'function' ? value(scope ?? {}) : value
+      return attrs ? { ...attrs, 'data-orb-part': name } : plainPart(name)
+    },
     emit,
     slots,
     slotsVersion,
@@ -401,7 +442,10 @@ export function useScheduler<T>(
   ctx.interaction = createInteraction(ctx as SchedulerContext<unknown>)
   // Lets events dragged in from outside (v-orb-draggable) find this scheduler.
   const unregisterDropTarget = registerDropTarget(ctx.interaction)
-  if (getCurrentScope()) onScopeDispose(unregisterDropTarget)
+  if (getCurrentScope()) {
+    onScopeDispose(unregisterDropTarget)
+    onScopeDispose(ctx.interaction.stopGesture)
+  }
 
   provide(SchedulerContextKey, ctx as SchedulerContext<unknown>)
   return ctx

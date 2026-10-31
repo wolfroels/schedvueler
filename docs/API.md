@@ -8,6 +8,7 @@ from `orb-scheduler/core`. Types are in [src/types.ts](../src/types.ts) and
 - [Views](#views)
 - [Emits](#emits)
 - [Slots](#slots)
+- [Passthrough (`pt`)](#passthrough-pt)
 - [Theming (CSS variables)](#theming)
 - [Editing helpers and undo/redo](#editing-helpers)
 - [Dragging new events in from outside](#dragging-in-from-outside)
@@ -54,6 +55,7 @@ The root component. Views are its children; the first one is the default.
 | `event-layout` | `'columns' \| 'stack' \| fn` | `'columns'` | How overlapping timed events share a column. |
 | `event-order` | `(a, b) => number` | all-day first, start, longest | Order of events within a day. |
 | `event-attrs` | `(occurrence) => attrs` | – | Extra class, style or attributes per event (pure function). |
+| `pt` | `SchedulerPt` | – | Attributes for any part of the scheduler. See [Passthrough](#passthrough-pt). |
 | `now-indicator` | `boolean` | `true` | Current-time line. |
 | `messages` | `Partial<SchedulerMessages>` | English | All texts, including screen-reader announcements. |
 | `editable` | `boolean` | `false` | Drag and resize events. |
@@ -204,14 +206,18 @@ All slots are available on `<Scheduler>` and on each view. Specific event slots 
 
 | Slot | Props |
 | --- | --- |
-| `toolbar`, `toolbar-start`, `toolbar-center`, `toolbar-end`, `title` | `title`, `view`, `views`, `prev()`, `next()`, `today()`, `setView(name)` |
-| `event`, `event-content`, `time-event`, `all-day-event`, `month-event`, `agenda-event`, `timeline-event` | `occurrence`, `event`, `title`, `timeText`, `view`, `variant`, `allDay`, `isStart`, `isEnd`, `isPast`, `color`, `resourceId` |
+| `toolbar`, `toolbar-start`, `toolbar-center`, `toolbar-end`, `title`, `view-switcher` | `title`, `view`, `views`, `prev()`, `next()`, `today()`, `setView(name)` |
+| `nav-prev` / `nav-next` / `today-button` | `prev()` / `next()` / `today()`, `label` |
+| `view-button` | `view`, `setView(name)` |
+| `event`, `event-content`, `time-event`, `all-day-event`, `month-event`, `agenda-event`, `timeline-event`, `drag-preview` | `occurrence`, `event`, `title`, `timeText`, `view`, `variant`, `allDay`, `isStart`, `isEnd`, `isPast`, `color`, `resourceId`, `isMirror`, `valid` |
+| `resize-handle` | `edge`, `variant` |
+| `selection` | `view`, `start`, `end`, `allDay`, `resourceId` |
 | `day-header` | `date`, `view`, `isToday`, `weekday`, `dayNumber` |
 | `all-day-label` | `label` |
 | `time-label` | `minute`, `label` |
 | `time-slot` | `view`, `date`, `start`, `end`, `isToday`, `resourceId` |
 | `month-weekday` | `weekday`, `label` |
-| `month-cell` | `view`, `date`, `dayNumber`, `isToday`, `isOtherMonth`, `isPast` |
+| `month-cell`, `month-day-number` | `view`, `date`, `dayNumber`, `isToday`, `isOtherMonth`, `isPast` |
 | `more-link` | `date`, `count`, `occurrences`, `label` |
 | `more-popover` | `date`, `title`, `occurrences`, `close()` |
 | `now-indicator` | `now`, `label` |
@@ -222,6 +228,29 @@ All slots are available on `<Scheduler>` and on each view. Specific event slots 
 | `timeline-header` | `view`, `date`, `minute` (`undefined` for the day heading), `label`, `isToday` |
 | `year-day` | `view`, `date`, `dayNumber`, `isToday`, `count`, `occurrences`, `level` (0-4) |
 | `year-month-header` | `view`, `date`, `label` |
+
+## Passthrough (`pt`)
+
+Every element of the scheduler has a part name, in the attribute `data-orb-part`. Use `pt` to give a part classes, styles, attributes or listeners without replacing it, and slots to replace its content.
+
+```vue
+<script setup lang="ts">
+import type { SchedulerPt } from 'orb-scheduler'
+
+// Define it outside the template: a new object on every render re-renders every part.
+const pt: SchedulerPt = {
+  todayButton: { class: 'my-button' },
+  monthCell: ({ isToday }) => (isToday ? { class: 'my-today' } : undefined),
+  event: ({ occurrence }) => ({ 'data-id': occurrence.id }),
+}
+</script>
+
+<template>
+  <Scheduler :events="events" :pt="pt">...</Scheduler>
+</template>
+```
+
+To see every part and slot on a live scheduler, what connects to what, and what each receives, run the playground and open the slots and parts page (`#/parts`).
 
 ## Theming
 

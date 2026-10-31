@@ -120,12 +120,19 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="root" class="orb-scheduler" :data-theme="theme" @keydown="onKeydown">
+  <div
+    ref="root"
+    class="orb-scheduler"
+    v-bind="ctx.part('root')"
+    :data-theme="theme"
+    @keydown="onKeydown"
+  >
     <slot name="toolbar" v-bind="toolbarProps">
       <SchedulerToolbar v-if="toolbar" />
     </slot>
     <div
       class="orb-scheduler__body"
+      v-bind="ctx.part('body')"
       :class="{ 'orb-scheduler__body--swipe': swipeNavigation }"
       @pointerdown.capture="onSwipeStart"
       @pointermove.capture="onSwipeMove"

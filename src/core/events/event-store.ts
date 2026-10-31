@@ -34,7 +34,7 @@ export interface EventStoreOptions<T> {
   defaultAllDayDays?: number
   /** Order of occurrences returned by `query`. Default: all-day first, then start, then longest. */
   eventOrder?: (a: EventOccurrence<T>, b: EventOccurrence<T>) => number
-  /** Called for events that cannot be read; they are skipped. Defaults to `console.warn`. */
+  /** Called for events that cannot be read, or that reuse an id. Defaults to `console.warn`. */
   onInvalidEvent?: (error: unknown, event: T) => void
 }
 
@@ -139,6 +139,8 @@ export class EventStore<T = SchedulerEvent> {
     this.records = new Map()
     for (const event of events) {
       const key = eventKey(this.ctx.accessors.id(event))
+      if (this.records.has(key))
+        this.onInvalid(new Error(`Duplicate event id "${key}"; the later event wins`), event)
       const old = reuse ? previous.get(key) : undefined
       if (old && old.event === event) this.records.set(key, old)
       else this.add(event)

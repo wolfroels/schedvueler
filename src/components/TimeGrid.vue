@@ -11,6 +11,7 @@ import {
 } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
+import { validMinutes, visibleHours } from '../composables/validate'
 import {
   useTimeGrid,
   type TimeGridColumn,
@@ -47,12 +48,16 @@ const config = computed(() => {
   const o = ctx.options.value
   const s = props.settings
   const layout = s.eventLayout
+  const [dayStartMinute, dayEndMinute] = visibleHours(
+    parseTimeOfDay(s.dayStartTime, o.dayStartMinute),
+    parseTimeOfDay(s.dayEndTime, o.dayEndMinute),
+  )
   return {
     days: props.days,
-    slotDuration: s.slotDuration ?? o.slotDuration,
-    slotLabelInterval: s.slotLabelInterval ?? o.slotLabelInterval,
-    dayStartMinute: parseTimeOfDay(s.dayStartTime, o.dayStartMinute),
-    dayEndMinute: parseTimeOfDay(s.dayEndTime, o.dayEndMinute),
+    slotDuration: validMinutes(s.slotDuration, o.slotDuration, 'slotDuration'),
+    slotLabelInterval: validMinutes(s.slotLabelInterval, o.slotLabelInterval, 'slotLabelInterval'),
+    dayStartMinute,
+    dayEndMinute,
     layout: layout
       ? typeof layout === 'function'
         ? layout
@@ -66,6 +71,13 @@ const config = computed(() => {
 
 const { columns, slots, allDay, timed, overlays, allDaySelection, nowLine, slotRange, dayRange } =
   useTimeGrid(ctx, config)
+
+const selectionScope = computed(() => {
+  const sel = interaction.selection.value
+  return sel
+    ? { view: props.view, ...sel.times, resourceId: sel.times.resourceIds?.[0] }
+    : undefined
+})
 
 const timeSlotSlot = computed(() => props.resolve('time-slot'))
 const snapMinutes = () => ctx.options.value.raw.snapDuration ?? config.value.slotDuration
@@ -239,6 +251,11 @@ onMounted(() => {
   unregister = interaction.registerSurface({
     hitTest,
     scrollElement: () => scroller.value,
+    scrollArea: () => {
+      const rect = scroller.value?.getBoundingClientRect()
+      const headRect = head.value?.getBoundingClientRect()
+      return rect && headRect && { ...rect.toJSON(), top: headRect.bottom }
+    },
     snapMinutes,
   })
 })
@@ -375,18 +392,20 @@ defineExpose({ scrollToMinute })
   <div
     ref="root"
     class="orb-tg"
+    v-bind="ctx.part('timeGrid')"
     role="group"
     :aria-label="ctx.title.value"
     :style="{ '--orb-tg-days': columns.length, '--orb-tg-slots': slots.length }"
   >
     <div ref="scroller" class="orb-tg__scroller">
-      <div ref="head" class="orb-tg__head">
+      <div ref="head" class="orb-tg__head" v-bind="ctx.part('gridHead')">
         <div v-for="(row, ri) in headerRows" :key="ri" class="orb-tg__row">
           <div class="orb-tg__corner" />
           <template v-for="cell in row" :key="cell.key">
             <div
               v-if="cell.kind === 'day'"
               class="orb-tg__day-header"
+              v-bind="ctx.part('dayHeader', { column: cell.column })"
               :class="{
                 'is-today': cell.column.isToday,
                 'is-past': cell.column.isPast,
@@ -420,6 +439,7 @@ defineExpose({ scrollToMinute })
             <div
               v-else
               class="orb-tg__resource-header"
+              v-bind="ctx.part('resourceHeader', { column: cell.column })"
               :class="{ 'is-group-end': cell.span === 1 && cell.column.isGroupEnd }"
               :style="{ gridColumn: `${cell.col + 2} / span ${cell.span}` }"
               @click="onResourceClick(cell.column.resource!, $event)"
@@ -435,7 +455,7 @@ defineExpose({ scrollToMinute })
         </div>
 
         <div v-if="config.allDaySlot" class="orb-tg__row orb-tg__row--allday">
-          <div class="orb-tg__allday-label">
+          <div class="orb-tg__allday-label" v-bind="ctx.part('allDayLabel')">
             <RenderSlot :fn="resolve('all-day-label')" :scope="{ label: messages.allDay }">
               {{ messages.allDay }}
             </RenderSlot>
@@ -443,6 +463,7 @@ defineExpose({ scrollToMinute })
           <div
             ref="allDayEl"
             class="orb-tg__allday"
+            v-bind="ctx.part('allDayRow')"
             :style="{ '--orb-allday-rows': Math.max(allDay.rowCount, 1) }"
             @pointerdown="onEmptyPointerDown"
           >
@@ -450,6 +471,7 @@ defineExpose({ scrollToMinute })
               v-for="(col, i) in columns"
               :key="i"
               class="orb-tg__allday-cell"
+              v-bind="ctx.part('allDayCell', { column: col })"
               :class="{
                 'is-today': col.isToday,
                 'is-weekend': col.isWeekend,
@@ -464,9 +486,12 @@ defineExpose({ scrollToMinute })
               v-for="range in allDaySelection"
               :key="range.startCol"
               class="orb-tg__allday-selection"
+              v-bind="ctx.part('selection')"
               :style="{ gridColumn: `${range.startCol + 1} / ${range.endCol + 1}` }"
               aria-hidden="true"
-            />
+            >
+              <RenderSlot :fn="resolve('selection')" :scope="selectionScope" />
+            </div>
             <EventItem
               v-for="item in allDay.items"
               :key="item.key"
@@ -487,11 +512,12 @@ defineExpose({ scrollToMinute })
       </div>
 
       <div ref="body" class="orb-tg__body">
-        <div class="orb-tg__gutter" aria-hidden="true">
+        <div class="orb-tg__gutter" v-bind="ctx.part('gutter')" aria-hidden="true">
           <div
             v-for="slot in slots"
             :key="slot.startMinute"
             class="orb-tg__time-label"
+            v-bind="ctx.part('timeLabel', { minute: slot.startMinute })"
             :class="{ 'is-labelled': slot.isLabelled }"
           >
             <RenderSlot
@@ -509,6 +535,7 @@ defineExpose({ scrollToMinute })
           :key="ci /* by position: navigating reuses the slot cells */"
           :ref="(el) => setColumnEl(el, ci)"
           class="orb-tg__column"
+          v-bind="ctx.part('column', { column: col })"
           :class="{
             'is-today': col.isToday,
             'is-past': col.isPast,
@@ -523,6 +550,7 @@ defineExpose({ scrollToMinute })
             v-for="(slot, si) in slots"
             :key="slot.startMinute"
             class="orb-tg__slot"
+            v-bind="ctx.part('timeSlot', { column: col, minute: slot.startMinute })"
             :class="{ 'is-labelled': slot.isLabelled }"
             role="button"
             :aria-label="slot.label || undefined"
@@ -565,9 +593,12 @@ defineExpose({ scrollToMinute })
               <div
                 v-if="overlay.kind === 'selection'"
                 class="orb-tg__selection"
+                v-bind="ctx.part('selection')"
                 :style="{ top: pct(overlay.top), height: pct(overlay.height) }"
                 aria-hidden="true"
-              />
+              >
+                <RenderSlot :fn="resolve('selection')" :scope="selectionScope" />
+              </div>
               <EventItem
                 v-else
                 class="orb-tg__mirror"
@@ -587,6 +618,7 @@ defineExpose({ scrollToMinute })
           <div
             v-if="ctx.options.value.nowIndicator && nowLine && nowLine.columnIndexes.includes(ci)"
             class="orb-tg__now"
+            v-bind="ctx.part('nowIndicator')"
             :style="{ top: pct(nowLine.top) }"
             aria-hidden="true"
           >

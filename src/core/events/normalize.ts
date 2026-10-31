@@ -87,7 +87,11 @@ export function normalizeEvent<T>(event: T, ctx: NormalizeContext<T>): EventReco
   let end: Temporal.ZonedDateTime | undefined
   if (allDay) {
     startDate = resolveZoned(startParsed, eventZone).toPlainDate()
-    endDate = endParsed ? resolveZoned(endParsed, eventZone).toPlainDate() : undefined
+    const endZoned = endParsed && resolveZoned(endParsed, eventZone)
+    endDate = endZoned?.toPlainDate()
+    // Dates are exclusive, but an end during a day means that day is part of the event.
+    if (endZoned && endDate && !endZoned.equals(endDate.toZonedDateTime({ timeZone: eventZone })))
+      endDate = endDate.add({ days: 1 })
     if (!endDate || endDate.until(startDate).sign >= 0)
       endDate = startDate.add({ days: ctx.defaultAllDayDays })
   } else {

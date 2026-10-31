@@ -121,6 +121,7 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
     v-if="isActive"
     ref="root"
     class="orb-year"
+    v-bind="ctx.part('year')"
     :class="`orb-year--${display}`"
     role="group"
     :aria-label="ctx.title.value"
@@ -129,9 +130,15 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
       v-for="month in months"
       :key="month.key"
       class="orb-year__month"
+      v-bind="ctx.part('yearMonth', month)"
       :aria-label="month.label"
     >
-      <button type="button" class="orb-year__month-title" @click="onMonthClick(month)">
+      <button
+        type="button"
+        class="orb-year__month-title"
+        v-bind="ctx.part('yearMonthTitle', month)"
+        @click="onMonthClick(month)"
+      >
         <RenderSlot
           :fn="resolve('year-month-header')"
           :scope="{ view: name, date: month.date, label: month.label }"
@@ -140,7 +147,13 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
         </RenderSlot>
       </button>
       <div class="orb-year__grid" :style="{ '--orb-year-cols': weekdays.length }">
-        <span v-for="w in weekdays" :key="w.weekday" class="orb-year__weekday" aria-hidden="true">
+        <span
+          v-for="w in weekdays"
+          :key="w.weekday"
+          class="orb-year__weekday"
+          v-bind="ctx.part('yearWeekday', w)"
+          aria-hidden="true"
+        >
           {{ w.label }}
         </span>
         <template v-for="(cell, i) in month.cells" :key="cell?.key ?? `pad-${i}`">
@@ -149,6 +162,7 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
             v-else
             type="button"
             class="orb-year__day"
+            v-bind="ctx.part('yearDay', cell)"
             :class="[
               {
                 'is-today': cell.isToday,
