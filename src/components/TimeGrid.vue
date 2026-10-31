@@ -20,6 +20,7 @@ import {
 } from '../composables/useTimeGrid'
 import EventItem from './EventItem.vue'
 import { stableStyle } from './stable-style'
+import { visualArrow } from './direction'
 import { RenderSlot } from './RenderSlot'
 import type { TimeGridViewProps } from './view-props'
 
@@ -111,7 +112,7 @@ function eventStyle(item: TimedEventLayout<unknown>) {
   return stableStyle(item, (i) => ({
     top: pct(i.top),
     height: pct(i.height),
-    left: pct(i.left),
+    insetInlineStart: pct(i.left),
     width: `calc(${pct(i.width)} - var(--orb-event-gap))`,
     zIndex: i.order + 1,
   }))
@@ -214,7 +215,10 @@ function hitTest(x: number, y: number): Hit | null {
   const cols = columnEls.slice(0, columns.value.length)
   if (!cols.length || !root.value?.isConnected) return null
   const rects = cols.map((c) => c.getBoundingClientRect())
-  if (x < rects[0]!.left || x > rects[rects.length - 1]!.right) return null
+  // First and last column swap sides right to left.
+  const left = Math.min(rects[0]!.left, rects[rects.length - 1]!.left)
+  const right = Math.max(rects[0]!.right, rects[rects.length - 1]!.right)
+  if (x < left || x > right) return null
   let index = rects.findIndex((r) => x >= r.left && x < r.right)
   if (index < 0) index = rects.length - 1
   const { date, resourceId } = columns.value[index]!
@@ -281,7 +285,7 @@ function onSlotKeydown(e: KeyboardEvent, col: number, slot: number) {
   const lastCol = columns.value.length - 1
   const lastSlot = slots.value.length - 1
   let next = { col, slot }
-  switch (e.key) {
+  switch (visualArrow(e.key, e.currentTarget as HTMLElement)) {
     case 'ArrowUp':
       next.slot = Math.max(0, slot - 1)
       break

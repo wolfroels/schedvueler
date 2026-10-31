@@ -339,8 +339,8 @@ export interface EventDragCancelPayload<T> {
   event: T
   view: string
   kind: EventChangeKind
-  /** "escape", "invalid" (dropped where not allowed), "unchanged" or "prevented" (a before-event refused it). */
-  reason: 'escape' | 'invalid' | 'unchanged' | 'prevented'
+  /** "escape", "invalid" (dropped where not allowed), "unchanged", "outside" (let go off the scheduler) or "prevented" (a before-event refused it). */
+  reason: 'escape' | 'invalid' | 'unchanged' | 'outside' | 'prevented'
 }
 
 /** A move or resize of an event. */
@@ -358,7 +358,7 @@ export interface EventChangePayload<T> {
   allDay: boolean
   /** Resources after the change; differs from `oldResourceIds` when moved to another resource. */
   resourceIds: readonly ResourceId[]
-  /** True for generated occurrences of a recurring event. */
+  /** True for occurrences of a recurring event, edited ones included. */
   recurring: boolean
   /**
    * Which occurrences the change is for. Starts as `recurrenceEditScope`; set it in the

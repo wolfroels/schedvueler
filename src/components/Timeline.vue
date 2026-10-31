@@ -8,6 +8,7 @@ import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/
 import type { ResourceLabelSlotProps } from '../types'
 import EventItem from './EventItem.vue'
 import { stableStyle } from './stable-style'
+import { isRtl } from './direction'
 import { RenderSlot } from './RenderSlot'
 import type { TimelineSettings } from './view-props'
 
@@ -153,7 +154,8 @@ type SlotEmit = 'slot-click' | 'slot-dblclick' | 'slot-contextmenu'
 
 function laneFraction(clientX: number): number {
   const rect = timeHead.value!.getBoundingClientRect()
-  return Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1)
+  const fromStart = isRtl(timeHead.value!) ? rect.right - clientX : clientX - rect.left
+  return Math.min(Math.max(fromStart / rect.width, 0), 1)
 }
 
 function onLane(name: SlotEmit, row: TimelineRow<unknown>, e: MouseEvent) {
@@ -207,7 +209,8 @@ function scrollToTime() {
   if (!today) return
   const tz = ctx.options.value.timeZone
   const ms = today.toZonedDateTime({ timeZone: tz }).add({ minutes: minute }).epochMilliseconds
-  el.scrollLeft = Math.max(0, axis.value.position(ms) * head.offsetWidth)
+  const distance = Math.max(0, axis.value.position(ms) * head.offsetWidth)
+  el.scrollLeft = isRtl(el) ? -distance : distance
 }
 
 let resizeObserver: ResizeObserver | undefined
@@ -340,7 +343,7 @@ function eventTop(lane: number) {
             <div
               v-if="ctx.options.value.nowIndicator && nowPosition !== null"
               class="orb-tl__now"
-              :style="{ left: pct(nowPosition) }"
+              :style="{ insetInlineStart: pct(nowPosition) }"
             >
               <RenderSlot
                 :fn="resolve('now-indicator')"
@@ -393,7 +396,7 @@ function eventTop(lane: number) {
                 <div
                   v-if="overlay.kind === 'selection'"
                   class="orb-tl__selection"
-                  :style="{ left: pct(overlay.left), width: pct(overlay.width) }"
+                  :style="{ insetInlineStart: pct(overlay.left), width: pct(overlay.width) }"
                   aria-hidden="true"
                 />
                 <EventItem
@@ -405,7 +408,11 @@ function eventTop(lane: number) {
                   :resolve="resolve"
                   mirror
                   :valid="overlay.valid"
-                  :style="{ left: pct(overlay.left), width: pct(overlay.width), top: eventTop(0) }"
+                  :style="{
+                    insetInlineStart: pct(overlay.left),
+                    width: pct(overlay.width),
+                    top: eventTop(0),
+                  }"
                 />
               </template>
               <EventItem
@@ -421,7 +428,7 @@ function eventTop(lane: number) {
                 :snap-minutes="snapMinutes()"
                 :style="
                   stableStyle(item, (i) => ({
-                    left: pct(i.left),
+                    insetInlineStart: pct(i.left),
                     width: pct(i.width),
                     top: eventTop(i.lane),
                   }))

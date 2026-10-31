@@ -292,3 +292,25 @@ describe('groupByDay', () => {
     expect(groupByDay(store.query(weekWindow), rangeDays(week), BXL, true)).toHaveLength(7)
   })
 })
+
+describe('hasException', () => {
+  it('tells whether an exception replaces an occurrence', () => {
+    const BXL = 'Europe/Brussels'
+    const store = new EventStore<SchedulerEvent>(
+      [
+        { id: 's', start: '2026-10-26T09:00', end: '2026-10-26T10:00', rrule: 'FREQ=DAILY' },
+        {
+          id: 'e',
+          start: '2026-10-27T11:00',
+          end: '2026-10-27T12:00',
+          recurringEventId: 's',
+          recurrenceId: '2026-10-27T09:00',
+        },
+      ],
+      { timeZone: BXL },
+    )
+    const at = (time: string) => Temporal.ZonedDateTime.from(`${time}[${BXL}]`)
+    expect(store.hasException('s', at('2026-10-27T09:00'))).toBe(true)
+    expect(store.hasException('s', at('2026-10-28T09:00'))).toBe(false)
+  })
+})

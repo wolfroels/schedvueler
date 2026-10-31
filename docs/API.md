@@ -185,7 +185,7 @@ cancelled when the promise rejects or resolves to `false`.
 | `more-click` ✋ | `date`, `occurrences`, `hiddenCount`; preventing it keeps the popover closed |
 | `event-drag-start` ✋ | `occurrence`, `kind` (`move`, `resize-start`, `resize-end`) |
 | `event-drag` | where the event would land now: `start`, `end`, `allDay`, `resourceIds`, `valid` |
-| `event-drag-cancel` | `reason`: `escape`, `invalid`, `unchanged` or `prevented` |
+| `event-drag-cancel` | `reason`: `escape`, `invalid`, `unchanged`, `outside` (a moved event let go off the scheduler) or `prevented` |
 | `before-event-drop` ✋, `before-event-resize` ✋ | old and new `start` / `end` / `allDay` / `resourceIds`, `recurring`, `scope` (set it here) |
 | `event-drop`, `event-resize` | the same plus `revert()`. Update your data; call `revert()` if saving fails. |
 | `event-delete` | `occurrence`, `recurring`, `scope` (Delete/Backspace on an editable event) |
@@ -261,7 +261,9 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
 
 - `applyEventEdit(events, occurrence, times, { scope, timeZone, createId? })` returns a new array
   (unchanged events keep their identity). For recurring events: `this` adds an exception,
-  `following` splits the series, `all` shifts the series. Resource changes are written too.
+  `following` splits the series, `all` shifts the series. An already edited occurrence follows the
+  same rules: `this` changes the exception, the others change its series. Resource changes are
+  written too.
 - `removeEventOccurrence(events, occurrence, { scope, timeZone })`: `this` adds an exdate,
   `following` ends the series, `all` removes the series and its exceptions.
 - `useHistory(ref, { keyboard?, limit? })` returns `commit(next, label?)`, `undo()`, `redo()`,

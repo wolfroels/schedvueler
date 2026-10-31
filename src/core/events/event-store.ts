@@ -1,3 +1,4 @@
+import type { Temporal } from '../temporal'
 import { temporalAdapter, type DateAdapter } from '../date-adapter'
 import { systemTimeZone } from '../dates'
 import { expandSeries } from '../recurrence'
@@ -172,6 +173,15 @@ export class EventStore<T = SchedulerEvent> {
 
   has(id: EventId): boolean {
     return this.records.has(eventKey(id))
+  }
+
+  /** Whether an exception event replaces this occurrence of a series. */
+  hasException(
+    seriesId: EventId,
+    recurrenceId: Temporal.ZonedDateTime | Temporal.PlainDate,
+  ): boolean {
+    this.rebuild()
+    return this.exceptions.get(eventKey(seriesId))?.has(recurrenceKey(recurrenceId)) ?? false
   }
 
   all(): T[] {

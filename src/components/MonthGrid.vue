@@ -14,6 +14,7 @@ import { useMonthGrid, type MonthCell, type MonthMoreLink } from '../composables
 import type { SlotResolver } from '../composables/useSchedulerView'
 import EventItem from './EventItem.vue'
 import { stableStyle } from './stable-style'
+import { isRtl, visualArrow } from './direction'
 import { RenderSlot } from './RenderSlot'
 
 const props = defineProps<{
@@ -136,9 +137,10 @@ function hitTest(x: number, y: number): Hit | null {
   let index = rects.findIndex((r) => y >= r.top && y < r.bottom)
   if (index < 0) index = y < first.top ? 0 : rects.length - 1
   const week = weeks.value[index]!
+  const fromStart = isRtl(root.value) ? first.right - x : x - first.left
   const col = Math.min(
     week.cells.length - 1,
-    Math.max(0, Math.floor(((x - first.left) / first.width) * week.cells.length)),
+    Math.max(0, Math.floor((fromStart / first.width) * week.cells.length)),
   )
   return { zone: 'month', date: week.cells[col]!.date }
 }
@@ -187,7 +189,7 @@ function onCellKeydown(e: KeyboardEvent, cell: MonthCell) {
     }
     return
   }
-  const move = moves[e.key]
+  const move = moves[visualArrow(e.key, e.currentTarget as HTMLElement)]
   if (move === undefined) return
   e.preventDefault()
   const target = index + move

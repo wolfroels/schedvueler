@@ -6,7 +6,7 @@ part, typed emits, full RRULE recurrence and time-zone support, and a framework-
 > Status: in development. All six phases of [RESEARCH.md](RESEARCH.md) are done: core, root
 > component, day/week/N-day/month/year/agenda/timeline views, drag/resize/select, keyboard,
 > responsive and touch, resources, undo/redo and a performance pass. The full reference is in
-> [docs/API.md](docs/API.md).
+> [docs/API.md](docs/API.md). What comes next is in [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -183,7 +183,7 @@ Snapshots share unchanged event objects, so keeping 100 steps of a 10 000-event 
 | Arrows | Move focus over slots / day cells (past the edge goes to the previous/next period) |
 | Shift + arrows, then Enter | Select a range |
 | Enter / Space | Click the focused slot or event |
-| Alt + arrows | Move the focused event by a snap step / a day (timeline: left/right in time, up/down to another resource) |
+| Alt + arrows | Move the focused event by a snap step / a day (timeline: left/right in time, up/down to another resource). Focus stays on the event, and the view follows it out of the visible range |
 | Alt + Shift + arrows | Resize the focused event |
 | Delete / Backspace | `event-delete` for the focused event |
 | PageUp / PageDown, T | Previous / next period, today |

@@ -49,6 +49,19 @@ function formatTimes(
   }
 }
 
+/** Like `formatTimes`, as wall-clock times for an exception of a series without its own zone. */
+function floatingTimes(
+  times: EventTimes,
+  timeZone: string,
+): Pick<SchedulerEvent, 'start' | 'end' | 'allDay'> {
+  if (times.allDay) return formatTimes(times, timeZone)
+  return {
+    start: times.start.withTimeZone(timeZone).toPlainDateTime().toString(),
+    end: times.end.withTimeZone(timeZone).toPlainDateTime().toString(),
+    allDay: false,
+  }
+}
+
 /** The event with the resources from `times`, when the change moved it to other resources. */
 function withResources(
   event: SchedulerEvent,
@@ -59,6 +72,19 @@ function withResources(
   if (!ids || sameResourceIds(ids, occurrence.resourceIds)) return event
   const { resourceId: _id, resourceIds: _ids, ...rest } = event
   return ids.length === 1 ? { ...rest, resourceId: ids[0] } : { ...rest, resourceIds: [...ids] }
+}
+
+/**
+ * How an occurrence is stored in `recurrenceId` and `exdates`. A series without its own zone keeps
+ * its wall-clock time when the zone changes, so its occurrences are stored as wall-clock times too.
+ */
+function storedRecurrenceId(
+  series: SchedulerEvent,
+  value: Temporal.ZonedDateTime | Temporal.PlainDate,
+): string {
+  return series.timezone == null && 'timeZoneId' in value
+    ? value.toPlainDateTime().toString()
+    : formatRecurrenceId(value)
 }
 
 function seriesOf(event: SchedulerEvent, timeZone: string): RecurrenceSeries {
@@ -162,6 +188,9 @@ function replace(events: readonly SchedulerEvent[], id: EventId, next: Scheduler
  * - "following" ends the series before the occurrence and starts a new series from the new time
  * - "all" moves the whole series by the same wall-clock shift (weekday rules move along)
  *
+ * An already edited occurrence follows the same rules: "this" changes the exception, the others
+ * change its series.
+ *
  * Series edits drop the exception events they invalidate: all of them for "all", the later ones
  * for "following". Exdates and rdates move along with the series (or go to the split-off series
  * when they are after the split); they are dropped when an edit switches between all-day and timed.
@@ -177,6 +206,27 @@ export function applyEventEdit(
   const event = occurrence.event
   const zone = event.timezone ?? options.timeZone
 
+  // A series-wide change to an edited occurrence is a change to the series at that occurrence.
+  if (occurrence.isException && occurrence.recurrenceId && scope !== 'this') {
+    const parent = events.find((e) => e.id === occurrence.seriesId)
+    if (parent) {
+      const id = occurrence.recurrenceId
+      const parentZone = parent.timezone ?? options.timeZone
+      return applyEventEdit(
+        events,
+        {
+          ...occurrence,
+          event: parent,
+          recurring: true,
+          isException: false,
+          start: 'timeZoneId' in id ? id : id.toZonedDateTime({ timeZone: parentZone }),
+        },
+        times,
+        options,
+      )
+    }
+  }
+
   if (!occurrence.recurring || !occurrence.recurrenceId) {
     return replace(
       events,
@@ -190,10 +240,10 @@ export function applyEventEdit(
     const { rrule: _rrule, exdates: _ex, rdates: _rd, ...base } = series
     const exception: SchedulerEvent = {
       ...base,
-      ...formatTimes(times, zone),
+      ...(series.timezone == null ? floatingTimes(times, zone) : formatTimes(times, zone)),
       id: createId(series),
       recurringEventId: series.id,
-      recurrenceId: formatRecurrenceId(occurrence.recurrenceId),
+      recurrenceId: storedRecurrenceId(series, occurrence.recurrenceId),
     }
     return [...events, withResources(exception, occurrence, times)]
   }
@@ -310,9 +360,11 @@ export function removeEventOccurrence(
   if (occurrence.isException && occurrence.seriesId != null && occurrence.recurrenceId) {
     const without = replace(events, event.id, null)
     if (scope === 'this') {
-      const id = formatRecurrenceId(occurrence.recurrenceId)
+      const id = occurrence.recurrenceId
       return without.map((e) =>
-        e.id === occurrence.seriesId ? { ...e, exdates: [...(e.exdates ?? []), id] } : e,
+        e.id === occurrence.seriesId
+          ? { ...e, exdates: [...(e.exdates ?? []), storedRecurrenceId(e, id)] }
+          : e,
       )
     }
     const series = events.find((e) => e.id === occurrence.seriesId)
@@ -323,7 +375,7 @@ export function removeEventOccurrence(
   if (!occurrence.recurring || !occurrence.recurrenceId) return replace(events, event.id, null)
 
   if (scope === 'this') {
-    const id = formatRecurrenceId(occurrence.recurrenceId)
+    const id = storedRecurrenceId(event, occurrence.recurrenceId)
     return replace(events, event.id, { ...event, exdates: [...(event.exdates ?? []), id] })
   }
   return removeSeriesFrom(events, event, occurrence.recurrenceId, scope, options.timeZone)

@@ -5,6 +5,7 @@ import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import { useYearGrid, type YearDayCell, type YearMonth } from '../composables/useYearGrid'
 import type { SchedulerSlots } from '../types'
+import { visualArrow } from './direction'
 import { RenderSlot } from './RenderSlot'
 import type { ResponsiveViewProps } from './view-props'
 
@@ -103,7 +104,7 @@ const activeDate = computed(() => {
 const STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
 
 function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
-  const step = STEPS[e.key]
+  const step = STEPS[visualArrow(e.key, e.currentTarget as HTMLElement)]
   if (step === undefined) return
   e.preventDefault()
   let next = cell.date.add({ days: step })

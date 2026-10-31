@@ -339,7 +339,7 @@
 .orb-event--timeline {
   padding: var(--orb-event-padding);
   background: var(--orb-event-bg);
-  border-left: var(--orb-event-border-width) solid var(--orb-event-color);
+  border-inline-start: var(--orb-event-border-width) solid var(--orb-event-color);
 }
 
 .orb-event--time:hover,
@@ -418,16 +418,16 @@
 .orb-event--all-day.orb-event--continues-before,
 .orb-event--month.orb-event--continues-before,
 .orb-event--timeline.orb-event--continues-before {
-  border-left-width: 0;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  border-inline-start-width: 0;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
 }
 
 .orb-event--all-day.orb-event--continues-after,
 .orb-event--month.orb-event--continues-after,
 .orb-event--timeline.orb-event--continues-after {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
 }
 
 .orb-event--month-timed {
@@ -492,18 +492,18 @@
 
 .orb-tg__corner,
 .orb-tg__allday-label {
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
 }
 
 .orb-tg__day-header {
   display: flex;
   min-width: 0;
   min-height: var(--orb-day-header-height);
-  border-right: 1px solid var(--orb-color-border-subtle);
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
 }
 
 .orb-tg__day-header:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
 
 .orb-tg__day-button {
@@ -578,12 +578,12 @@
 .orb-tg__allday-cell {
   grid-row: 1 / -1;
   margin: -3px 0 -5px;
-  border-right: 1px solid var(--orb-color-border-subtle);
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
   cursor: pointer;
 }
 
 .orb-tg__allday-cell:last-of-type {
-  border-right: 0;
+  border-inline-end: 0;
 }
 
 .orb-tg__allday-cell.is-today {
@@ -601,7 +601,7 @@
 }
 
 .orb-tg__gutter {
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
 }
 
 .orb-tg__time-label {
@@ -612,7 +612,7 @@
 .orb-tg__time-label span {
   position: absolute;
   top: 0;
-  right: 0.5rem;
+  inset-inline-end: 0.5rem;
   transform: translateY(-50%);
   color: var(--orb-color-text-muted);
   font-size: var(--orb-font-size-sm);
@@ -628,11 +628,11 @@
 .orb-tg__column {
   position: relative;
   min-width: 0;
-  border-right: 1px solid var(--orb-color-border-subtle);
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
 }
 
 .orb-tg__column:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
 
 .orb-tg__column.is-weekend {
@@ -663,7 +663,8 @@
 
 .orb-tg__events {
   position: absolute;
-  inset: 0 6px 0 0;
+  inset-block: 0;
+  inset-inline: 0 6px;
   pointer-events: none;
 }
 
@@ -674,8 +675,8 @@
 
 .orb-tg__now {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   z-index: 2;
   height: var(--orb-now-width);
   margin-top: calc(var(--orb-now-width) / -2);
@@ -686,7 +687,7 @@
 .orb-tg__now::before {
   content: '';
   position: absolute;
-  left: -5px;
+  inset-inline-start: -5px;
   top: 50%;
   width: 10px;
   height: 10px;
@@ -751,12 +752,12 @@
 .orb-month__cell {
   min-width: 0;
   padding: 0.25rem;
-  border-right: 1px solid var(--orb-color-border-subtle);
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
   cursor: pointer;
 }
 
 .orb-month__cell:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
 
 .orb-month__cell:hover {
@@ -912,8 +913,8 @@
 
 /* timed events: top and bottom edges */
 .orb-event--time > .orb-event__resizer {
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   height: var(--orb-resizer-size);
   cursor: ns-resize;
 }
@@ -929,11 +930,11 @@
 .orb-event--time > .orb-event__resizer--end::after {
   content: '';
   position: absolute;
-  left: 50%;
+  inset-inline-start: 50%;
   bottom: 2px;
   width: 1rem;
   height: 2px;
-  margin-left: -0.5rem;
+  margin-inline-start: -0.5rem;
   border-radius: 2px;
   background: var(--orb-event-color);
   opacity: 0.6;
@@ -952,13 +953,13 @@
 .orb-event--all-day > .orb-event__resizer--start,
 .orb-event--month > .orb-event__resizer--start,
 .orb-event--timeline > .orb-event__resizer--start {
-  left: 0;
+  inset-inline-start: 0;
 }
 
 .orb-event--all-day > .orb-event__resizer--end,
 .orb-event--month > .orb-event__resizer--end,
 .orb-event--timeline > .orb-event__resizer--end {
-  right: 0;
+  inset-inline-end: 0;
 }
 
 .orb-event--drag-source {
@@ -973,7 +974,7 @@
 }
 
 .orb-tg__events > .orb-tg__mirror {
-  left: 0;
+  inset-inline-start: 0;
   width: calc(100% - var(--orb-event-gap));
 }
 
@@ -986,8 +987,8 @@
 
 .orb-tg__selection {
   position: absolute;
-  left: 0;
-  right: calc(var(--orb-event-gap) * -1);
+  inset-inline-start: 0;
+  inset-inline-end: calc(var(--orb-event-gap) * -1);
   z-index: 40;
   border: 1px solid var(--orb-selection-border);
   border-radius: var(--orb-event-radius);
@@ -1056,7 +1057,7 @@
 
 .orb-agenda__day,
 .orb-agenda__row {
-  left: 0;
+  inset-inline-start: 0;
   width: 100%;
 }
 
@@ -1205,7 +1206,7 @@
 .orb-tg__corner,
 .orb-tg__allday-label {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   background: var(--orb-color-bg);
 }
 
@@ -1225,7 +1226,7 @@
   min-width: 0;
   min-height: 2rem;
   padding: 0.25rem 0.5rem;
-  border-right: 1px solid var(--orb-color-border-subtle);
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
   border-bottom: 1px solid var(--orb-color-border-subtle);
   font-weight: var(--orb-font-weight-strong);
   cursor: pointer;
@@ -1243,7 +1244,7 @@
 .orb-tg__resource-header.is-group-end,
 .orb-tg__column.is-group-end,
 .orb-tg__allday-cell.is-group-end {
-  border-right-color: var(--orb-color-border);
+  border-inline-end-color: var(--orb-color-border);
 }
 
 /* ---------------------------------------------------------------- timeline -------------------- */
@@ -1282,12 +1283,12 @@
 
 .orb-tl__corner {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   display: flex;
   align-items: flex-end;
   padding: 0.5rem 0.75rem;
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
   background: var(--orb-color-bg);
   color: var(--orb-color-text-muted);
   font-size: var(--orb-font-size-sm);
@@ -1309,13 +1310,13 @@
   display: flex;
   min-width: 0;
   min-height: var(--orb-tl-day-heading-height);
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
 }
 
 /* Sticks to the left edge so the date stays readable while scrolling through a long day. */
 .orb-tl__day-button {
   position: sticky;
-  left: var(--orb-tl-resource-width);
+  inset-inline-start: var(--orb-tl-resource-width);
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
@@ -1324,7 +1325,7 @@
   border: 0;
   background: transparent;
   font-weight: var(--orb-font-weight-strong);
-  text-align: left;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
@@ -1343,14 +1344,14 @@
   height: var(--orb-tl-slot-heading-height);
   padding: 0.25rem 0.375rem;
   overflow: hidden;
-  border-left: 1px solid transparent;
+  border-inline-start: 1px solid transparent;
   color: var(--orb-color-text-muted);
   font-size: var(--orb-font-size-sm);
   white-space: nowrap;
 }
 
 .orb-tl__slot-heading.is-labelled {
-  border-left-color: var(--orb-color-border-subtle);
+  border-inline-start-color: var(--orb-color-border-subtle);
 }
 
 .orb-tl__body {
@@ -1360,14 +1361,15 @@
 /* Day columns behind the rows: weekend and today shading, slot and day lines. */
 .orb-tl__day-columns {
   position: absolute;
-  inset: 0 0 0 var(--orb-tl-resource-width);
+  inset-block: 0;
+  inset-inline: var(--orb-tl-resource-width) 0;
   display: grid;
   grid-template-columns: repeat(var(--orb-tl-days), minmax(0, 1fr));
   pointer-events: none;
 }
 
 .orb-tl__day-column {
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
   background-image: linear-gradient(to right, var(--orb-color-border-subtle) 1px, transparent 1px);
   background-size: calc(100% * var(--orb-tl-days) / var(--orb-tl-slots)) 100%;
 }
@@ -1386,7 +1388,7 @@
   bottom: 0;
   z-index: 3;
   width: var(--orb-now-width);
-  margin-left: calc(var(--orb-now-width) / -2);
+  margin-inline-start: calc(var(--orb-now-width) / -2);
   background: var(--orb-color-now);
 }
 
@@ -1394,7 +1396,7 @@
 .orb-tl__row {
   position: absolute;
   top: 0;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 4;
   width: 100%;
   display: grid;
@@ -1404,14 +1406,14 @@
 
 .orb-tl__label {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 55;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
   padding: 0 0.5rem 0 calc(0.5rem + var(--orb-tl-depth, 0) * 1rem);
-  border-right: 1px solid var(--orb-color-border);
+  border-inline-end: 1px solid var(--orb-color-border);
   background: var(--orb-color-bg);
 }
 
@@ -1445,7 +1447,7 @@
   content: '';
   width: 0.4rem;
   height: 0.4rem;
-  border-right: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg) translate(-1px, -1px);
   transition: transform 0.15s;
@@ -1471,7 +1473,7 @@
   display: inline-block;
   width: 0.5rem;
   height: 0.5rem;
-  margin-right: 0.375rem;
+  margin-inline-end: 0.375rem;
   border-radius: 999px;
   background: var(--orb-tl-resource-color, transparent);
   vertical-align: 0.05em;
@@ -1635,12 +1637,12 @@
 .orb-drag-ghost {
   position: fixed;
   top: 0;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 10000;
   max-width: 14rem;
   padding: 0.25rem 0.5rem;
   overflow: hidden;
-  border-left: 3px solid var(--orb-event-color, #2563eb);
+  border-inline-start: 3px solid var(--orb-event-color, #2563eb);
   border-radius: 6px;
   background: color-mix(in srgb, var(--orb-event-color, #2563eb) 18%, #ffffff);
   box-shadow: 0 6px 16px -4px rgb(15 23 42 / 0.35);
@@ -1655,4 +1657,9 @@
 
 .orb-drag-ghost[hidden] {
   display: none;
+}
+
+/* Previous and next point the other way right to left. */
+.orb-button--icon:dir(rtl) svg {
+  transform: scaleX(-1);
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   formatDate,
   formatTime,
@@ -11,6 +11,7 @@ import { useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import type { KeyboardStep } from '../composables/useInteraction'
 import type { EventChangeKind, EventSlotProps, EventVariant } from '../types'
+import { visualArrow } from './direction'
 import { RenderSlot } from './RenderSlot'
 
 const props = withDefaults(
@@ -35,6 +36,11 @@ const props = withDefaults(
 
 const ctx = useSchedulerContext()
 const interaction = ctx.interaction
+
+const el = ref<HTMLElement>()
+onMounted(() => {
+  if (!props.mirror && interaction.claimFocus(props.occurrence)) el.value?.focus()
+})
 
 const SLOT_NAMES: Record<EventVariant, string[]> = {
   time: ['time-event', 'event'],
@@ -172,7 +178,9 @@ function onKeydown(e: KeyboardEvent) {
     ;(e.currentTarget as HTMLElement).click()
     return
   }
-  const arrow = ARROWS[e.key]
+  const arrow = ARROWS[visualArrow(e.key, e.currentTarget as HTMLElement)]
+  // Alt + left is also the browser's Back: never let it through, even when the move is refused.
+  if (arrow && e.altKey) e.preventDefault()
   if (arrow && e.altKey && props.variant === 'timeline') {
     timelineKey(e, arrow)
     return
@@ -198,7 +206,7 @@ function onKeydown(e: KeyboardEvent) {
       occurrence: occ,
       event: occ.event,
       view: props.view,
-      recurring: occ.recurring,
+      recurring: occ.recurring || occ.isException,
       scope: ctx.options.value.raw.recurrenceEditScope ?? 'this',
       nativeEvent: e,
     })
@@ -208,6 +216,7 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <div
+    ref="el"
     class="orb-event"
     :class="[
       `orb-event--${variant}`,

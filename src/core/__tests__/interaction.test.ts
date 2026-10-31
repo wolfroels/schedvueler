@@ -190,6 +190,70 @@ describe('applyEventEdit', () => {
     expect(weekKeys(out, '2026-11-02')).toEqual(['2026-11-02T09:00', '2026-11-04T09:00'])
   })
 
+  describe('a series without its own zone', () => {
+    const tokyo = (events: SchedulerEvent[]) =>
+      new EventStore(events, { timeZone: 'Asia/Tokyo' })
+        .query(rangeToWindow(weekStrategy().range(d('2026-10-26')), 'Asia/Tokyo'))
+        .map((o) => o.start.toPlainDateTime().toString({ smallestUnit: 'minute' }))
+
+    it('keeps an exception matched to its occurrence in another display zone', () => {
+      const wed = occurrences([series])[1]!
+      const out = applyEventEdit([series], wed, at('2026-10-28', 11), {
+        timeZone: BXL,
+        createId: ids,
+      })
+      expect(tokyo(out)).toEqual(['2026-10-26T09:00', '2026-10-28T11:00'])
+    })
+
+    it('keeps a deleted occurrence deleted in another display zone', () => {
+      const wed = occurrences([series])[1]!
+      const out = removeEventOccurrence([series], wed, { timeZone: BXL })
+      expect(tokyo(out)).toEqual(['2026-10-26T09:00'])
+    })
+  })
+
+  describe('an already edited occurrence', () => {
+    const edited = () => {
+      const wed = occurrences([series])[1]!
+      const events = applyEventEdit([series], wed, at('2026-10-28', 11), {
+        timeZone: BXL,
+        createId: ids,
+      })
+      return { events, exception: occurrences(events).find((o) => o.isException)! }
+    }
+
+    it('"this" only changes the exception', () => {
+      const { events, exception } = edited()
+      const out = applyEventEdit(events, exception, at('2026-10-28', 12), {
+        timeZone: BXL,
+        scope: 'this',
+      })
+      expect(out[0]).toBe(series)
+      expect(weekKeys(out)).toEqual(['2026-10-26T09:00', '2026-10-28T12:00*'])
+    })
+
+    it('"all" moves the series and drops the exception', () => {
+      const { events, exception } = edited()
+      const out = applyEventEdit(events, exception, at('2026-10-28', 12), {
+        timeZone: BXL,
+        scope: 'all',
+      })
+      expect(out).toHaveLength(1)
+      expect(weekKeys(out)).toEqual(['2026-10-26T12:00', '2026-10-28T12:00'])
+    })
+
+    it('"following" splits the series at the original occurrence', () => {
+      const { events, exception } = edited()
+      const out = applyEventEdit(events, exception, at('2026-10-28', 12), {
+        timeZone: BXL,
+        scope: 'following',
+        createId: ids,
+      })
+      expect(weekKeys(out)).toEqual(['2026-10-26T09:00', '2026-10-28T12:00'])
+      expect(weekKeys(out, '2026-11-02')).toEqual(['2026-11-02T12:00', '2026-11-04T12:00'])
+    })
+  })
+
   it('"following" splits the series and moves the rest', () => {
     const wed = occurrences([series])[1]!
     const out = applyEventEdit([series], wed, at('2026-10-29', 10), {

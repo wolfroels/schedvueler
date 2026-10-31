@@ -6,6 +6,7 @@ import {
   computeSelection,
   formatDate,
   formatTimeRange,
+  rangeContains,
   sameTimes,
   withTimes,
   type EventOccurrence,
@@ -54,6 +55,7 @@ export interface Selection {
 }
 
 interface PendingChange {
+  occurrence: EventOccurrence<unknown>
   event: unknown
   times: EventTimes
 }
@@ -93,6 +95,8 @@ export interface SchedulerInteraction {
   clearSelection(): void
   /** Drops optimistic changes whose events were replaced (called when events change). */
   prunePending(): void
+  /** Whether a newly shown event should take the focus, after a keyboard change re-created it. */
+  claimFocus(occurrence: EventOccurrence<unknown>): boolean
 
   // --- events dragged in from outside (see `startExternalDrag`) ---
   /** Shows the preview for an outside event at (x, y); returns whether it is over this scheduler. */
@@ -224,7 +228,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       oldResourceIds: occ.resourceIds,
       ...times,
       resourceIds: times.resourceIds ?? occ.resourceIds,
-      recurring: occ.recurring,
+      recurring: occ.recurring || occ.isException,
       scope: raw().recurrenceEditScope ?? 'this',
       nativeEvent,
     })
@@ -236,7 +240,11 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       next.delete(occ.key)
       pending.value = next
     }
-    pending.value = new Map(pending.value).set(occ.key, { event: occ.event, times })
+    pending.value = new Map(pending.value).set(occ.key, {
+      occurrence: occ,
+      event: occ.event,
+      times,
+    })
 
     ctx.emit(before, payload)
     const done = (ok: boolean) => {
@@ -267,6 +275,42 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     if (!committedSelection.value) return
     committedSelection.value = null
     ctx.emit('unselect', undefined)
+  }
+
+  /** Whether (x, y) is over a view, including parts of it where nothing can be dropped. */
+  function overSurface(x: number, y: number): boolean {
+    for (const surface of surfaces) {
+      const el = surface.scrollElement?.()
+      if (!el) return true
+      const rect = el.getBoundingClientRect()
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true
+    }
+    return false
+  }
+
+  // --- keeping the focus on an event that a keyboard change re-creates -----------------------------
+
+  let focusRequest: { key: string; times: EventTimes; title: unknown } | null = null
+  let focusTimer: ReturnType<typeof setTimeout> | undefined
+
+  function requestFocus(occ: EventOccurrence<unknown>, times: EventTimes) {
+    focusRequest = { key: occ.key, times, title: ctx.accessors.value.title(occ.event) }
+    clearTimeout(focusTimer)
+    // Long enough for the host to update its events; an event appearing later is not this one.
+    focusTimer = setTimeout(() => (focusRequest = null), 1000)
+  }
+
+  function claimFocus(occ: EventOccurrence<unknown>): boolean {
+    const f = focusRequest
+    if (!f) return false
+    // Saving can give the occurrence another key, e.g. when it becomes an exception.
+    const same =
+      occ.key === f.key ||
+      (occ.startMs === f.times.start.epochMilliseconds &&
+        occ.endMs === f.times.end.epochMilliseconds &&
+        ctx.accessors.value.title(occ.event) === f.title)
+    if (same) focusRequest = null
+    return same
   }
 
   function scrollNear(x: number, y: number): boolean {
@@ -412,6 +456,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     let lastX = startX
     let lastY = startY
     let active = false
+    let outside = false
     let longPress: ReturnType<typeof setTimeout> | undefined
     let frame = 0
 
@@ -443,6 +488,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     const update = (x: number, y: number) => {
       const s = state.value
       if (!s) return
+      // Moving an event off the scheduler takes the preview away: letting go there cancels.
+      outside = kind === 'move' && !overSurface(x, y)
+      if (outside) {
+        if (s.preview) state.value = { ...s, preview: null }
+        return
+      }
       const current = hit(x, y)?.hit
       if (!current) return
       let preview: EventTimes | null
@@ -520,7 +571,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       if (active) ev.preventDefault()
     }
 
-    function abort(reason: 'escape' | 'invalid' | 'unchanged') {
+    function abort(reason: 'escape' | 'invalid' | 'unchanged' | 'outside') {
       state.value = null
       if (occ && kind !== 'select') {
         ctx.emit('event-drag-cancel', { ...base(occ, view, kind), reason })
@@ -530,7 +581,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
     function finish(ev: PointerEvent) {
       const s = state.value
-      if (!s?.preview) return abort('unchanged')
+      if (!s?.preview) return abort(outside ? 'outside' : 'unchanged')
       if (!s.valid) return abort('invalid')
       state.value = null
       if (kind === 'select') return emitSelect(view, s.preview, ev)
@@ -622,9 +673,17 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
             ? computeMove(occ, from, to, opts)
             : computeResize(occ, kind === 'resize-start' ? 'start' : 'end', from, to, opts)
       }
-      if (!times || sameTimes(times, occ) || !isValid(kind, occ, times)) return
-      e.preventDefault()
+      if (!times || sameTimes(times, occ)) return
+      if (!isValid(kind, occ, times)) {
+        ctx.announce(ctx.options.value.messages.dragCancelled)
+        return
+      }
+      requestFocus(occ, times)
       commit(occ, kind, view, times, e)
+      // Follow an event moved out of the visible range.
+      const target = times.start.withTimeZone(tz).toPlainDate()
+      const range = ctx.range.value
+      if (range && !rangeContains(range, target)) ctx.goTo(target)
     },
     setSelection(view, times, commitEvent) {
       if (!times) return clearSelection()
@@ -632,6 +691,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       else committedSelection.value = { view, times }
     },
     clearSelection,
+    claimFocus,
     prunePending() {
       const map = pending.value
       if (!map.size) return
@@ -639,7 +699,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       const next = new Map(map)
       for (const [key, p] of map) {
         const id = ctx.accessors.value.id(p.event)
-        if (ctx.store.get(id) !== p.event) {
+        const occ = p.occurrence
+        const replaced =
+          occ.recurring && occ.recurrenceId && ctx.store.hasException(occ.id, occ.recurrenceId)
+        if (ctx.store.get(id) !== p.event || replaced) {
           next.delete(key)
           changed = true
         }
