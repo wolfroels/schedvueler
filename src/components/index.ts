@@ -20,3 +20,7 @@ export type {
 } from './view-props'
 export { default as MultiMonthView } from './MultiMonthView.vue'
 export { default as GanttView } from './GanttView.vue'
+export { default as SchedulerMiniCalendar } from './SchedulerMiniCalendar.vue'
+export { default as SchedulerLegend } from './SchedulerLegend.vue'
+export { default as SchedulerUndoToast } from './SchedulerUndoToast.vue'
+export { default as SchedulerQuickAdd } from './SchedulerQuickAdd.vue'

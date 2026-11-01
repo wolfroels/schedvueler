@@ -190,6 +190,29 @@ watch(view, () => {
   pinned.value = undefined
 })
 
+/** The code for what is being tried out, to copy into an app. */
+const exportedCode = computed(() => {
+  const lines = [
+    '<Scheduler :events="events"' + (styledParts.value.length ? ' :pt="pt"' : '') + '>',
+  ]
+  for (const name of filledSlots.value) {
+    const info = SLOTS.find((s) => s.name === name)
+    lines.push(
+      `  <template #${name}="{ ${info?.props.replace(/\(.*?\)/g, '') ?? ''} }">`,
+      '    <!-- yours -->',
+      '  </template>',
+    )
+  }
+  lines.push('  <WeekView />', '</Scheduler>')
+  if (!styledParts.value.length) return lines.join('\n')
+  const pt = styledParts.value.map((p) => `  ${p}: { class: 'my-${p}' },`).join('\n')
+  return `const pt: SchedulerPt = {\n${pt}\n}\n\n${lines.join('\n')}`
+})
+
+function copyExport() {
+  void navigator.clipboard?.writeText(exportedCode.value)
+}
+
 function resetTrials() {
   filledSlots.value = []
   styledParts.value = []
@@ -380,6 +403,7 @@ function scopeKeys(scope: object | undefined) {
         <div v-if="filledSlots.length || styledParts.length" class="pp__active">
           Trying {{ filledSlots.length }} slots, {{ styledParts.length }} parts.
           <button type="button" @click="resetTrials">Reset</button>
+          <button type="button" @click="copyExport">Copy code</button>
         </div>
 
         <div class="pp__list">
@@ -432,6 +456,7 @@ function scopeKeys(scope: object | undefined) {
             </section>
           </template>
         </div>
+        <pre class="pp-export">{{ exportedCode }}</pre>
       </aside>
     </div>
 
@@ -766,5 +791,14 @@ function scopeKeys(scope: object | undefined) {
     border-left: 0;
     border-top: 1px solid var(--pp-border);
   }
+}
+.pp-export {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.75rem;
 }
 </style>

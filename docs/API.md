@@ -73,6 +73,18 @@ The root component. Views are its children; the first one is the default.
 | `calendar` | `string` | – | Months and dates of another calendar, such as `persian` or `hebrew`, in `MonthView` and everything that shows dates. The year view stays Gregorian. |
 | `month-event-order` | `(a, b) => number` | – | Order of events in month rows. |
 | `plugins` | `SchedulerPlugin[]` | – | `{ name, install(context) }`; what `install` returns is called on unmount. |
+| `event-filter` | `(occurrence) => boolean \| 'dim'` | – | Hides or dims events without changing the data. |
+| `show-conflicts` | `boolean` | `false` | Marks events that overlap on a resource, with the `conflict-badge` slot. |
+| `drag-tooltip` | `boolean` | `false` | Shows the time, length and conflicts next to the pointer while dragging. |
+| `live-progress` | `boolean` | `false` | Running events show how far along they are, with `--orb-event-progress` and the `event-progress` slot. |
+| `animate` | `boolean` | `false` | Events move smoothly unless the user prefers reduced motion. `--orb-transition-duration` sets the speed. |
+| `density` | `'compact' \| 'normal' \| 'comfortable'` | `'normal'` | How much room everything takes. |
+| `presence` | `{ id, name, color?, eventId? }[]` | – | Who has an event open. |
+| `suggestions` | `{ start, end, title?, resourceId? }[]` | – | Times to offer in the grid; clicking one emits `suggestion-click`. |
+| `overlap-zones` | `{ timeZone, start, end }[]` | – | Marks hours that are working hours in all these zones. |
+| `keymap` | `{ prev?, next?, today?, 'view:name'? }` | – | Replaces keyboard shortcuts: `{ next: 'j', 'view:month': 'shift+m' }`. |
+| `draft` | `{ count, apply(), discard() }` | – | Shows a bar with `draft-bar`. See `useDraft`. |
+| `day-utilization` | `boolean \| { capacity? }` | `false` | Darkens month cells by how busy the day is. |
 | `slot-attrs` | `(info) => attrs` | – | Extra class, style or attributes per cell. |
 | `business-hours` | `BusinessHours` | – | Opening hours, `{ days?, start, end }` or a list. Everything else is shaded. A resource's own `businessHours` wins. |
 | `business-hours-only` | `boolean` | `false` | Refuse changes outside business hours. |
@@ -217,6 +229,32 @@ Resources with `lazy: true` show a toggle that emits `resource-expand`; call `wa
 ### `<GanttView>`
 
 One row per event, with `progress` (0 to 1), milestones (events without length), arrows from `dependsOn`, and `header-tiers`.
+
+## Next to the scheduler
+
+- `<SchedulerMiniCalendar v-model:date>` is a month to navigate with. Inside a scheduler it follows it; elsewhere pass `events`. Slots `header` and `day`.
+- `<SchedulerLegend :layers @toggle>` lists calendars, with `useCalendars`. Slots `legend` and `legend-item`.
+- `<SchedulerUndoToast :history>` shows the last change with an undo button, with `useHistory`. Slot `undo-toast`.
+- `<SchedulerQuickAdd @add>` reads "Lunch friday 12:30 for 1h". Slot `quick-add`; `parser` for your own reader. `parseQuickAdd` is the reader on its own.
+
+Composables without any markup:
+
+| Composable | What it does |
+|---|---|
+| `useAvailability(ctx)` | `findSlots`, `nextFree`: free time across resources, with blocked times and business hours. `findFreeSlots` in core works without a scheduler. |
+| `useConflicts(ctx)` | Overlapping events per resource. `findConflicts` in core. |
+| `useDraft(events)` | Try changes, then `apply()` or `discard()` them all. `attrs` marks changes as tentative. |
+| `useCalendars(events, calendars, calendarOf)` | Layers to show and hide. |
+| `useCommands(ctx)` | Actions for a command palette: `search(query)` finds views, dates and events. |
+| `useRecurrenceScope()` | Asks which occurrences a change is for; see [RECIPES.md](RECIPES.md). |
+| `useNextEvent(ctx)` | What is running, what is next, and the minutes until it. |
+| `useEventPopover()` | Popovers and tooltips. |
+
+`createTheme(color)` gives the CSS variables of a whole theme from one color.
+
+Events can have `bufferBefore` and `bufferAfter`, in minutes: drawn around the event in time grids and timelines, and counted by `event-overlap`.
+
+Time grid views take `fold-empty-hours` (`true`, or the shortest stretch in minutes), which collapses stretches without events into one row with the `time-fold` slot, and `event-stack-threshold`, which takes overlapping events together from that many on, with the `event-stack` slot. Timelines take `minimap`, and show zoom buttons with `zoom-levels` (slot `zoom-control`).
 
 ## Custom views
 
@@ -459,6 +497,10 @@ const popover = useEventPopover<SchedulerEvent>()
 `recurrenceToText` puts a rule in words. `recurrenceToForm` and `formToRecurrence` go between a rule and the fields of a form. Translated wording for the scheduler and for rules is in `orb-scheduler/locales` (`nl`, `fr`, `de`, `es`): `:messages="nl.messages"`.
 
 See [RECIPES.md](RECIPES.md).
+
+## Server rendering
+
+Nothing touches `window` or `document` while rendering on a server, and the result hydrates without a mismatch. Set `time-zone` and `locale`, because a server does not know the user's, and set `date`, unless a mismatch around midnight is fine. Views register themselves while rendering, after the toolbar, so the toolbar's title and view buttons appear after hydrating.
 
 ## Accessibility
 

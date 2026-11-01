@@ -73,6 +73,7 @@ const settings = computed<TimelineSettings>(() => {
     resourceReorder: props.resourceReorder,
     load: props.load,
     dependencies: props.dependencies,
+    minimap: props.minimap,
   }
 })
 </script>

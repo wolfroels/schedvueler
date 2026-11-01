@@ -1,8 +1,9 @@
-import { computed, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import {
   Temporal,
   buildTimeSlots,
   dayBounds,
+  emptyStretches,
   formatDate,
   formatTimeOfDay,
   groupByResource,
@@ -34,6 +35,10 @@ export interface TimeGridConfig {
   resources?: readonly ResourceNode<unknown>[]
   /** Column order with resources: all days per resource, or all resources per day. */
   groupBy?: 'resource' | 'date'
+  /** Collapse stretches without events of at least this many minutes. */
+  foldMinutes?: number
+  /** Take overlapping events together from this many on. */
+  stackThreshold?: number
 }
 
 export interface TimeGridColumn {
@@ -57,6 +62,8 @@ export interface TimeGridSlotRow {
   /** Label shown at the top of the row, empty between labelled rows. */
   label: string
   isLabelled: boolean
+  /** This row stands for a stretch without events. */
+  isFold: boolean
 }
 
 export interface TimedEventLayout<T> {
@@ -68,6 +75,14 @@ export interface TimedEventLayout<T> {
   left: number
   width: number
   order: number
+}
+
+/** Overlapping events taken together. */
+export interface EventStack<T> {
+  key: string
+  top: number
+  height: number
+  occurrences: EventOccurrence<T>[]
 }
 
 export interface TimeGridOverlay {
@@ -138,19 +153,83 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return out
   })
 
+  /** Stretches without events in any column, with `foldMinutes`. */
+  const folds = computed(() => {
+    const { foldMinutes, days, dayStartMinute, dayEndMinute, slotDuration } = cfg.value
+    if (!foldMinutes) return []
+    const tz = ctx.options.value.timeZone
+    const busy = segmentByDay(partitioned.value.timed, days, tz, dayOffset.value)
+      .flat()
+      .map((s) => ({ start: s.startMinute, end: s.endMinute }))
+    return emptyStretches(busy, dayStartMinute, dayEndMinute, foldMinutes, slotDuration)
+  })
+
+  /** A folded stretch takes up one slot; this maps minutes to where they are drawn. */
+  const timeMap = computed(() => {
+    const list = folds.value
+    const { slotDuration, dayStartMinute, dayEndMinute } = cfg.value
+    const toVisual = (minute: number) => {
+      let v = minute
+      for (const f of list) {
+        if (minute >= f.end) v -= f.end - f.start - slotDuration
+        else if (minute > f.start)
+          v -= ((minute - f.start) / (f.end - f.start)) * (f.end - f.start - slotDuration)
+      }
+      return v
+    }
+    const fromVisual = (visual: number) => {
+      let m = visual
+      for (const f of list) {
+        const at = toVisual(f.start)
+        if (visual >= at + slotDuration) m += f.end - f.start - slotDuration
+        else if (visual > at) {
+          return f.start + ((visual - at) / slotDuration) * (f.end - f.start)
+        }
+      }
+      return m
+    }
+    return {
+      toVisual,
+      fromVisual,
+      start: toVisual(dayStartMinute),
+      end: toVisual(dayEndMinute),
+    }
+  })
+
+  /** `verticalPosition`, on the folded scale. */
+  function position(start: number, end: number) {
+    const map = timeMap.value
+    return verticalPosition(map.toVisual(start), map.toVisual(end), map.start, map.end)
+  }
+
   const slots = computed<TimeGridSlotRow[]>(() => {
     const { slotDuration, slotLabelInterval, dayStartMinute, dayEndMinute } = cfg.value
     const { locale, hour12 } = ctx.options.value
-    return buildTimeSlots(dayStartMinute, dayEndMinute, slotDuration).map((slot) => {
+    const label = (minute: number) => formatTimeOfDay(minute, locale, { hour12, compact: true })
+    const out: TimeGridSlotRow[] = []
+    for (const slot of buildTimeSlots(dayStartMinute, dayEndMinute, slotDuration)) {
+      const fold = folds.value.find((f) => slot.startMinute >= f.start && slot.startMinute < f.end)
+      if (fold) {
+        if (slot.startMinute === fold.start) {
+          out.push({
+            startMinute: fold.start,
+            endMinute: fold.end,
+            isLabelled: true,
+            label: label(fold.start),
+            isFold: true,
+          })
+        }
+        continue
+      }
       const isLabelled = slot.startMinute % slotLabelInterval === 0
-      return {
+      out.push({
         ...slot,
         isLabelled,
-        label: isLabelled
-          ? formatTimeOfDay(slot.startMinute, locale, { hour12, compact: true })
-          : '',
-      }
-    })
+        label: isLabelled ? label(slot.startMinute) : '',
+        isFold: false,
+      })
+    }
+    return out
   })
 
   const partitioned = computed(() => {
@@ -255,7 +334,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
    * a timed event and a timed selection.
    */
   const overlays = computed<TimeGridOverlay[][]>(() => {
-    const { days, dayStartMinute, dayEndMinute } = cfg.value
+    const { days } = cfg.value
     const tz = ctx.options.value.timeZone
     const result: TimeGridOverlay[][] = columns.value.map(() => [])
     const place = (
@@ -268,12 +347,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
         segmentByDay([occ], days, tz, dayOffset.value).forEach((segments, d) => {
           const col = colIndex(d, g)
           for (const segment of segments) {
-            const pos = verticalPosition(
-              segment.startMinute,
-              segment.endMinute,
-              dayStartMinute,
-              dayEndMinute,
-            )
+            const pos = position(segment.startMinute, segment.endMinute)
             if (pos) result[col]!.push({ key: `${kind}@${col}`, kind, segment, valid, ...pos })
           }
         })
@@ -326,6 +400,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
         const cacheKey = columns.value[col]!.key
         const signature = [
           layout,
+          timeMap.value,
           dayStartMinute,
           dayEndMinute,
           slotDuration,
@@ -343,12 +418,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
         }
         const visible: { segment: DaySegment<T>; top: number; height: number }[] = []
         for (const segment of segments) {
-          const pos = verticalPosition(
-            segment.startMinute,
-            segment.endMinute,
-            dayStartMinute,
-            dayEndMinute,
-          )
+          const pos = position(segment.startMinute, segment.endMinute)
           if (pos) visible.push({ segment, ...pos })
         }
         const placements = layout(
@@ -372,6 +442,50 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     })
     return result
   })
+
+  /** Overlapping events in a column taken together, per column, with `stackThreshold`. */
+  const expandedStacks = shallowRef<ReadonlySet<string>>(new Set())
+  const stacked = computed(() => {
+    const threshold = cfg.value.stackThreshold
+    const empty = timed.value.map(() => ({
+      items: [] as TimedEventLayout<T>[],
+      stacks: [] as EventStack<T>[],
+    }))
+    return timed.value.map((list, col) => {
+      if (!threshold || list.length < threshold) return { items: list, stacks: empty[col]!.stacks }
+      const sorted = [...list].sort((a, b) => a.top - b.top)
+      const items: TimedEventLayout<T>[] = []
+      const stacks: EventStack<T>[] = []
+      let group: TimedEventLayout<T>[] = []
+      let bottom = -Infinity
+      const close = () => {
+        const key = `${col}:${group[0]?.key}`
+        if (group.length >= threshold && !expandedStacks.value.has(key)) {
+          stacks.push({
+            key,
+            top: group[0]!.top,
+            height: bottom - group[0]!.top,
+            occurrences: group.map((g) => g.segment.occurrence),
+          })
+        } else items.push(...group)
+      }
+      for (const item of sorted) {
+        if (item.top >= bottom) {
+          close()
+          group = []
+          bottom = -Infinity
+        }
+        group.push(item)
+        bottom = Math.max(bottom, item.top + item.height)
+      }
+      close()
+      return { items, stacks }
+    })
+  })
+
+  function expandStack(key: string) {
+    expandedStacks.value = new Set(expandedStacks.value).add(key)
+  }
 
   /** Events entirely before or after the visible hours, per column. */
   const hiddenEvents = computed(() => {
@@ -408,7 +522,9 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return {
       columnIndex: columnIndexes[0]!,
       columnIndexes,
-      top: (minute - dayStartMinute) / (dayEndMinute - dayStartMinute),
+      top:
+        (timeMap.value.toVisual(minute) - timeMap.value.start) /
+        (timeMap.value.end - timeMap.value.start),
       now,
     }
   })
@@ -436,6 +552,9 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
   })
 
   return {
+    stacked,
+    expandStack,
+    timeMap,
     hiddenEvents,
     columns,
     slots,

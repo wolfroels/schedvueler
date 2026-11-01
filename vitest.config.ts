@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 const shared = {
@@ -11,9 +12,10 @@ export default defineConfig({
   test: {
     projects: [
       // Uses the runtime's native Temporal when present (Node 26+, Chrome, Firefox).
-      { test: { ...shared, name: 'native' } },
+      { plugins: [vue()], test: { ...shared, name: 'native' } },
       // Forces the polyfill implementation, which is what Safari users will run.
       {
+        plugins: [vue()],
         resolve: {
           alias: [{ find: /^temporal-polyfill$/, replacement: 'temporal-polyfill/implementation' }],
         },

@@ -19,6 +19,7 @@ import {
   Temporal,
   buildResourceTree,
   filterResourceTree,
+  findConflicts,
   createAccessors,
   createResourceAccessors,
   visibleResources as visibleResourceNodes,
@@ -291,11 +292,11 @@ export function useScheduler<T>(
   })
   const isBackground = (occ: EventOccurrence<T>) =>
     accessors.value.display(occ.event) === 'background'
-  const queried = computed(() =>
-    queriedAll.value.some(isBackground)
-      ? queriedAll.value.filter((o) => !isBackground(o))
-      : queriedAll.value,
-  )
+  const queried = computed(() => {
+    const filter = raw.value.eventFilter
+    if (!filter && !queriedAll.value.some(isBackground)) return queriedAll.value
+    return queriedAll.value.filter((o) => !isBackground(o) && (!filter || filter(o) !== false))
+  })
   const backgroundOccurrences = computed(() => queriedAll.value.filter(isBackground))
 
   const dateLimits = computed(() => {
@@ -407,6 +408,20 @@ export function useScheduler<T>(
     () => (state.selectedEvents ? state.selectedEvents.value : ownSelection.value) ?? [],
   )
 
+  const conflictsByKey = computed(() => {
+    const map = new Map<string, EventOccurrence<T>[]>()
+    if (!raw.value.showConflicts) return map
+    for (const { occurrences: group } of findConflicts(occurrences.value)) {
+      for (const occ of group) {
+        const others = group.filter(
+          (o) => o.key !== occ.key && o.startMs < occ.endMs && o.endMs > occ.startMs,
+        )
+        if (others.length) map.set(occ.key, others)
+      }
+    }
+    return map
+  })
+
   const announcement = shallowRef('')
 
   // One shared object per part: most parts have no `pt`, and some render hundreds of times.
@@ -435,6 +450,7 @@ export function useScheduler<T>(
     availability: undefined as unknown as SchedulerAvailability,
     dateLimits,
     canStep,
+    conflictsByKey,
     selectedEvents,
     setSelectedEvents(keys) {
       const list = selectedEvents.value

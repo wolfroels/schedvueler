@@ -32,6 +32,33 @@ const date = ref(params.get('date') ?? '2026-06-15')
 const hiddenDays = (params.get('hidden') ?? '').split(',').filter(Boolean).map(Number)
 const blockWeekends = params.has('blockWeekends')
 const showSlot = ref(false)
+// Fills these slots with a marker, for the test that they all render.
+const allSlots = params.has('allSlots')
+  ? [
+      'toolbar-start',
+      'toolbar-center',
+      'toolbar-end',
+      'day-header',
+      'all-day-label',
+      'time-label',
+      'time-slot',
+      'time-event',
+      'all-day-event',
+      'resize-handle',
+      'month-weekday',
+      'month-cell',
+      'month-event',
+      'more-link',
+      'year-day',
+      'year-month-header',
+      'agenda-event',
+      'agenda-day-header',
+      'resource-area-header',
+      'resource-label',
+      'timeline-header',
+      'timeline-event',
+    ]
+  : []
 // Any other scheduler options and extra events, as JSON, so tests can try a feature.
 const extra = JSON.parse(params.get('opts') ?? '{}')
 const extraEvents: SchedulerEvent[] = JSON.parse(params.get('events') ?? '[]')
@@ -40,6 +67,12 @@ const reverseMonth = params.has('reverseMonth')
   ? (a: { startMs: number }, b: { startMs: number }) => b.startMs - a.startMs
   : undefined
 const timelineProps = JSON.parse(params.get('tl') ?? '{}')
+const weekProps = JSON.parse(params.get('week') ?? '{}')
+const filter = params.get('filter')
+const eventFilter = filter
+  ? (occ: { event: { title?: string } }) =>
+      occ.event.title === filter ? 'dim' : occ.event.title !== `no-${filter}`
+  : undefined
 const zoom = ref(0)
 
 if (params.has('rtl')) document.documentElement.dir = 'rtl'
@@ -136,6 +169,7 @@ const onReceive = (p: EventReceivePayload) =>
       selectable
       drill-down-view="day"
       :month-event-order="reverseMonth"
+      :event-filter="eventFilter"
       v-bind="extra"
       :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
       @event-click="(p) => log.push(`event-click ${p.event.title}`)"
@@ -144,6 +178,7 @@ const onReceive = (p: EventReceivePayload) =>
       @event-drop="(p) => onChanged('event-drop', p)"
       @event-resize="(p) => onChanged('event-resize', p)"
       @event-delete="onDelete"
+      @suggestion-click="(p) => log.push(`suggestion-click ${p.suggestion.title}`)"
       @resource-reorder="
         (p) => log.push(`resource-reorder ${p.resource.id} ${p.target.id} ${p.position}`)
       "
@@ -174,12 +209,15 @@ const onReceive = (p: EventReceivePayload) =>
       @slot-click="(p) => log.push(`slot-click ${p.date}`)"
       @more-click="(p) => log.push(`more-click ${p.date} ${p.hiddenCount}`)"
     >
+      <template v-for="name in allSlots" :key="name" #[name]>
+        <span :data-slot="name">{{ name }}</span>
+      </template>
       <template v-if="showSlot" #time-event="{ title }">
         <b class="fixture-slot">Slot {{ title }}</b>
       </template>
       <DayView />
       <DayView name="three" :days="3" label="3 days" />
-      <WeekView />
+      <WeekView v-bind="weekProps" />
       <MonthView />
       <YearView />
       <AgendaView />

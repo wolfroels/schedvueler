@@ -83,6 +83,8 @@ export interface SchedulerContext<T = unknown> {
   dateLimits: ComputedRef<{ min?: Temporal.PlainDate; max?: Temporal.PlainDate }>
   /** Whether the previous or next period has any allowed date. */
   canStep(direction: 1 | -1): boolean
+  /** Other events each event overlaps, by key, with `show-conflicts`. */
+  conflictsByKey: ComputedRef<ReadonlyMap<string, EventOccurrence<T>[]>>
   /** Keys of the selected events. */
   selectedEvents: Readonly<Ref<readonly string[]>>
   setSelectedEvents(keys: readonly string[]): void

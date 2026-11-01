@@ -22,6 +22,7 @@ import {
   type ResourceNode,
 } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
+import type { AvailabilityShade } from '../composables/useAvailability'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import { validMinutes, visibleHours } from '../composables/validate'
 import {
@@ -78,6 +79,8 @@ const config = computed(() => {
     allDaySlot: s.allDaySlot ?? true,
     resources: columnResources.value,
     groupBy: s.groupBy ?? 'resource',
+    foldMinutes: s.foldEmptyHours === true ? 120 : s.foldEmptyHours || undefined,
+    stackThreshold: s.eventStackThreshold,
   }
 })
 
@@ -85,13 +88,15 @@ const {
   columns,
   slots,
   allDay,
-  timed,
   overlays,
   allDaySelection,
   nowLine,
   slotRange,
   dayRange,
   hiddenEvents,
+  stacked,
+  expandStack,
+  timeMap,
 } = useTimeGrid(ctx, config)
 
 const availability = ctx.availability
@@ -123,11 +128,12 @@ function zoneLabels(minute: number) {
 
 /** Fractions of the column for a stretch of minutes. */
 function shadeStyle(shade: { start: number; end: number; color?: string }) {
-  const { dayStartMinute, dayEndMinute } = config.value
-  const total = dayEndMinute - dayStartMinute
+  const map = timeMap.value
+  const total = map.end - map.start
+  const start = map.toVisual(shade.start)
   return {
-    top: pct((shade.start - dayStartMinute) / total),
-    height: pct((shade.end - shade.start) / total),
+    top: pct((start - map.start) / total),
+    height: pct((map.toVisual(shade.end) - start) / total),
     ...(shade.color ? { '--orb-background-event-color': shade.color } : {}),
   }
 }
@@ -136,12 +142,21 @@ const SHADE_PART = {
   closed: 'closedTime',
   blocked: 'blockedTime',
   background: 'backgroundEvent',
+  suggestion: 'suggestion',
+  band: 'timeZoneBand',
 } as const
 const SHADE_SLOT = {
   closed: 'closed-time',
   blocked: 'blocked-time',
   background: 'background-event',
+  suggestion: 'suggestion',
+  band: 'time-zone-band',
 } as const
+
+function onShadeClick(shade: AvailabilityShade, e: MouseEvent) {
+  if (shade.suggestion)
+    ctx.emit('suggestion-click', { suggestion: shade.suggestion, nativeEvent: e })
+}
 
 function isOutOfRange(date: Temporal.PlainDate) {
   const { min, max } = ctx.dateLimits.value
@@ -365,9 +380,9 @@ function hitTest(x: number, y: number): Hit | null {
     return { zone: 'all-day', date, resourceId }
 
   const rect = rects[index]!
-  const { dayStartMinute, dayEndMinute } = config.value
   const fraction = Math.min(Math.max((y - rect.top) / rect.height, 0), 0.9999)
-  const minute = dayStartMinute + fraction * (dayEndMinute - dayStartMinute)
+  const map = timeMap.value
+  const minute = map.fromVisual(map.start + fraction * (map.end - map.start))
   return { zone: 'time', date, minute, resourceId }
 }
 
@@ -419,6 +434,14 @@ function slotHit(col: number, slot: number): Hit {
   }
 }
 
+function foldLabel(slot: TimeGridSlotRow) {
+  const { locale, hour12 } = ctx.options.value
+  return messages.value.timeFold(
+    formatTimeOfDay(slot.startMinute, locale, { hour12 }),
+    formatTimeOfDay(slot.endMinute, locale, { hour12 }),
+  )
+}
+
 function onSlotFocus(col: number, slot: number) {
   focusCell.value = { col, slot }
   interaction.setCursor(slotHit(col, slot))
@@ -439,6 +462,8 @@ function onSlotKeydown(e: KeyboardEvent, col: number, slot: number) {
       defaultDurationMinutes: 60,
     })
     if (times) interaction.setSelection(props.view, times, e)
+    // Not also a shortcut of the scheduler.
+    e.preventDefault()
     return
   }
   if ((key === 'enter' || key === ' ') && interaction.dropArmed(slotHit(col, slot), e)) {
@@ -511,8 +536,8 @@ function onSlotKeydown(e: KeyboardEvent, col: number, slot: number) {
 function scrollToMinute(minute: number) {
   const el = scroller.value
   if (!el || !body.value || !head.value) return
-  const { dayStartMinute, dayEndMinute } = config.value
-  const fraction = (minute - dayStartMinute) / (dayEndMinute - dayStartMinute)
+  const map = timeMap.value
+  const fraction = (map.toVisual(minute) - map.start) / (map.end - map.start)
   el.scrollTop = Math.max(
     0,
     body.value.offsetTop + fraction * body.value.offsetHeight - head.value.offsetHeight,
@@ -732,7 +757,7 @@ defineExpose({ scrollToMinute })
             :key="slot.startMinute"
             class="orb-tg__slot"
             v-bind="slotAttrs(col, slot)"
-            :class="{ 'is-labelled': slot.isLabelled }"
+            :class="{ 'is-labelled': slot.isLabelled, 'is-fold': slot.isFold }"
             role="gridcell"
             :aria-label="slotLabel(col, slot)"
             :tabindex="activeCell.col === ci && activeCell.slot === si ? 0 : -1"
@@ -744,7 +769,21 @@ defineExpose({ scrollToMinute })
             @focus="onSlotFocus(ci, si)"
           >
             <RenderSlot
-              v-if="timeSlotSlot"
+              v-if="slot.isFold"
+              :fn="resolve('time-fold')"
+              :scope="{
+                view,
+                start: slot.startMinute,
+                end: slot.endMinute,
+                label: foldLabel(slot),
+              }"
+            >
+              <span class="orb-tg__fold" v-bind="ctx.part('timeFold', { slot })">
+                {{ foldLabel(slot) }}
+              </span>
+            </RenderSlot>
+            <RenderSlot
+              v-else-if="timeSlotSlot"
               :fn="timeSlotSlot"
               :scope="{
                 view,
@@ -769,6 +808,7 @@ defineExpose({ scrollToMinute })
               :class="`orb-shade--${shade.kind}`"
               v-bind="ctx.part(SHADE_PART[shade.kind], { shade, column: col })"
               :style="shadeStyle(shade)"
+              @click.stop="onShadeClick(shade, $event)"
             >
               <RenderSlot
                 :fn="resolve(SHADE_SLOT[shade.kind])"
@@ -788,7 +828,7 @@ defineExpose({ scrollToMinute })
 
           <div class="orb-tg__events" role="gridcell">
             <EventItem
-              v-for="item in timed[ci]"
+              v-for="item in stacked[ci]?.items"
               :key="item.key"
               :occurrence="item.segment.occurrence"
               variant="time"
@@ -800,6 +840,27 @@ defineExpose({ scrollToMinute })
               :snap-minutes="snapMinutes()"
               :style="eventStyle(item)"
             />
+            <button
+              v-for="stack in stacked[ci]?.stacks"
+              :key="stack.key"
+              type="button"
+              class="orb-event-stack"
+              v-bind="ctx.part('eventStack', { stack })"
+              :style="{ top: pct(stack.top), height: pct(stack.height) }"
+              @click="expandStack(stack.key)"
+            >
+              <RenderSlot
+                :fn="resolve('event-stack')"
+                :scope="{
+                  occurrences: stack.occurrences,
+                  count: stack.occurrences.length,
+                  label: messages.eventStack(stack.occurrences.length),
+                  expand: () => expandStack(stack.key),
+                }"
+              >
+                {{ messages.eventStack(stack.occurrences.length) }}
+              </RenderSlot>
+            </button>
             <template v-for="overlay in overlays[ci]" :key="overlay.key">
               <div
                 v-if="overlay.kind === 'selection'"

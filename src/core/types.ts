@@ -60,6 +60,10 @@ export interface SchedulerEvent {
   dependsOn?: readonly EventId[]
   /** How far along it is, from 0 to 1. Drawn in timelines and Gantt views. */
   progress?: number
+  /** Minutes of setup before it. Moves with it, and counts for `event-overlap`. */
+  bufferBefore?: number
+  /** Minutes of cleanup after it. Moves with it, and counts for `event-overlap`. */
+  bufferAfter?: number
 }
 
 /** Reads scheduler fields from user event objects, so no wrapper type is required. */
@@ -85,6 +89,8 @@ export interface EventAccessors<T> {
   textColor(event: T): string | undefined
   dependsOn(event: T): readonly EventId[] | undefined
   progress(event: T): number | undefined
+  bufferBefore(event: T): number | undefined
+  bufferAfter(event: T): number | undefined
 }
 
 const EMPTY: readonly never[] = Object.freeze([])
@@ -111,6 +117,8 @@ export const defaultAccessors: EventAccessors<SchedulerEvent> = {
   textColor: (e) => e.textColor,
   dependsOn: (e) => e.dependsOn,
   progress: (e) => e.progress,
+  bufferBefore: (e) => e.bufferBefore,
+  bufferAfter: (e) => e.bufferAfter,
 }
 
 /** Builds accessors for a custom event shape, falling back to the default field names. */

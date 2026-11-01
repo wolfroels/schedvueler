@@ -1114,6 +1114,455 @@
   }
 }
 
+/* ---- density ---- */
+[data-density='compact'] {
+  --orb-slot-height: 1.5rem;
+  --orb-font-size: 0.8125rem;
+  --orb-font-size-sm: 0.6875rem;
+  --orb-control-height: 1.75rem;
+  --orb-day-header-height: 2.5rem;
+  --orb-month-week-min-height: 5rem;
+}
+
+[data-density='comfortable'] {
+  --orb-slot-height: 3rem;
+  --orb-font-size: 0.9375rem;
+  --orb-font-size-sm: 0.8125rem;
+  --orb-control-height: 2.25rem;
+  --orb-day-header-height: 3.75rem;
+  --orb-month-week-min-height: 8rem;
+}
+
+/* ---- motion ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .orb-scheduler--animate .orb-tg__events > .orb-event,
+  .orb-scheduler--animate .orb-tl__lane > .orb-event {
+    transition:
+      top var(--orb-transition-duration, 180ms) ease,
+      height var(--orb-transition-duration, 180ms) ease,
+      inset-inline-start var(--orb-transition-duration, 180ms) ease,
+      width var(--orb-transition-duration, 180ms) ease;
+  }
+
+  .orb-scheduler--animate .orb-event--mirror {
+    transition: none;
+  }
+
+  .orb-scheduler--animate .orb-scheduler__body > * {
+    animation: orb-fade var(--orb-transition-duration, 180ms) ease;
+  }
+}
+
+@keyframes orb-fade {
+  from {
+    opacity: 0.4;
+  }
+}
+
+/* ---- filter, conflicts, drafts ---- */
+.orb-event--dimmed {
+  opacity: 0.3;
+}
+
+.orb-event--tentative {
+  border-style: dashed;
+  border-width: 1px;
+  border-color: var(--orb-event-color);
+  opacity: 0.85;
+}
+
+.orb-event--conflict {
+  box-shadow: inset 0 0 0 1px var(--orb-color-conflict, #dc2626);
+}
+
+.orb-event__conflict {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline-end: 2px;
+  z-index: 1;
+  min-width: 1em;
+  border-radius: 999px;
+  background: var(--orb-color-conflict, #dc2626);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: var(--orb-font-weight-strong);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.orb-drag-tooltip {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: var(--orb-color-text);
+  color: var(--orb-color-bg);
+  font-size: var(--orb-font-size-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.orb-draft-bar,
+.orb-undo-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  background: var(--orb-color-surface);
+  color: var(--orb-color-text);
+}
+
+.orb-undo-toast {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline-start: 50%;
+  z-index: 80;
+  transform: translateX(-50%);
+  box-shadow: var(--orb-shadow-popover);
+}
+
+/* ---- buffers and running events ---- */
+.orb-event--buffered {
+  overflow: visible;
+}
+
+.orb-event__buffer {
+  position: absolute;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--orb-event-color) 30%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+  pointer-events: none;
+}
+
+.orb-event--time .orb-event__buffer {
+  inset-inline: 0;
+  height: calc(var(--orb-event-buffer-share) * 100%);
+}
+
+.orb-event--time .orb-event__buffer--before {
+  bottom: 100%;
+}
+
+.orb-event--time .orb-event__buffer--after {
+  top: 100%;
+}
+
+.orb-event--timeline .orb-event__buffer {
+  inset-block: 0;
+  width: calc(var(--orb-event-buffer-share) * 100%);
+}
+
+.orb-event--timeline .orb-event__buffer--before {
+  inset-inline-end: 100%;
+}
+
+.orb-event--timeline .orb-event__buffer--after {
+  inset-inline-start: 100%;
+}
+
+.orb-event__live {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: 0;
+  width: calc(var(--orb-event-progress, 0) * 100%);
+  height: 2px;
+  background: var(--orb-event-color);
+  pointer-events: none;
+}
+
+.orb-event--time .orb-event__live {
+  inset-inline-end: 0;
+  inset-block: 0 auto;
+  width: auto;
+  height: calc(var(--orb-event-progress, 0) * 100%);
+  background: color-mix(in srgb, var(--orb-event-color) 12%, transparent);
+}
+
+.orb-event__presence {
+  position: absolute;
+  inset-block-end: 1px;
+  inset-inline-end: 2px;
+  z-index: 1;
+  display: flex;
+  gap: 1px;
+}
+
+.orb-event__person {
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  background: var(--orb-color-text-muted);
+  color: #ffffff;
+  font-size: 0.625rem;
+  line-height: 1.1em;
+  text-align: center;
+}
+
+/* Long bars keep their title in view while scrolling. */
+.orb-event--timeline {
+  overflow: clip;
+}
+
+.orb-event--timeline .orb-event__title {
+  position: sticky;
+  inset-inline-start: calc(var(--orb-tl-resource-width) + var(--orb-event-sticky-title, 0.25rem));
+}
+
+/* ---- suggestions and zones ---- */
+.orb-shade--suggestion {
+  border: 1px dashed var(--orb-color-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--orb-color-accent) 10%, transparent);
+  color: var(--orb-color-text);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.orb-shade--band {
+  background: color-mix(in srgb, var(--orb-color-zone-band, #16a34a) 9%, transparent);
+}
+
+/* ---- stacks and folds ---- */
+.orb-event-stack {
+  position: absolute;
+  pointer-events: auto;
+  inset-inline: 0 var(--orb-event-gap);
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 6px;
+  border: 1px solid var(--orb-color-accent);
+  border-radius: var(--orb-event-radius);
+  background: color-mix(in srgb, var(--orb-color-accent) 18%, var(--orb-color-bg));
+  color: var(--orb-color-text);
+  font: inherit;
+  font-size: var(--orb-font-size-sm);
+  font-weight: var(--orb-font-weight-strong);
+  cursor: pointer;
+}
+
+.orb-tg__slot.is-fold {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--orb-color-border-subtle) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.orb-tg__fold {
+  display: block;
+  overflow: hidden;
+  padding-inline: 4px;
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- timeline extras ---- */
+.orb-tl--minimap,
+.orb-tl--zoom {
+  position: relative;
+  flex-direction: column;
+}
+
+.orb-tl--minimap .orb-tl__scroller,
+.orb-tl--zoom .orb-tl__scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.orb-tl__zoom {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 8px;
+  z-index: 80;
+  display: flex;
+  gap: 2px;
+}
+
+.orb-tl__minimap {
+  position: relative;
+  display: flex;
+  flex: 0 0 1.5rem;
+  border-top: 1px solid var(--orb-color-border);
+  cursor: pointer;
+}
+
+.orb-tl__minimap-day {
+  flex: 1 1 0;
+}
+
+.orb-tl__minimap-day--level-1 {
+  background: color-mix(in srgb, var(--orb-color-accent) 12%, transparent);
+}
+
+.orb-tl__minimap-day--level-2 {
+  background: color-mix(in srgb, var(--orb-color-accent) 24%, transparent);
+}
+
+.orb-tl__minimap-day--level-3 {
+  background: color-mix(in srgb, var(--orb-color-accent) 40%, transparent);
+}
+
+.orb-tl__minimap-day--level-4 {
+  background: color-mix(in srgb, var(--orb-color-accent) 60%, transparent);
+}
+
+.orb-tl__minimap-view {
+  position: absolute;
+  inset-block: 0;
+  border: 1px solid var(--orb-color-accent);
+  pointer-events: none;
+}
+
+.orb-month__cell--load-1 {
+  background: color-mix(in srgb, var(--orb-color-accent) 6%, transparent);
+}
+
+.orb-month__cell--load-2 {
+  background: color-mix(in srgb, var(--orb-color-accent) 14%, transparent);
+}
+
+.orb-month__cell--load-3 {
+  background: color-mix(in srgb, var(--orb-color-accent) 24%, transparent);
+}
+
+.orb-month__cell--load-4 {
+  background: color-mix(in srgb, var(--orb-color-now) 22%, transparent);
+}
+
+/* ---- mini calendar, legend, quick add ---- */
+.orb-mini {
+  display: inline-block;
+  color: var(--orb-color-text, #0f172a);
+  font-size: var(--orb-font-size-sm, 0.75rem);
+}
+
+.orb-mini__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-end: 0.25rem;
+}
+
+.orb-mini__title {
+  font-weight: 600;
+}
+
+.orb-mini__nav {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.orb-mini__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1.75rem);
+  grid-auto-rows: 1.75rem;
+  place-items: center;
+}
+
+.orb-mini__weekday {
+  opacity: 0.7;
+}
+
+.orb-mini__day {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.orb-mini__day:hover {
+  background: rgb(15 23 42 / 0.06);
+}
+
+.orb-mini__day.is-other-month {
+  opacity: 0.55;
+}
+
+.orb-mini__day.is-in-range {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--orb-color-accent, #2563eb) 10%, transparent);
+}
+
+.orb-mini__day.is-today {
+  font-weight: 700;
+  color: var(--orb-color-accent, #2563eb);
+}
+
+.orb-mini__day.is-selected {
+  border-radius: 50%;
+  background: var(--orb-color-accent, #2563eb);
+  color: var(--orb-color-accent-contrast, #ffffff);
+}
+
+.orb-mini__day.is-busy::after {
+  position: absolute;
+  inset-block-end: 2px;
+  inset-inline-start: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentcolor;
+  content: '';
+}
+
+.orb-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orb-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.orb-legend__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+  background: var(--orb-event-color, #2563eb);
+}
+
+.orb-quick-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.orb-quick-add__input {
+  min-width: 16rem;
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+}
+
 .orb-tg__column:last-child {
   border-inline-end: 0;
 }
@@ -1662,7 +2111,14 @@
 /* ---------------------------------------------------------------- touch ----------------------- */
 
 /* Vertical panning stays with the browser; horizontal swipes go to the scheduler. */
-.orb-scheduler__body--swipe {
+.orb-scheduler__body--swipe,
+/* touch-action only counts up to the nearest scroll container, so these need it as well. */
+.orb-scheduler__body--swipe .orb-tg__scroller,
+.orb-scheduler__body--swipe .orb-month__body,
+.orb-scheduler__body--swipe .orb-agenda__scroller,
+.orb-scheduler__body--swipe .orb-year,
+.orb-scheduler__body--swipe .orb-planner,
+.orb-scheduler__body--swipe .orb-multi-month {
   touch-action: pan-y pinch-zoom;
 }
 

@@ -215,6 +215,10 @@ Cancelable payloads have `preventDefault()` and `waitUntil(promise)`.
 `month-day-number`.
 See [docs/API.md](docs/API.md#slots) for the props each one receives.
 
+## More
+
+Availability rules, multi-select and group edits, clipboard, Gantt and dependency arrows, iCalendar import and export, free-time search, drafts, a mini calendar and more are described in [docs/API.md](docs/API.md). [docs/RECIPES.md](docs/RECIPES.md) has short answers for editor dialogs, loading and saving, and syncing with calendars; [docs/CUSTOM_VIEWS.md](docs/CUSTOM_VIEWS.md) shows how to write your own view.
+
 ## Passthrough
 
 Every element has a part name. `:pt="{ todayButton: { class: 'my-button' } }"` adds classes, styles,

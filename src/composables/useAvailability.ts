@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import {
   Temporal,
   closedIntervals,
+  overlapHours,
   daysBetween,
   minutesIntoDay,
   parseDateInput,
@@ -11,18 +12,21 @@ import {
   type ResolvedBlockedTime,
   type ResourceId,
 } from '../core'
+import type { SchedulerSuggestion } from '../types'
 import type { SchedulerContext } from './context'
 
 /** A stretch of a day column drawn behind the events. */
 export interface AvailabilityShade {
   key: string
-  kind: 'closed' | 'blocked' | 'background'
+  kind: 'closed' | 'blocked' | 'background' | 'suggestion' | 'band'
   /** Wall-clock minutes from the midnight of the date. */
   start: number
   end: number
   title: string | undefined
   color: string | undefined
   occurrence: EventOccurrence<unknown> | undefined
+  /** With `kind: 'suggestion'`. */
+  suggestion?: SchedulerSuggestion
 }
 
 /** Business hours, blocked times and background events, resolved for drawing and checking. */
@@ -51,6 +55,8 @@ export function createAvailability<T>(ctx: SchedulerContext<T>) {
       !!ctx.options.value.raw.businessHours ||
       blockedTimes.value.length > 0 ||
       ctx.backgroundOccurrences.value.length > 0 ||
+      !!ctx.options.value.raw.suggestions?.length ||
+      !!ctx.options.value.raw.overlapZones?.length ||
       ctx.resources.value.some((r) => r.businessHours),
   )
 
@@ -125,6 +131,39 @@ export function createAvailability<T>(ctx: SchedulerContext<T>) {
         occ as EventOccurrence<unknown>,
       )
     }
+    const { raw, timeZone } = ctx.options.value
+    if (raw.overlapZones?.length) {
+      for (const r of overlapHours(date, raw.overlapZones, timeZone)) {
+        const start = Math.max(r.start, from)
+        const end = Math.min(r.end, to)
+        if (end > start) {
+          out.push({
+            key: `band-${start}`,
+            kind: 'band',
+            start,
+            end,
+            title: undefined,
+            color: undefined,
+            occurrence: undefined,
+          })
+        }
+      }
+    }
+    const parse = raw.dateAdapter?.parse ?? parseDateInput
+    raw.suggestions?.forEach((suggestion, i) => {
+      const before = out.length
+      add(
+        `suggestion-${i}`,
+        'suggestion',
+        resolveZoned(parse(suggestion.start), timeZone).epochMilliseconds,
+        resolveZoned(parse(suggestion.end), timeZone).epochMilliseconds,
+        suggestion.resourceId === undefined ? undefined : [suggestion.resourceId],
+        suggestion.title,
+        undefined,
+        undefined,
+      )
+      if (out.length > before) out[before]!.suggestion = suggestion
+    })
     return out
   }
 

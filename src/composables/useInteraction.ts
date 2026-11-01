@@ -165,6 +165,8 @@ export interface SchedulerInteraction {
   setCursor(hit: Hit): void
   /** Scrolls a view when (x, y) is near its edge; returns whether it scrolled. */
   scrollNear(x: number, y: number): boolean
+  /** Where the pointer is during a gesture, in viewport pixels. */
+  pointer: Readonly<ShallowRef<{ x: number; y: number } | null>>
   /** Scrolls the active view to a wall-clock minute. */
   scrollToMinute(minute: number): void
   /** Why these times would be refused, or `null`. Runs every rule, for your own checks too. */
@@ -299,15 +301,23 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
     const overlap = o.eventOverlap ?? 'allow'
     if (overlap !== 'allow') {
+      const a = ctx.accessors.value
+      const padding = (o: EventOccurrence<unknown>) => (a.bufferBefore(o.event) ?? 0) * 60_000
+      const paddingAfter = (o: EventOccurrence<unknown>) => (a.bufferAfter(o.event) ?? 0) * 60_000
+      // A day of room on each side finds neighbours whose buffers reach this far.
+      const reach = 86_400_000
+      const own = occ ? { before: padding(occ), after: paddingAfter(occ) } : { before: 0, after: 0 }
+      const from = startMs - own.before
+      const to = endMs + own.after
       const others = findOverlaps(
         ctx.store
-          .query({ startMs, endMs })
-          .filter((x) => ctx.accessors.value.display(x.event) !== 'background'),
-        startMs,
-        endMs,
+          .query({ startMs: from - reach, endMs: to + reach })
+          .filter((x) => a.display(x.event) !== 'background'),
+        -Infinity,
+        Infinity,
         resourceIds,
         occ?.key,
-      )
+      ).filter((x) => x.startMs - padding(x) < to && x.endMs + paddingAfter(x) > from)
       const allowed =
         overlap === 'forbid'
           ? !others.length
@@ -358,6 +368,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
   // --- selected events ---------------------------------------------------------------------------
 
+  const pointer = shallowRef<{ x: number; y: number } | null>(null)
   const timedLengths = new Map<string, number>()
   const marquee = shallowRef<{ left: number; top: number; width: number; height: number } | null>(
     null,
@@ -924,6 +935,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     const update = (x: number, y: number) => {
       const s = state.value
       if (!s) return
+      pointer.value = { x, y }
       // Moving an event off the scheduler takes the preview away: letting go there cancels.
       outside = kind === 'move' && !overSurface(x, y)
       if (outside) {
@@ -1130,6 +1142,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     armMove,
     armed,
     placeArmed,
+    pointer,
     selectEvent,
     groupOf,
     marquee,

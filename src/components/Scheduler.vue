@@ -1,10 +1,19 @@
 <script setup lang="ts" generic="T = SchedulerEvent">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useScheduler } from '../composables/useScheduler'
 import { useToolbar } from '../composables/useToolbar'
 import { parseTimeOfDay, type SchedulerContext } from '../composables/context'
-import { toZoned, type DateInput, type EventId, type SchedulerEvent } from '../core'
-import type { SchedulerEmits, SchedulerOptions, SchedulerSlots } from '../types'
+import {
+  findOverlaps,
+  formatDate,
+  formatTimeRange,
+  toZoned,
+  type DateInput,
+  type EventId,
+  type EventOccurrence,
+  type SchedulerEvent,
+} from '../core'
+import type { SchedulerDensity, SchedulerEmits, SchedulerOptions, SchedulerSlots } from '../types'
 import SchedulerToolbar from './SchedulerToolbar.vue'
 
 export interface SchedulerProps<T> extends SchedulerOptions<T> {
@@ -12,6 +21,8 @@ export interface SchedulerProps<T> extends SchedulerOptions<T> {
   theme?: 'light' | 'dark' | 'auto'
   /** Show the built-in toolbar. Default true. */
   toolbar?: boolean
+  /** How much room everything takes. Default "normal". */
+  density?: SchedulerDensity
 }
 
 const props = withDefaults(defineProps<SchedulerProps<T>>(), {
@@ -90,9 +101,76 @@ function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
 }
 
+/** What the tooltip shows while dragging, with `drag-tooltip`. */
+const tooltip = computed(() => {
+  if (!props.dragTooltip) return undefined
+  const s = ctx.interaction.state.value
+  const at = ctx.interaction.pointer.value
+  if (!s?.preview || !at || s.kind === 'select') return undefined
+  const { start, end, allDay } = s.preview
+  const { locale, hour12, timeZone } = ctx.options.value
+  const date = formatDate(start.withTimeZone(timeZone).toPlainDate(), locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+  const conflicts = findOverlaps(
+    ctx.occurrences.value,
+    start.epochMilliseconds,
+    end.epochMilliseconds,
+    s.preview.resourceIds ?? s.occurrence?.resourceIds ?? [],
+    s.occurrence?.key,
+  )
+  return {
+    x: at.x,
+    y: at.y,
+    scope: {
+      occurrence: s.occurrence as EventOccurrence<T> | undefined,
+      start,
+      end,
+      allDay,
+      timeText: allDay ? date : `${date}, ${formatTimeRange(start, end, locale, { hour12 })}`,
+      minutes: (end.epochMilliseconds - start.epochMilliseconds) / 60_000,
+      valid: s.valid,
+      reason: s.reason,
+      conflicts,
+    },
+  }
+})
+
+/** Whether a key event is the given combination, such as "ctrl+k" or "m". */
+function matchesKey(e: KeyboardEvent, combo: string) {
+  const parts = combo.toLowerCase().split('+')
+  const key = parts.pop()
+  return (
+    e.key.toLowerCase() === key &&
+    parts.includes('ctrl') === e.ctrlKey &&
+    parts.includes('meta') === e.metaKey &&
+    parts.includes('alt') === e.altKey &&
+    parts.includes('shift') === e.shiftKey
+  )
+}
+
+/** A shortcut from `keymap`; true when it was one. */
+function runKeymap(e: KeyboardEvent) {
+  const keymap = props.keymap
+  if (!keymap) return false
+  for (const [action, combo] of Object.entries(keymap)) {
+    if (!combo || !matchesKey(e, combo)) continue
+    e.preventDefault()
+    if (action === 'prev') ctx.prev()
+    else if (action === 'next') ctx.next()
+    else if (action === 'today') ctx.goToday()
+    else if (action.startsWith('view:')) ctx.setView(action.slice(5))
+    return true
+  }
+  return false
+}
+
 /** Shortcuts anywhere inside the scheduler. */
 function onKeydown(e: KeyboardEvent) {
   if (e.defaultPrevented || isTyping(e.target)) return
+  if (runKeymap(e)) return
   const command = e.ctrlKey || e.metaKey
   if (command && props.eventClipboard && !e.altKey && !e.shiftKey) {
     const key = e.key.toLowerCase()
@@ -107,11 +185,19 @@ function onKeydown(e: KeyboardEvent) {
     if (done) e.preventDefault()
     return
   }
-  if (e.key === 'PageUp' || e.key === 'PageDown') {
+  if (e.key === 'PageUp' && !props.keymap?.prev) {
     e.preventDefault()
-    if (e.key === 'PageUp') ctx.prev()
-    else ctx.next()
-  } else if ((e.key === 't' || e.key === 'T') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    ctx.prev()
+  } else if (e.key === 'PageDown' && !props.keymap?.next) {
+    e.preventDefault()
+    ctx.next()
+  } else if (
+    (e.key === 't' || e.key === 'T') &&
+    !e.altKey &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !props.keymap?.today
+  ) {
     ctx.goToday()
   } else if (e.altKey && /^[1-9]$/.test(e.key)) {
     const target = ctx.availableViews.value[Number(e.key) - 1]
@@ -184,6 +270,8 @@ defineExpose({
     class="orb-scheduler"
     v-bind="ctx.part('root')"
     :data-theme="theme"
+    :data-density="density"
+    :class="{ 'orb-scheduler--animate': animate }"
     @keydown="onKeydown"
     @dragover="ctx.interaction.nativeDragOver"
     @dragleave="ctx.interaction.nativeDragLeave"
@@ -237,6 +325,31 @@ defineExpose({
           :label="ctx.options.value.messages.noEvents"
         />
       </div>
+    </div>
+    <div v-if="draft" class="orb-draft-bar" v-bind="ctx.part('draftBar')" role="status">
+      <slot name="draft-bar" v-bind="draft">
+        <span>{{ ctx.options.value.messages.draftChanges(draft.count) }}</span>
+        <button type="button" class="orb-button" @click="draft.apply">
+          {{ ctx.options.value.messages.apply }}
+        </button>
+        <button type="button" class="orb-button" @click="draft.discard">
+          {{ ctx.options.value.messages.discard }}
+        </button>
+      </slot>
+    </div>
+    <div
+      v-if="tooltip"
+      class="orb-drag-tooltip"
+      v-bind="ctx.part('dragTooltip')"
+      :style="{ left: `${tooltip.x + 14}px`, top: `${tooltip.y + 14}px` }"
+      aria-hidden="true"
+    >
+      <slot name="drag-tooltip" v-bind="tooltip.scope">
+        <span>{{ tooltip.scope.timeText }}</span>
+        <small v-if="tooltip.scope.conflicts.length">
+          {{ ctx.options.value.messages.conflict }}
+        </small>
+      </slot>
     </div>
     <div
       v-if="ctx.interaction.marquee.value"

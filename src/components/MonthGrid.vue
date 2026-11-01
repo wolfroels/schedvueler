@@ -11,6 +11,7 @@ import {
 } from 'vue'
 import {
   Temporal,
+  loadPerDay,
   computeSelection,
   formatDate,
   type EventOccurrence,
@@ -96,8 +97,20 @@ function isOutOfRange(date: Temporal.PlainDate) {
 /** Blocked times and background events of a day; closed hours only show as `is-closed`. */
 function dayShades(date: Temporal.PlainDate) {
   return ctx.availability.hasShades.value
-    ? ctx.availability.shadesFor(date, undefined).filter((s) => s.kind !== 'closed')
+    ? ctx.availability
+        .shadesFor(date, undefined)
+        .filter((s) => s.kind === 'blocked' || s.kind === 'background')
     : []
+}
+
+/** How busy a day is, from 0 to 4, with `day-utilization`. */
+function dayLevel(date: Temporal.PlainDate): number {
+  const option = ctx.options.value.raw.dayUtilization
+  if (!option) return 0
+  const capacity = (option === true ? undefined : option.capacity) ?? 480
+  const [load] = loadPerDay(occurrencesOn(date), [date], ctx.options.value.timeZone)
+  const ratio = (load?.minutes ?? 0) / capacity
+  return ratio === 0 ? 0 : ratio < 0.5 ? 1 : ratio < 0.8 ? 2 : ratio <= 1 ? 3 : 4
 }
 
 function cellAttrs(cell: MonthCell) {
@@ -420,6 +433,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             'is-selected': cell.isSelected,
             'is-closed': ctx.availability.isClosedDay(cell.date),
             'is-out-of-range': isOutOfRange(cell.date),
+            [`orb-month__cell--load-${dayLevel(cell.date)}`]: dayLevel(cell.date) > 0,
           }"
           role="gridcell"
           :tabindex="cell.key === activeKey ? 0 : -1"

@@ -6,6 +6,7 @@ import type {
   DateAdapter,
   EventAccessors,
   EventOccurrence,
+  ZoneHours,
   RangeStrategy,
   RefusalReason,
   RecurrenceEditScope,
@@ -52,6 +53,16 @@ export interface SchedulerMessages {
   loading: string
   /** Shown while `error` is set. */
   error: string
+  /** Read out with an event that overlaps another. */
+  conflict: string
+  /** Text of a stack of events. */
+  eventStack: (count: number) => string
+  /** Text of a stretch without events. */
+  timeFold: (start: string, end: string) => string
+  /** Text of the draft bar. */
+  draftChanges: (count: number) => string
+  apply: string
+  discard: string
   /** Label of the resource search. */
   searchResources: string
 }
@@ -76,6 +87,12 @@ export const defaultMessages: SchedulerMessages = {
   moreViews: 'More',
   loading: 'Loading…',
   error: 'Something went wrong',
+  conflict: 'overlaps another event',
+  eventStack: (count) => `${count} events`,
+  timeFold: (start, end) => `${start} – ${end}`,
+  draftChanges: (count) => (count === 1 ? '1 change' : `${count} changes`),
+  apply: 'Apply',
+  discard: 'Discard',
   searchResources: 'Search resources',
 }
 
@@ -171,6 +188,17 @@ export type SchedulerPart =
   | 'dayCount'
   | 'dependency'
   | 'eventProgress'
+  | 'conflict'
+  | 'dragTooltip'
+  | 'draftBar'
+  | 'eventBuffer'
+  | 'zoomControl'
+  | 'minimap'
+  | 'eventStack'
+  | 'timeFold'
+  | 'presence'
+  | 'suggestion'
+  | 'timeZoneBand'
 
 /**
  * Attributes passed through to the parts of the scheduler: classes, styles, `data-*`, listeners.
@@ -184,6 +212,8 @@ export type SchedulerPt = Partial<
     ElementAttrs | ((scope: Record<string, any>) => ElementAttrs | undefined)
   >
 >
+
+export type SchedulerDensity = 'compact' | 'normal' | 'comfortable'
 
 export type EventLayoutOption = 'columns' | 'stack' | TimeGridLayoutAlgorithm
 
@@ -271,6 +301,28 @@ export interface SchedulerOptions<T> {
   calendar?: string
   /** Order of events in month rows. */
   monthEventOrder?: (a: EventOccurrence<T>, b: EventOccurrence<T>) => number
+  /** Hides events (`false`) or dims them (`'dim'`) without changing the data. */
+  eventFilter?: (occurrence: EventOccurrence<T>) => boolean | 'dim'
+  /** Marks events that overlap on a resource. */
+  showConflicts?: boolean
+  /** Shows the time, length and conflicts next to the pointer while dragging. */
+  dragTooltip?: boolean
+  /** Running events show how far along they are. */
+  liveProgress?: boolean
+  /** Events move smoothly, unless the user prefers reduced motion. */
+  animate?: boolean
+  /** Who is looking at or editing what. */
+  presence?: readonly SchedulerPresence[]
+  /** Times to offer, drawn in the grid; clicking one emits `suggestion-click`. */
+  suggestions?: readonly SchedulerSuggestion[]
+  /** Marks hours that are working hours in all these zones, in time grids. */
+  overlapZones?: readonly ZoneHours[]
+  /** Replaces keyboard shortcuts: `{ next: 'n', today: 'ctrl+t', 'view:month': 'm' }`. */
+  keymap?: SchedulerKeymap
+  /** Shows a bar with `draft-bar` while there are changes to apply. See `useDraft`. */
+  draft?: { count: number; apply(): void; discard(): void }
+  /** Darkens month cells by how busy the day is. `capacity` is in minutes. Default 480. */
+  dayUtilization?: boolean | { capacity?: number }
   /** Click, Ctrl/Cmd + click, Shift + click and Shift + drag select events (`v-model:selected-events`). */
   eventSelection?: boolean
   /** Ctrl/Cmd + C, X and V emit `events-copy` and `events-paste`. */
@@ -351,6 +403,23 @@ export interface OverlapInfo<T> {
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
 }
+
+export interface SchedulerPresence {
+  id: string | number
+  name: string
+  color?: string
+  /** The event they have open. */
+  eventId?: string | number
+}
+
+export interface SchedulerSuggestion {
+  start: unknown
+  end: unknown
+  title?: string
+  resourceId?: ResourceId
+}
+
+export type SchedulerKeymap = Partial<Record<'prev' | 'next' | 'today' | `view:${string}`, string>>
 
 export interface SchedulerPlugin<T = unknown> {
   name: string
@@ -758,6 +827,8 @@ export interface SchedulerEmits<T> {
   'events-paste': [payload: EventsPastePayload<T>]
   /** A native drag was dropped here, with `nativeDrop`. */
   'native-drop': [payload: NativeDropPayload]
+  /** A suggested time was clicked. */
+  'suggestion-click': [payload: { suggestion: SchedulerSuggestion; nativeEvent: MouseEvent }]
   /** A lazy resource is being expanded. Load its children; `waitUntil` shows it as loading. */
   'resource-expand': [payload: { resource: ResourceNode<unknown> } & Cancelable]
   /** A row was dragged to another place, with `resource-reorder`. See `reorderResources`. */
@@ -947,6 +1018,21 @@ export interface ResourceLoadSlotProps<T> {
   occurrences: EventOccurrence<T>[]
 }
 
+export interface DragTooltipSlotProps<T> {
+  occurrence: EventOccurrence<T> | undefined
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  /** Formatted date and time. */
+  timeText: string
+  /** Length in minutes. */
+  minutes: number
+  valid: boolean
+  reason: RefusalReason | null
+  /** Events it would overlap. */
+  conflicts: EventOccurrence<T>[]
+}
+
 export interface ShadeSlotProps<T> {
   view: string
   date: Temporal.PlainDate | undefined
@@ -1001,6 +1087,44 @@ export interface SchedulerSlots<T> {
   'drag-preview'?: SlotFn<EventSlotProps<T>>
   /** The inside of a resize handle. */
   'resize-handle'?: SlotFn<{ edge: 'start' | 'end'; variant: EventVariant }>
+  /** Marks an event that overlaps another, with `show-conflicts`. */
+  'conflict-badge'?: SlotFn<{ occurrence: EventOccurrence<T>; others: EventOccurrence<T>[] }>
+  /** Next to the pointer while dragging, with `drag-tooltip`. */
+  'drag-tooltip'?: SlotFn<DragTooltipSlotProps<T>>
+  /** The bar for changes to apply, with `draft`. */
+  'draft-bar'?: SlotFn<{ count: number; apply(): void; discard(): void }>
+  /** The inside of a buffer before or after an event. */
+  'event-buffer'?: SlotFn<{
+    occurrence: EventOccurrence<T>
+    side: 'before' | 'after'
+    minutes: number
+  }>
+  /** The controls for zooming a timeline, with `zoom-levels`. */
+  'zoom-control'?: SlotFn<{ level: number; levels: number; setLevel(level: number): void }>
+  /** The overview of a timeline, with `minimap`. */
+  minimap?: SlotFn<{
+    days: { date: Temporal.PlainDate; count: number; level: number }[]
+    from: number
+    to: number
+    scrollTo(fraction: number): void
+  }>
+  /** Overlapping events taken together, with `event-stack-threshold`. */
+  'event-stack'?: SlotFn<{
+    occurrences: EventOccurrence<T>[]
+    count: number
+    label: string
+    expand(): void
+  }>
+  /** A stretch without events, with `fold-empty-hours`. */
+  'time-fold'?: SlotFn<{ view: string; start: number; end: number; label: string }>
+  /** How far along a running event is, with `live-progress`. */
+  'event-progress'?: SlotFn<{ occurrence: EventOccurrence<T>; progress: number }>
+  /** Who has an event open, with `presence`. */
+  presence?: SlotFn<{ occurrence: EventOccurrence<T>; people: readonly SchedulerPresence[] }>
+  /** A suggested time, with `suggestions`. */
+  suggestion?: SlotFn<ShadeSlotProps<T>>
+  /** Hours that suit all zones, with `overlap-zones`. */
+  'time-zone-band'?: SlotFn<ShadeSlotProps<T>>
   /** A week number. */
   'week-number'?: SlotFn<{ view: string; week: number; date: Temporal.PlainDate }>
   /** Over the view while `loading` is set. */

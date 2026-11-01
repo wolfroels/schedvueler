@@ -45,6 +45,10 @@ export interface TimeGridViewProps extends ResponsiveViewProps {
   groupBy?: 'resource' | 'date'
   /** Only show the scheduler's `work-days`. */
   workWeek?: boolean
+  /** Collapse stretches without events; a number is the shortest stretch in minutes. Default 120. */
+  foldEmptyHours?: boolean | number
+  /** Take overlapping events together from this many on, into a group that opens on a click. */
+  eventStackThreshold?: number
 }
 
 /** Props of `<TimelineView>`. */
@@ -97,6 +101,8 @@ export interface TimelineViewProps extends ResponsiveViewProps {
   load?: boolean | { capacity?: number | ((resource: ResourceNode<unknown>) => number) }
   /** Draw arrows between events with `dependsOn`. */
   dependencies?: boolean
+  /** Show an overview of the whole range below the timeline. */
+  minimap?: boolean
 }
 
 export interface TimelineZoomLevel {
@@ -134,6 +140,7 @@ export interface TimelineSettings {
   resourceReorder?: boolean
   load?: boolean | { capacity?: number | ((resource: ResourceNode<unknown>) => number) }
   dependencies?: boolean
+  minimap?: boolean
 }
 
 /** Whether a view's days run past midnight, so that it needs events from the day after. */

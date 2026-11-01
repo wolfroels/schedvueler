@@ -13,6 +13,7 @@ import {
   type Temporal,
 } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
+import type { AvailabilityShade } from '../composables/useAvailability'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import { visibleHours } from '../composables/validate'
 import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/useTimeline'
@@ -274,6 +275,7 @@ function measureX() {
 function onScrollX() {
   if (!xFrame) xFrame = requestAnimationFrame(measureX)
   measureY()
+  measureViewport()
 }
 
 /** The part of the rows in view in px, in steps, with some room on both sides. */
@@ -352,6 +354,53 @@ function onWheel(e: WheelEvent) {
     el.scrollLeft = isRtl(el) ? -distance : distance
     measureX()
   })
+}
+
+function setZoom(level: number) {
+  emit('update:zoom', level)
+  ctx.emit('zoom-change', { view: props.view, level })
+  void nextTick(measureX)
+}
+
+// --- minimap ----------------------------------------------------------------------------------------
+
+/** What is on screen along the axis, without the room `xWindow` keeps. */
+const viewport = shallowRef({ from: 0, to: 1 })
+
+function measureViewport() {
+  const el = scroller.value
+  const head = timeHead.value
+  if (!el || !head || !props.settings.minimap) return
+  const width = head.offsetWidth || 1
+  const area = el.clientWidth - (corner.value?.offsetWidth ?? 0)
+  const from = Math.abs(el.scrollLeft) / width
+  viewport.value = { from, to: Math.min(1, from + area / width) }
+}
+
+const minimapDays = computed(() => {
+  if (!props.settings.minimap) return []
+  const loads = loadPerDay(ctx.occurrences.value, props.days, ctx.options.value.timeZone)
+  const most = Math.max(1, ...loads.map((l) => l.occurrences.length))
+  return loads.map((l) => ({
+    date: l.date,
+    count: l.occurrences.length,
+    level: l.occurrences.length ? Math.ceil((l.occurrences.length / most) * 4) : 0,
+  }))
+})
+
+function scrollToFraction(fraction: number) {
+  const el = scroller.value
+  const head = timeHead.value
+  if (!el || !head) return
+  const area = el.clientWidth - (corner.value?.offsetWidth ?? 0)
+  const distance = Math.max(0, fraction * head.offsetWidth - area / 2)
+  el.scrollLeft = isRtl(el) ? -distance : distance
+}
+
+function onMinimapClick(e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const rtl = isRtl(e.currentTarget as HTMLElement)
+  scrollToFraction((rtl ? rect.right - e.clientX : e.clientX - rect.left) / rect.width)
 }
 
 // --- header tiers -----------------------------------------------------------------------------------
@@ -563,6 +612,7 @@ onMounted(() => {
   scrollToTime()
   measureX()
   measureY()
+  measureViewport()
   if (typeof ResizeObserver !== 'undefined' && body.value?.previousElementSibling) {
     resizeObserver = new ResizeObserver(() => {
       measureMargin()
@@ -610,12 +660,21 @@ const SHADE_PART = {
   closed: 'closedTime',
   blocked: 'blockedTime',
   background: 'backgroundEvent',
+  suggestion: 'suggestion',
+  band: 'timeZoneBand',
 } as const
 const SHADE_SLOT = {
   closed: 'closed-time',
   blocked: 'blocked-time',
   background: 'background-event',
+  suggestion: 'suggestion',
+  band: 'time-zone-band',
 } as const
+
+function onShadeClick(shade: AvailabilityShade, e: MouseEvent) {
+  if (shade.suggestion)
+    ctx.emit('suggestion-click', { suggestion: shade.suggestion, nativeEvent: e })
+}
 
 /** Closed hours, blocked times and background events on a row, per visible day. */
 function rowShades(resourceId: ResourceId) {
@@ -658,8 +717,38 @@ function eventTop(lane: number) {
     v-bind="ctx.part('timeline')"
     role="group"
     :aria-label="ctx.title.value"
+    :class="{ 'orb-tl--minimap': settings.minimap, 'orb-tl--zoom': settings.zoomLevels?.length }"
     :style="rootStyle"
   >
+    <div v-if="settings.zoomLevels?.length" class="orb-tl__zoom" v-bind="ctx.part('zoomControl')">
+      <RenderSlot
+        :fn="resolve('zoom-control')"
+        :scope="{
+          level: settings.zoomLevel ?? 0,
+          levels: settings.zoomLevels.length,
+          setLevel: setZoom,
+        }"
+      >
+        <button
+          type="button"
+          class="orb-button orb-button--icon"
+          aria-label="Zoom out"
+          :disabled="(settings.zoomLevel ?? 0) <= 0"
+          @click="setZoom((settings.zoomLevel ?? 0) - 1)"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class="orb-button orb-button--icon"
+          aria-label="Zoom in"
+          :disabled="(settings.zoomLevel ?? 0) >= settings.zoomLevels.length - 1"
+          @click="setZoom((settings.zoomLevel ?? 0) + 1)"
+        >
+          +
+        </button>
+      </RenderSlot>
+    </div>
     <div ref="scroller" class="orb-tl__scroller" @scroll.passive="onScrollX" @wheel="onWheel">
       <div class="orb-tl__inner">
         <div class="orb-tl__head">
@@ -952,6 +1041,7 @@ function eventTop(lane: number) {
                 class="orb-shade"
                 :class="`orb-shade--${shade.kind}`"
                 v-bind="ctx.part(SHADE_PART[shade.kind], { shade, resource: row.resource })"
+                @click.stop="onShadeClick(shade, $event)"
                 :style="{
                   insetInlineStart: pct(shade.left),
                   width: pct(shade.width),
@@ -1025,6 +1115,35 @@ function eventTop(lane: number) {
           </div>
         </div>
       </div>
+    </div>
+    <div
+      v-if="settings.minimap"
+      class="orb-tl__minimap"
+      v-bind="ctx.part('minimap')"
+      @click="onMinimapClick"
+    >
+      <RenderSlot
+        :fn="resolve('minimap')"
+        :scope="{
+          days: minimapDays,
+          from: viewport.from,
+          to: viewport.to,
+          scrollTo: scrollToFraction,
+        }"
+      >
+        <span
+          v-for="day in minimapDays"
+          :key="day.date.toString()"
+          class="orb-tl__minimap-day"
+          :class="`orb-tl__minimap-day--level-${day.level}`"
+          aria-hidden="true"
+        />
+        <span
+          class="orb-tl__minimap-view"
+          :style="{ insetInlineStart: pct(viewport.from), width: pct(viewport.to - viewport.from) }"
+          aria-hidden="true"
+        />
+      </RenderSlot>
     </div>
   </div>
 </template>

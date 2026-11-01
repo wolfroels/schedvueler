@@ -108,6 +108,34 @@ const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrenc
 const isArmed = computed(
   () => !props.mirror && interaction.armed.value?.occurrence.key === props.occurrence.key,
 )
+const isDimmed = computed(() => ctx.options.value.raw.eventFilter?.(props.occurrence) === 'dim')
+const conflicts = computed(() => ctx.conflictsByKey.value.get(props.occurrence.key))
+const people = computed(() =>
+  (ctx.options.value.raw.presence ?? []).filter(
+    (p) => p.eventId !== undefined && String(p.eventId) === String(props.occurrence.id),
+  ),
+)
+/** How far along it is now, while running. */
+const liveProgress = computed(() => {
+  if (!ctx.options.value.raw.liveProgress || props.mirror || props.occurrence.allDay)
+    return undefined
+  const { startMs, endMs } = props.occurrence
+  const now = ctx.now.value.epochMilliseconds
+  return now >= startMs && now < endMs ? (now - startMs) / (endMs - startMs) : undefined
+})
+/** Setup and cleanup around it, as shares of its own length. */
+const buffers = computed(() => {
+  const occ = props.occurrence
+  if (props.variant !== 'time' && props.variant !== 'timeline') return []
+  const a = ctx.accessors.value
+  const length = Math.max(1, (occ.endMs - occ.startMs) / 60_000)
+  const out: { side: 'before' | 'after'; minutes: number; share: number }[] = []
+  const before = a.bufferBefore(occ.event)
+  const after = a.bufferAfter(occ.event)
+  if (before && props.isStart) out.push({ side: 'before', minutes: before, share: before / length })
+  if (after && props.isEnd) out.push({ side: 'after', minutes: after, share: after / length })
+  return out
+})
 const isSelected = computed(
   () => !props.mirror && ctx.selectedEvents.value.includes(props.occurrence.key),
 )
@@ -161,7 +189,8 @@ const ariaLabel = computed(() => {
     .filter(Boolean)
     .join(' ')
   const range = occ.allDay ? '' : formatTimeRange(occ.start, occ.end, locale, { hour12 })
-  return [shown, date, p.timeText === range ? '' : range].filter(Boolean).join(', ')
+  const warning = conflicts.value ? ctx.options.value.messages.conflict : ''
+  return [shown, date, p.timeText === range ? '' : range, warning].filter(Boolean).join(', ')
 })
 
 function payload<E extends Event>(nativeEvent: E) {
@@ -280,14 +309,19 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--invalid': mirror && !valid,
         'orb-event--selected': isSelected,
         'orb-event--armed': isArmed,
+        'orb-event--dimmed': isDimmed,
+        'orb-event--conflict': !!conflicts,
+        'orb-event--running': liveProgress !== undefined,
+        'orb-event--buffered': buffers.length > 0,
         'orb-event--milestone': isMilestone,
       },
     ]"
     :style="
-      slotProps.color || textColor
+      slotProps.color || textColor || liveProgress !== undefined
         ? {
             '--orb-event-color': slotProps.color,
             '--orb-event-text-color': textColor,
+            '--orb-event-progress': liveProgress,
           }
         : undefined
     "
@@ -306,6 +340,27 @@ function onKeydown(e: KeyboardEvent) {
     @mouseleave="!mirror && ctx.emit('event-mouseleave', payload($event))"
     @keydown="!mirror && onKeydown($event)"
   >
+    <span
+      v-for="buffer in buffers"
+      :key="buffer.side"
+      class="orb-event__buffer"
+      :class="`orb-event__buffer--${buffer.side}`"
+      v-bind="ctx.part('eventBuffer', { occurrence, side: buffer.side })"
+      :style="{ '--orb-event-buffer-share': buffer.share }"
+      aria-hidden="true"
+    >
+      <RenderSlot
+        :fn="resolve('event-buffer')"
+        :scope="{ occurrence, side: buffer.side, minutes: buffer.minutes }"
+      />
+    </span>
+    <RenderSlot
+      v-if="liveProgress !== undefined"
+      :fn="resolve('event-progress')"
+      :scope="{ occurrence, progress: liveProgress }"
+    >
+      <span class="orb-event__live" aria-hidden="true" />
+    </RenderSlot>
     <span
       v-if="progress !== undefined"
       class="orb-event__progress"
@@ -346,6 +401,32 @@ function onKeydown(e: KeyboardEvent) {
       </template>
     </RenderSlot>
 
+    <span
+      v-if="conflicts"
+      class="orb-event__conflict"
+      v-bind="ctx.part('conflict', { occurrence, others: conflicts })"
+    >
+      <RenderSlot :fn="resolve('conflict-badge')" :scope="{ occurrence, others: conflicts }">
+        !
+      </RenderSlot>
+    </span>
+    <span
+      v-if="people.length"
+      class="orb-event__presence"
+      v-bind="ctx.part('presence', { occurrence, people })"
+    >
+      <RenderSlot :fn="resolve('presence')" :scope="{ occurrence, people }">
+        <span
+          v-for="person in people"
+          :key="person.id"
+          class="orb-event__person"
+          :style="person.color ? { background: person.color } : undefined"
+          :title="person.name"
+        >
+          {{ person.name.slice(0, 1) }}
+        </span>
+      </RenderSlot>
+    </span>
     <template v-if="resizable">
       <span
         v-if="isStart"
