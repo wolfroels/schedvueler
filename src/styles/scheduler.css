@@ -727,6 +727,24 @@
   bottom: 2px;
 }
 
+.orb-event--selected {
+  outline: 2px solid var(--orb-color-accent);
+  outline-offset: 1px;
+}
+
+.orb-marquee {
+  position: fixed;
+  z-index: 40;
+  border: 1px solid var(--orb-color-accent);
+  background: color-mix(in srgb, var(--orb-color-accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.orb-draggable--armed {
+  outline: 2px dashed var(--orb-color-accent);
+  outline-offset: 2px;
+}
+
 .orb-tg__column:last-child {
   border-inline-end: 0;
 }

@@ -202,6 +202,11 @@ const activeKey = computed(() => {
   return (cells.find((c) => c.isToday) ?? cells.find((c) => !c.isOtherMonth) ?? cells[0])?.key
 })
 
+function onCellFocus(cell: MonthCell) {
+  focusKey.value = cell.key
+  interaction.setCursor({ zone: 'month', date: cell.date })
+}
+
 function focusCellKey(key: string) {
   focusKey.value = key
   nextTick(() => root.value?.querySelector<HTMLElement>(`[data-date="${key}"]`)?.focus())
@@ -217,9 +222,21 @@ function onCellKeydown(e: KeyboardEvent, cell: MonthCell) {
     ArrowUp: -cols,
     ArrowDown: cols,
   }
+  const dayHit = { zone: 'month' as const, date: cell.date }
+  if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.target !== e.currentTarget || !interaction.selectable) return
+    const times = computeSelection(dayHit, dayHit, {
+      timeZone: ctx.options.value.timeZone,
+      snapMinutes: 1440,
+      defaultDurationMinutes: 60,
+    })
+    if (times) interaction.setSelection(props.view, times, e)
+    return
+  }
   if (e.key === 'Enter' || e.key === ' ') {
     if (e.target !== e.currentTarget) return
     e.preventDefault()
+    if (interaction.dropArmed(dayHit, e)) return
     const sel = interaction.selection.value
     if (selectionAnchor.value && sel && sel.view === props.view) {
       interaction.setSelection(props.view, sel.times, e)
@@ -410,7 +427,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
           :aria-selected="cell.isSelected"
           :aria-current="cell.isToday ? 'date' : undefined"
           @keydown="onCellKeydown($event, cell)"
-          @focus="focusKey = cell.key"
+          @focus="onCellFocus(cell)"
           @click="
             compact ? onCompactCellClick(cell, ci, $event) : onCell('slot-click', cell, $event)
           "

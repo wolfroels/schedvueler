@@ -5,6 +5,26 @@ import type { SchedulerInteraction } from './useInteraction'
 /** Every mounted scheduler, so a drag that starts outside all of them can find the one below. */
 const schedulers = new Set<SchedulerInteraction>()
 
+/** A template picked up from the keyboard, waiting for Enter on a slot. */
+let armed: { template: ExternalEventTemplate; element: HTMLElement } | null = null
+
+function disarm() {
+  armed?.element.classList.remove('orb-draggable--armed')
+  armed = null
+}
+
+/** The template picked up from the keyboard, which is then put down. */
+export function takeArmedTemplate(): ExternalEventTemplate | null {
+  const template = armed?.template ?? null
+  disarm()
+  return template
+}
+
+/** Other schedulers, for an event dragged out of `self`. */
+export function otherDropTargets(self: SchedulerInteraction): SchedulerInteraction[] {
+  return [...schedulers].filter((s) => s !== self)
+}
+
 /** Makes a scheduler a drop target for `startExternalDrag`. Returns the unregister function. */
 export function registerDropTarget(interaction: SchedulerInteraction): () => void {
   schedulers.add(interaction)
@@ -162,10 +182,12 @@ type DraggableValue = ExternalEventTemplate | (() => ExternalEventTemplate) | nu
 
 const templates = new WeakMap<HTMLElement, DraggableValue>()
 const handlers = new WeakMap<HTMLElement, (e: PointerEvent) => void>()
+const keyHandlers = new WeakMap<HTMLElement, (e: KeyboardEvent) => void>()
 
 /**
  * `v-orb-draggable="{ title: 'Inspection', duration: 90, data: item }"` makes an element outside
- * the scheduler draggable into it. Pass `null` to disable it. See `startExternalDrag`.
+ * the scheduler draggable into it. Pass `null` to disable it. See `startExternalDrag`. From the
+ * keyboard: Enter picks it up, Enter on a slot or day puts it down, Escape cancels.
  */
 export const vOrbDraggable: Directive<HTMLElement, DraggableValue> = {
   mounted(el, binding) {
@@ -178,6 +200,20 @@ export const vOrbDraggable: Directive<HTMLElement, DraggableValue> = {
     }
     handlers.set(el, handler)
     el.addEventListener('pointerdown', handler)
+    if (!el.hasAttribute('tabindex')) el.tabIndex = 0
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && armed?.element === el) return disarm()
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      const value = templates.get(el)
+      const template = typeof value === 'function' ? value() : value
+      if (!template) return
+      e.preventDefault()
+      disarm()
+      armed = { template, element: el }
+      el.classList.add('orb-draggable--armed')
+    }
+    keyHandlers.set(el, onKey)
+    el.addEventListener('keydown', onKey)
   },
   updated(el, binding) {
     templates.set(el, binding.value)
@@ -186,6 +222,9 @@ export const vOrbDraggable: Directive<HTMLElement, DraggableValue> = {
   unmounted(el) {
     const handler = handlers.get(el)
     if (handler) el.removeEventListener('pointerdown', handler)
+    const onKey = keyHandlers.get(el)
+    if (onKey) el.removeEventListener('keydown', onKey)
+    if (armed?.element === el) disarm()
     el.classList.remove('orb-draggable')
   },
 }

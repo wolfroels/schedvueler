@@ -392,3 +392,101 @@ function removeSeriesFrom(
   const rest = dropExceptions(events, series.id, from, timeZone)
   return replace(rest, series.id, { ...series, rrule: stringifyRRule(truncated) })
 }
+
+/** One change of several, as carried by `event-drop` and `event-resize`. */
+export interface EventEdit extends EventTimes {
+  occurrence: EventOccurrence<SchedulerEvent>
+  scope?: RecurrenceEditScope
+}
+
+/**
+ * Applies several changes at once, for one undo step. Pass the payload and its `others`:
+ * `applyEventEdits(events, [p, ...p.others], { scope: p.scope, timeZone })`.
+ */
+export function applyEventEdits(
+  events: readonly SchedulerEvent[],
+  edits: readonly EventEdit[],
+  options: EditOptions,
+): SchedulerEvent[] {
+  return edits.reduce<SchedulerEvent[]>(
+    (list, edit) =>
+      applyEventEdit(list, edit.occurrence, edit, {
+        ...options,
+        scope: edit.scope ?? options.scope,
+      }),
+    [...events],
+  )
+}
+
+/** Removes several occurrences at once, for one undo step. */
+export function removeEventOccurrences(
+  events: readonly SchedulerEvent[],
+  occurrences: readonly EventOccurrence<SchedulerEvent>[],
+  options: EditOptions,
+): SchedulerEvent[] {
+  return occurrences.reduce<SchedulerEvent[]>(
+    (list, occurrence) => removeEventOccurrence(list, occurrence, options),
+    [...events],
+  )
+}
+
+/** Adds a copy of an occurrence at other times, as a single event with a new id. */
+export function duplicateEvent(
+  events: readonly SchedulerEvent[],
+  occurrence: EventOccurrence<SchedulerEvent>,
+  times: EventTimes,
+  options: EditOptions,
+): SchedulerEvent[] {
+  const {
+    rrule: _rrule,
+    exdates: _ex,
+    rdates: _rd,
+    recurringEventId: _series,
+    recurrenceId: _occurrence,
+    ...base
+  } = occurrence.event
+  const copy: SchedulerEvent = {
+    ...base,
+    ...formatTimes(times, base.timezone ?? options.timeZone),
+    id: (options.createId ?? defaultCreateId)(occurrence.event),
+  }
+  return [...events, withResources(copy, occurrence, times)]
+}
+
+/** Adds what `events-paste` hands over. With `cut` the originals move instead. */
+export function pasteEvents(
+  events: readonly SchedulerEvent[],
+  items: readonly EventEdit[],
+  options: EditOptions & { cut?: boolean },
+): SchedulerEvent[] {
+  return options.cut
+    ? applyEventEdits(events, items, options)
+    : items.reduce<SchedulerEvent[]>(
+        (list, item) => duplicateEvent(list, item.occurrence, item, options),
+        [...events],
+      )
+}
+
+/** How to read and write events of your own shape, for `withCustomEvents`. */
+export interface EventMapping<E> {
+  /** Your event as a `SchedulerEvent`. */
+  read(event: E): SchedulerEvent
+  /** A changed event in your shape; `original` is missing for new events. */
+  write(next: SchedulerEvent, original: E | undefined): E
+}
+
+/**
+ * Runs the editing helpers on events of any shape. Unchanged events keep their identity.
+ * `withCustomEvents(tasks, mapping, (list) => applyEventEdit(list, plain(p.occurrence), p, opts))`,
+ * where the occurrence's `event` is `mapping.read(p.event)`.
+ */
+export function withCustomEvents<E>(
+  events: readonly E[],
+  mapping: EventMapping<E>,
+  edit: (events: SchedulerEvent[]) => SchedulerEvent[],
+): E[] {
+  const plain = events.map((e) => mapping.read(e))
+  const originals = new Map(plain.map((p, i) => [p, events[i]!]))
+  const byId = new Map(plain.map((p, i) => [p.id, events[i]!]))
+  return edit(plain).map((next) => originals.get(next) ?? mapping.write(next, byId.get(next.id)))
+}

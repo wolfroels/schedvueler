@@ -105,6 +105,9 @@ const eventSlot = computed(() =>
 const handleSlot = computed(() => props.resolve('resize-handle'))
 const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
+const isSelected = computed(
+  () => !props.mirror && ctx.selectedEvents.value.includes(props.occurrence.key),
+)
 const ownClass = computed(() => ctx.accessors.value.className(props.occurrence.event))
 const textColor = computed(() => ctx.accessors.value.textColor(props.occurrence.event))
 
@@ -149,6 +152,12 @@ function payload<E extends Event>(nativeEvent: E) {
     nativeEvent,
     element: nativeEvent.currentTarget as HTMLElement,
   }
+}
+
+function onClick(e: MouseEvent) {
+  if (props.mirror) return
+  if (ctx.options.value.raw.eventSelection) interaction.selectEvent(props.occurrence, e)
+  ctx.emit('event-click', payload(e))
 }
 
 function onPointerDown(e: PointerEvent, kind: EventChangeKind) {
@@ -205,19 +214,15 @@ function onKeydown(e: KeyboardEvent) {
     const snap =
       props.snapMinutes ?? ctx.options.value.raw.snapDuration ?? ctx.options.value.slotDuration
     const step = { days: arrow.days, minutes: arrow.minutes && arrow.minutes * snap }
-    interaction.keyboardChange(
-      e,
-      props.occurrence,
-      e.shiftKey ? 'resize-end' : 'move',
-      props.view,
-      step,
-    )
+    // Ctrl resizes the start edge.
+    const kind = e.ctrlKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
+    interaction.keyboardChange(e, props.occurrence, kind, props.view, step)
     return
   }
   if ((e.key === 'Delete' || e.key === 'Backspace') && canEdit.value) {
     e.preventDefault()
     const occ = props.occurrence
-    const { payload: request, settle } = createCancelable({
+    const details = {
       occurrence: occ,
       event: occ.event,
       view: props.view,
@@ -225,12 +230,12 @@ function onKeydown(e: KeyboardEvent) {
       scope: ctx.options.value.raw.recurrenceEditScope ?? 'this',
       nativeEvent: e,
       element: e.currentTarget as HTMLElement,
-    })
+      others: interaction.groupOf(occ),
+    }
+    const { payload: request, settle } = createCancelable({ ...details })
     ctx.emit('before-event-delete', request)
-    whenAllowed(settle(), () => {
-      const { preventDefault: _p, waitUntil: _w, defaultPrevented: _d, ...rest } = request
-      ctx.emit('event-delete', rest)
-    })
+    // A before-event can change the scope.
+    whenAllowed(settle(), () => ctx.emit('event-delete', { ...details, scope: request.scope }))
   }
 }
 </script>
@@ -251,6 +256,7 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--drag-source': isDragSource,
         'orb-event--mirror': mirror,
         'orb-event--invalid': mirror && !valid,
+        'orb-event--selected': isSelected,
       },
     ]"
     :style="
@@ -269,7 +275,7 @@ function onKeydown(e: KeyboardEvent) {
     :aria-describedby="draggable || resizable ? ctx.hintId : undefined"
     v-bind="mergeProps(ctx.part('event', { occurrence, variant, mirror }), extraAttrs)"
     @pointerdown="onPointerDown($event, 'move')"
-    @click="!mirror && ctx.emit('event-click', payload($event))"
+    @click="onClick"
     @dblclick="!mirror && ctx.emit('event-dblclick', payload($event))"
     @contextmenu="!mirror && ctx.emit('event-contextmenu', payload($event))"
     @mouseenter="!mirror && ctx.emit('event-mouseenter', payload($event))"

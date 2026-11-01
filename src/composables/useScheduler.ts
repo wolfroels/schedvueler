@@ -58,6 +58,8 @@ export interface UseSchedulerState {
   date: Ref<string | undefined>
   /** Active view name. `undefined` means the first registered view. */
   view: Ref<string | undefined>
+  /** Keys of the selected events. */
+  selectedEvents?: Ref<readonly string[] | undefined>
 }
 
 export interface UseSchedulerHooks {
@@ -380,6 +382,11 @@ export function useScheduler<T>(
   )
   watch(version, () => ctx.interaction.prunePending())
 
+  const ownSelection = shallowRef<readonly string[]>([])
+  const selectedEvents = computed(
+    () => (state.selectedEvents ? state.selectedEvents.value : ownSelection.value) ?? [],
+  )
+
   const announcement = shallowRef('')
 
   // One shared object per part: most parts have no `pt`, and some render hundreds of times.
@@ -408,6 +415,13 @@ export function useScheduler<T>(
     availability: undefined as unknown as SchedulerAvailability,
     dateLimits,
     canStep,
+    selectedEvents,
+    setSelectedEvents(keys) {
+      const list = selectedEvents.value
+      if (keys.length === list.length && keys.every((k) => list.includes(k))) return
+      if (state.selectedEvents) state.selectedEvents.value = keys
+      else ownSelection.value = keys
+    },
     rootEl: shallowRef(),
     eventElement: (key) =>
       ctx.rootEl.value?.querySelector<HTMLElement>(`[data-orb-key="${CSS.escape(key)}"]`) ?? null,

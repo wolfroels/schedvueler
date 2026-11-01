@@ -81,15 +81,15 @@ The "no built-in editor" decision stays: these are behaviors and helpers, not di
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 10.1 | `v-model:selected-events`, Ctrl/Shift click, marquee select | P1 | M |
-| [ ] | 10.2 | Move, resize and delete several events at once, as one undo step | P1 | L |
-| [ ] | 10.3 | Copy, cut, paste with the keyboard; Ctrl+drag to duplicate | P1 | M |
-| [ ] | 10.4 | Keyboard: resize the start edge, N to create, Tab order between toolbar, grid and events | P1 | S |
-| [ ] | 10.5 | `event-leave`: drag events out, including to another scheduler | P2 | M |
-| [ ] | 10.6 | Native HTML5 drops (files, other windows); start an outside drag from the keyboard | P2 | M |
-| [ ] | 10.7 | Keep the original length when an event goes timed → all-day → timed | P3 | S |
-| [ ] | 10.8 | Helpers: `edit-events` for custom event shapes through accessors | P2 | M |
-| [ ] | 10.9 | Headless `useEventPopover` / anchor positioning helper, and a recipe for tooltips | P2 | M |
+| [x] | 10.1 | `v-model:selected-events`, Ctrl/Shift click, marquee select | P1 | M |
+| [x] | 10.2 | Move, resize and delete several events at once, as one undo step | P1 | L |
+| [x] | 10.3 | Copy, cut, paste with the keyboard; Ctrl+drag to duplicate | P1 | M |
+| [x] | 10.4 | Keyboard: resize the start edge, N to create, Tab order between toolbar, grid and events | P1 | S |
+| [x] | 10.5 | `event-leave`: drag events out, including to another scheduler | P2 | M |
+| [x] | 10.6 | Native HTML5 drops (files, other windows); start an outside drag from the keyboard | P2 | M |
+| [x] | 10.7 | Keep the original length when an event goes timed → all-day → timed | P3 | S |
+| [x] | 10.8 | Helpers: `edit-events` for custom event shapes through accessors | P2 | M |
+| [x] | 10.9 | Headless `useEventPopover` / anchor positioning helper, and a recipe for tooltips | P2 | M |
 
 ## Phase 11: Views
 

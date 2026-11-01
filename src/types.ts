@@ -56,7 +56,7 @@ export const defaultMessages: SchedulerMessages = {
   hiddenEvents: (count, direction) => `${direction === 'before' ? '↑' : '↓'} ${count}`,
   eventCount: (count) => (count === 1 ? '1 event' : `${count} events`),
   dragHint:
-    'Press Alt and the arrow keys to move, Alt Shift and the arrow keys to resize, Delete to remove.',
+    'Press Alt and the arrow keys to move, Alt Shift to resize the end, Alt Control to resize the start, Delete to remove.',
   eventChanged: (title, when) => `${title} moved to ${when}`,
   dragCancelled: 'Move cancelled',
   selected: (when) => `Selected ${when}`,
@@ -135,6 +135,7 @@ export type SchedulerPart =
   | 'blockedTime'
   | 'backgroundEvent'
   | 'hiddenIndicator'
+  | 'marquee'
 
 /**
  * Attributes passed through to the parts of the scheduler: classes, styles, `data-*`, listeners.
@@ -222,6 +223,17 @@ export interface SchedulerOptions<T> {
   slotAttrs?: (
     info: SelectInfo & { view: string; date: Temporal.PlainDate },
   ) => ElementAttrs | undefined
+
+  /** Click, Ctrl/Cmd + click, Shift + click and Shift + drag select events (`v-model:selected-events`). */
+  eventSelection?: boolean
+  /** Ctrl/Cmd + C, X and V emit `events-copy` and `events-paste`. */
+  eventClipboard?: boolean
+  /** Ctrl/Cmd + drag emits `event-duplicate` instead of moving. */
+  dragToDuplicate?: boolean
+  /** Dragging an event off the scheduler emits `event-leave`, and another scheduler can take it. */
+  eventLeave?: boolean
+  /** Native HTML5 drops (files, other windows) emit `native-drop`. */
+  nativeDrop?: boolean
 
   /** Lets users move and resize events. Default false. */
   editable?: boolean
@@ -506,6 +518,8 @@ export interface EventChangePayload<T> {
    */
   scope: RecurrenceEditScope
   nativeEvent: PointerEvent | KeyboardEvent
+  /** Other selected events that change along with this one. */
+  others: readonly Pick<DropInfo<T>, 'occurrence' | 'start' | 'end' | 'allDay' | 'resourceIds'>[]
   /** The event's element as it is now, to anchor your own popover. */
   getElement(): HTMLElement | null
 }
@@ -529,6 +543,8 @@ export interface EventDeletePayload<T> {
   nativeEvent: KeyboardEvent
   /** The event's element, to anchor your own confirmation. */
   element: HTMLElement
+  /** Other selected events to delete along with this one. */
+  others: readonly EventOccurrence<T>[]
 }
 
 export type BeforeEventDeletePayload<T> = EventDeletePayload<T> & Cancelable
@@ -545,12 +561,54 @@ export interface SelectPayload {
   getElement(): HTMLElement | null
 }
 
+/** An event was dragged off the scheduler. Remove it from your data when you want it gone. */
+export interface EventLeavePayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  /** Another scheduler took it, and emitted `event-receive` with the event as `data`. */
+  received: boolean
+  nativeEvent: PointerEvent
+}
+
+export interface EventDuplicatePayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  resourceIds: readonly ResourceId[]
+  nativeEvent: PointerEvent
+}
+
+export interface EventsPastePayload<T> {
+  view: string
+  items: readonly (Pick<DropInfo<T>, 'occurrence' | 'start' | 'end' | 'allDay' | 'resourceIds'> & {
+    event: T
+  })[]
+  /** The originals move instead of being copied. */
+  cut: boolean
+  nativeEvent: KeyboardEvent
+}
+
+export interface NativeDropPayload {
+  view: string
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  resourceId: ResourceId | undefined
+  resourceIds: readonly ResourceId[]
+  dataTransfer: DataTransfer | null
+  nativeEvent: DragEvent
+}
+
 /** An event dragged in from outside was dropped. Add it to your data. */
 export interface EventReceivePayload extends ReceiveInfo {
   view: string
   /** `template.data`, for convenience. */
   data: unknown
-  nativeEvent: PointerEvent
+  nativeEvent: PointerEvent | KeyboardEvent
 }
 
 export type BeforeEventReceivePayload = EventReceivePayload & Cancelable
@@ -613,6 +671,16 @@ export interface SchedulerEmits<T> {
   'before-event-resize': [payload: BeforeEventChangePayload<T>]
   /** An event was resized. Update your data; call `revert()` if that fails. */
   'event-resize': [payload: EventChangedPayload<T>]
+  /** Ctrl/Cmd + drag with `dragToDuplicate`. Add the copy to your data. */
+  'event-duplicate': [payload: EventDuplicatePayload<T>]
+  /** An event was dragged off the scheduler, with `eventLeave`. */
+  'event-leave': [payload: EventLeavePayload<T>]
+  /** Ctrl/Cmd + C or X, with `eventClipboard`. */
+  'events-copy': [payload: { occurrences: EventOccurrence<T>[]; cut: boolean }]
+  /** Ctrl/Cmd + V, with `eventClipboard`. Add the items to your data. */
+  'events-paste': [payload: EventsPastePayload<T>]
+  /** A native drag was dropped here, with `nativeDrop`. */
+  'native-drop': [payload: NativeDropPayload]
   /** A move or resize was refused by a rule, and the event stays where it was. */
   'event-change-failed': [payload: EventChangeFailedPayload<T>]
   /** Before `event-delete`. Cancelable, e.g. to ask for confirmation first. */

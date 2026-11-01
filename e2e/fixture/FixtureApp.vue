@@ -8,8 +8,10 @@ import {
   TimelineView,
   WeekView,
   YearView,
-  applyEventEdit,
-  removeEventOccurrence,
+  applyEventEdits,
+  duplicateEvent,
+  pasteEvents,
+  removeEventOccurrences,
   vOrbDraggable,
   type EventChangedPayload,
   type EventDeletePayload,
@@ -82,15 +84,16 @@ const when = (p: Times) =>
     : `${p.start.toPlainDateTime()} ${p.end.toPlainDateTime()}`
 
 function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
-  events.value = applyEventEdit(events.value, p.occurrence, p, {
+  events.value = applyEventEdits(events.value, [p, ...p.others], {
     scope: p.scope,
     timeZone: 'Europe/Brussels',
   })
   log.push(`${name} ${p.event.title} ${when(p)} @${p.resourceIds.join()}`)
+  for (const o of p.others) log.push(`${name}+ ${o.occurrence.event.title} ${when(o)}`)
 }
 
 function onDelete(p: EventDeletePayload<SchedulerEvent>) {
-  events.value = removeEventOccurrence(events.value, p.occurrence, {
+  events.value = removeEventOccurrences(events.value, [p.occurrence, ...p.others], {
     scope: p.scope,
     timeZone: 'Europe/Brussels',
   })
@@ -132,6 +135,21 @@ const onReceive = (p: EventReceivePayload) =>
       @event-drop="(p) => onChanged('event-drop', p)"
       @event-resize="(p) => onChanged('event-resize', p)"
       @event-delete="onDelete"
+      @event-duplicate="
+        (p) => {
+          events = duplicateEvent(events, p.occurrence, p, { timeZone: 'Europe/Brussels' })
+          log.push(`event-duplicate ${p.event.title} ${when(p)}`)
+        }
+      "
+      @events-copy="(p) => log.push(`events-copy ${p.occurrences.length} ${p.cut}`)"
+      @events-paste="
+        (p) => {
+          events = pasteEvents(events, p.items, { cut: p.cut, timeZone: 'Europe/Brussels' })
+          log.push(`events-paste ${p.items.map((i) => when(i)).join()}`)
+        }
+      "
+      @event-leave="(p) => log.push(`event-leave ${p.event.title} ${p.received}`)"
+      @native-drop="(p) => log.push(`native-drop ${when(p)}`)"
       @event-change-failed="(p) => log.push(`event-change-failed ${p.event.title} ${p.reason}`)"
       @event-receive="onReceive"
       @select="onSelect"

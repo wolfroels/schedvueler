@@ -30,12 +30,15 @@ const date = defineModel<string>('date')
 /** Active view name. Leave unbound to start on the first view. */
 const view = defineModel<string>('view')
 
+/** Keys of the selected events, with `event-selection`. */
+const selectedEvents = defineModel<readonly string[]>('selectedEvents')
+
 const emit = defineEmits<SchedulerEmits<T>>()
 const slots = defineSlots<SchedulerSlots<T>>()
 
 const ctx = useScheduler<T>(
   () => props,
-  { date, view },
+  { date, view, selectedEvents },
   {
     emit: (name, payload) => (emit as (name: string, payload: unknown) => void)(name, payload),
     slots: slots as never,
@@ -90,6 +93,20 @@ function isTyping(target: EventTarget | null): boolean {
 /** Shortcuts anywhere inside the scheduler. */
 function onKeydown(e: KeyboardEvent) {
   if (e.defaultPrevented || isTyping(e.target)) return
+  const command = e.ctrlKey || e.metaKey
+  if (command && props.eventClipboard && !e.altKey && !e.shiftKey) {
+    const key = e.key.toLowerCase()
+    const done =
+      key === 'c'
+        ? ctx.interaction.copy(false)
+        : key === 'x'
+          ? ctx.interaction.copy(true)
+          : key === 'v'
+            ? ctx.interaction.paste(e)
+            : false
+    if (done) e.preventDefault()
+    return
+  }
   if (e.key === 'PageUp' || e.key === 'PageDown') {
     e.preventDefault()
     if (e.key === 'PageUp') ctx.prev()
@@ -104,6 +121,7 @@ function onKeydown(e: KeyboardEvent) {
     }
   } else if (e.key === 'Escape') {
     ctx.interaction.clearSelection()
+    if (props.eventSelection) ctx.setSelectedEvents([])
   }
 }
 
@@ -164,6 +182,9 @@ defineExpose({
     v-bind="ctx.part('root')"
     :data-theme="theme"
     @keydown="onKeydown"
+    @dragover="ctx.interaction.nativeDragOver"
+    @dragleave="ctx.interaction.nativeDragLeave"
+    @drop="ctx.interaction.nativeDrop"
   >
     <slot name="toolbar" v-bind="toolbarProps">
       <SchedulerToolbar v-if="toolbar" />
@@ -179,6 +200,18 @@ defineExpose({
     >
       <slot />
     </div>
+    <div
+      v-if="ctx.interaction.marquee.value"
+      class="orb-marquee"
+      v-bind="ctx.part('marquee')"
+      :style="{
+        left: `${ctx.interaction.marquee.value.left}px`,
+        top: `${ctx.interaction.marquee.value.top}px`,
+        width: `${ctx.interaction.marquee.value.width}px`,
+        height: `${ctx.interaction.marquee.value.height}px`,
+      }"
+      aria-hidden="true"
+    />
     <span :id="ctx.hintId" class="orb-sr-only">{{ ctx.options.value.messages.dragHint }}</span>
     <div class="orb-sr-only" aria-live="polite" aria-atomic="true">
       {{ ctx.announcement.value }}

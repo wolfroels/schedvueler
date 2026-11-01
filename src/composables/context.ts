@@ -83,6 +83,9 @@ export interface SchedulerContext<T = unknown> {
   dateLimits: ComputedRef<{ min?: Temporal.PlainDate; max?: Temporal.PlainDate }>
   /** Whether the previous or next period has any allowed date. */
   canStep(direction: 1 | -1): boolean
+  /** Keys of the selected events. */
+  selectedEvents: Readonly<Ref<readonly string[]>>
+  setSelectedEvents(keys: readonly string[]): void
   /** The root element, once mounted. */
   rootEl: ShallowRef<HTMLElement | undefined>
   /** The element of an event on screen. */

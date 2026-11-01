@@ -9,7 +9,15 @@ import {
   type EventTimes,
   type Hit,
 } from '../interaction'
-import { applyEventEdit, removeEventOccurrence } from '../edit-events'
+import {
+  applyEventEdit,
+  applyEventEdits,
+  duplicateEvent,
+  pasteEvents,
+  removeEventOccurrence,
+  removeEventOccurrences,
+  withCustomEvents,
+} from '../edit-events'
 import { rangeToWindow, weekStrategy } from '../range'
 import type { EventOccurrence, SchedulerEvent } from '../types'
 
@@ -382,5 +390,67 @@ describe('computeDrop', () => {
     expect(fmt(computeDrop(tl('2026-10-27', 610), { allDay: false }, daily))).toBe(
       '2026-10-27T09:00..2026-10-27T10:00',
     )
+  })
+})
+
+describe('editing several events', () => {
+  const a = one({ id: 'a', title: 'A', start: '2026-10-26T09:00', end: '2026-10-26T10:00' })
+  const b = one({ id: 'b', title: 'B', start: '2026-10-27T09:00', end: '2026-10-27T10:00' })
+  const events = [a.event, b.event]
+  const later = (o: typeof a) => ({
+    occurrence: o,
+    start: o.start.add({ hours: 1 }),
+    end: o.end.add({ hours: 1 }),
+    allDay: false,
+  })
+
+  it('applies and removes several at once', () => {
+    const moved = applyEventEdits(events, [later(a), later(b)], { timeZone: BXL })
+    expect(moved.map((e) => String(e.start).slice(0, 16))).toEqual([
+      '2026-10-26T10:00',
+      '2026-10-27T10:00',
+    ])
+    expect(removeEventOccurrences(events, [a, b], { timeZone: BXL })).toEqual([])
+  })
+
+  it('duplicates without series fields, and pastes', () => {
+    const series = occurrences([
+      { id: 's', start: '2026-10-26T09:00', end: '2026-10-26T10:00', rrule: 'FREQ=DAILY;COUNT=2' },
+    ])[0]!
+    const out = duplicateEvent([series.event], series, later(series), {
+      timeZone: BXL,
+      createId: () => 'copy',
+    })
+    expect(out).toHaveLength(2)
+    expect(out[1]).toMatchObject({ id: 'copy' })
+    expect(out[1]!.rrule).toBeUndefined()
+    expect(pasteEvents(events, [later(a)], { timeZone: BXL })).toHaveLength(3)
+    expect(pasteEvents(events, [later(a)], { timeZone: BXL, cut: true })).toHaveLength(2)
+  })
+
+  it('works on events of any shape, keeping unchanged ones', () => {
+    interface Task {
+      key: string
+      from: string
+      to: string
+    }
+    const tasks: Task[] = [
+      { key: 'a', from: '2026-10-26T09:00', to: '2026-10-26T10:00' },
+      { key: 'b', from: '2026-10-27T09:00', to: '2026-10-27T10:00' },
+    ]
+    const out = withCustomEvents<Task>(
+      tasks,
+      {
+        read: (t) => ({ id: t.key, start: t.from, end: t.to }),
+        write: (e, original) => ({
+          ...original!,
+          from: String(e.start),
+          to: String(e.end),
+        }),
+      },
+      (list) => applyEventEdit(list, { ...a, event: list[0]! }, later(a), { timeZone: BXL }),
+    )
+    expect(out[1]).toBe(tasks[1])
+    expect(out[0]!.from.slice(0, 16)).toBe('2026-10-26T10:00')
   })
 })

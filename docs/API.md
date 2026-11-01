@@ -55,6 +55,11 @@ The root component. Views are its children; the first one is the default.
 | `event-layout` | `'columns' \| 'stack' \| fn` | `'columns'` | How overlapping timed events share a column. |
 | `event-order` | `(a, b) => number` | all-day first, start, longest | Order of events within a day. |
 | `event-attrs` | `(occurrence) => attrs` | – | Extra class, style or attributes per event (pure function). |
+| `event-selection` | `boolean` | `false` | Click, Ctrl/Cmd + click, Shift + click and Shift + drag select events (`v-model:selected-events`, keys). Changing one changes them all. |
+| `event-clipboard` | `boolean` | `false` | Ctrl/Cmd + C, X, V emit `events-copy`, `events-paste`. |
+| `drag-to-duplicate` | `boolean` | `false` | Ctrl/Cmd + drag emits `event-duplicate`. |
+| `event-leave` | `boolean` | `false` | Dragging off the scheduler emits `event-leave`; another scheduler below can take it. |
+| `native-drop` | `boolean` | `false` | Native HTML5 drops emit `native-drop`, with the `dataTransfer`. |
 | `slot-attrs` | `(info) => attrs` | – | Extra class, style or attributes per cell. |
 | `business-hours` | `BusinessHours` | – | Opening hours, `{ days?, start, end }` or a list. Everything else is shaded. A resource's own `businessHours` wins. |
 | `business-hours-only` | `boolean` | `false` | Refuse changes outside business hours. |
@@ -379,6 +384,36 @@ used to draw the preview with your accessors and slots; without it the preview u
   directive to disable a source.
 - Not supported: native HTML5 drag and drop (e.g. files or items from other windows) and starting
   this drag from the keyboard.
+
+## Editing several events
+
+`event-drop` and `event-resize` carry `others`: the other selected events and where they land, and `event-delete` carries the other occurrences. Apply them together, for one undo step:
+
+```ts
+history.commit(applyEventEdits(events.value, [p, ...p.others], { scope: p.scope, timeZone }))
+history.commit(removeEventOccurrences(events.value, [p.occurrence, ...p.others], { timeZone }))
+```
+
+Also `duplicateEvent` and `pasteEvents`. For events of your own shape, `withCustomEvents(events, { read, write }, edit)` runs any of these helpers and keeps unchanged events as they are.
+
+## Popovers and tooltips
+
+`useEventPopover` keeps track of what is open and where, closes on Escape and a click outside, and gives focus back. The markup stays yours. `anchorPosition` is the positioning on its own.
+
+```vue
+<script setup lang="ts">
+const popover = useEventPopover<SchedulerEvent>()
+</script>
+
+<template>
+  <Scheduler @event-click="(p) => popover.open(p.element, p.event)" />
+  <Teleport to="body">
+    <div v-if="popover.isOpen.value" :ref="popover.setElement" :style="popover.style.value">
+      {{ popover.data.value?.title }}
+    </div>
+  </Teleport>
+</template>
+```
 
 ## Headless use
 

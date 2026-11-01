@@ -9,9 +9,9 @@ import {
   TimelineView,
   WeekView,
   YearView,
-  applyEventEdit,
+  applyEventEdits,
   formatTimeRange,
-  removeEventOccurrence,
+  removeEventOccurrences,
   useHistory,
   vOrbDraggable,
   type EventChangedPayload,
@@ -119,7 +119,7 @@ const fmtTimes = (p: {
 /** Applies a drop or resize to the data; the scheduler keeps showing it until `events` changes. */
 function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
   history.commit(
-    applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone: timeZone.value }),
+    applyEventEdits(events.value, [p, ...p.others], { scope: p.scope, timeZone: timeZone.value }),
     `${name === 'event-drop' ? 'Move' : 'Resize'} ${title(p.event)}`,
   )
   const moved =
@@ -129,7 +129,10 @@ function onChanged(name: string, p: EventChangedPayload<SchedulerEvent>) {
 
 function onDelete(p: EventDeletePayload<SchedulerEvent>) {
   history.commit(
-    removeEventOccurrence(events.value, p.occurrence, { scope: p.scope, timeZone: timeZone.value }),
+    removeEventOccurrences(events.value, [p.occurrence, ...p.others], {
+      scope: p.scope,
+      timeZone: timeZone.value,
+    }),
     `Delete ${title(p.event)}`,
   )
   log('event-delete', `${title(p.event)}${p.recurring ? ` [${p.scope}]` : ''}`)
@@ -431,6 +434,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         :editable="editable"
         :selectable="selectable"
         :recurrence-edit-scope="scope"
+        event-selection
         drill-down-view="day"
         :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
         :can-receive="(info) => !blockWeekends || info.start.dayOfWeek < 6"

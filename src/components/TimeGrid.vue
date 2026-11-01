@@ -367,12 +367,32 @@ function slotHit(col: number, slot: number): Hit {
   }
 }
 
+function onSlotFocus(col: number, slot: number) {
+  focusCell.value = { col, slot }
+  interaction.setCursor(slotHit(col, slot))
+}
+
 function focusSlot(col: number, slot: number) {
   focusCell.value = { col, slot }
   nextTick(() => root.value?.querySelector<HTMLElement>(`[data-cell="${col}-${slot}"]`)?.focus())
 }
 
 function onSlotKeydown(e: KeyboardEvent, col: number, slot: number) {
+  const key = e.key.toLowerCase()
+  if (key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && interaction.selectable) {
+    const hit = slotHit(col, slot)
+    const times = computeSelection(hit, hit, {
+      timeZone: ctx.options.value.timeZone,
+      snapMinutes: snapMinutes(),
+      defaultDurationMinutes: 60,
+    })
+    if (times) interaction.setSelection(props.view, times, e)
+    return
+  }
+  if ((key === 'enter' || key === ' ') && interaction.dropArmed(slotHit(col, slot), e)) {
+    e.preventDefault()
+    return
+  }
   const lastCol = columns.value.length - 1
   const lastSlot = slots.value.length - 1
   let next = { col, slot }
@@ -635,7 +655,7 @@ defineExpose({ scrollToMinute })
             @dblclick="onSlot('slot-dblclick', col, slot, $event)"
             @contextmenu="onSlot('slot-contextmenu', col, slot, $event)"
             @keydown="onSlotKeydown($event, ci, si)"
-            @focus="focusCell = { col: ci, slot: si }"
+            @focus="onSlotFocus(ci, si)"
           >
             <RenderSlot
               v-if="timeSlotSlot"

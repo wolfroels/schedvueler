@@ -10,6 +10,7 @@ import {
   fitsBusinessHours,
   formatDate,
   formatTimeRange,
+  daysBetween,
   rangeContains,
   sameTimes,
   withTimes,
@@ -26,6 +27,7 @@ import type {
   SelectPayload,
 } from '../types'
 import { createCancelable } from './cancelable'
+import { otherDropTargets, takeArmedTemplate } from './externalDrag'
 import { parseTimeOfDay, type SchedulerContext } from './context'
 
 /** A rendered area that can tell what is under the pointer (a time grid, a month grid, ...). */
@@ -63,6 +65,8 @@ export interface DragState {
   valid: boolean
   /** Why the current spot is refused. */
   reason: RefusalReason | null
+  /** Other selected events and where they would land. */
+  group?: readonly { occurrence: EventOccurrence<unknown>; times: EventTimes }[]
 }
 
 export interface Selection {
@@ -124,7 +128,28 @@ export interface SchedulerInteraction {
   /** Removes the preview of an outside event. */
   receiveLeave(): void
   /** Drops the outside event where the preview is: emits `before-event-receive` and `event-receive`. */
-  receiveDrop(nativeEvent: PointerEvent): void
+  receiveDrop(nativeEvent: PointerEvent | KeyboardEvent): void
+  /** Puts a template picked up from the keyboard down at `hit`; false when none is picked up. */
+  dropArmed(hit: Hit, nativeEvent: KeyboardEvent): boolean
+  /** Native drops (files, other windows): shows where it would land. */
+  nativeDragOver(e: DragEvent): void
+  nativeDragLeave(): void
+  /** Native drops: emits `native-drop` where the preview is. */
+  nativeDrop(e: DragEvent): void
+
+  // --- selected events ---
+  /** Handles a click on an event when `eventSelection` is on. */
+  selectEvent(occurrence: EventOccurrence<unknown>, e: MouseEvent | KeyboardEvent): void
+  /** Other selected events, to change along with `occurrence`. */
+  groupOf(occurrence: EventOccurrence<unknown>): EventOccurrence<unknown>[]
+  /** The rectangle being drawn around events, in viewport pixels. */
+  marquee: Readonly<ShallowRef<{ left: number; top: number; width: number; height: number } | null>>
+
+  // --- clipboard ---
+  copy(cut: boolean): boolean
+  paste(nativeEvent: KeyboardEvent): boolean
+  /** Where a paste lands: the slot or day that has the focus. */
+  setCursor(hit: Hit): void
   /** Scrolls a view when (x, y) is near its edge; returns whether it scrolled. */
   scrollNear(x: number, y: number): boolean
   /** Scrolls the active view to a wall-clock minute. */
@@ -318,6 +343,148 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       : `${date}, ${formatTimeRange(times.start, times.end, locale, { hour12 })}`
   }
 
+  // --- selected events ---------------------------------------------------------------------------
+
+  const timedLengths = new Map<string, number>()
+  const marquee = shallowRef<{ left: number; top: number; width: number; height: number } | null>(
+    null,
+  )
+  let selectionAnchorKey: string | undefined
+
+  function setSelected(keys: readonly string[]) {
+    ctx.setSelectedEvents(keys)
+  }
+
+  function selectEvent(occ: EventOccurrence<unknown>, e: MouseEvent | KeyboardEvent) {
+    const selected = ctx.selectedEvents.value
+    if (e.shiftKey && selectionAnchorKey) {
+      const list = ctx.occurrences.value
+      const a = list.findIndex((o) => o.key === selectionAnchorKey)
+      const b = list.findIndex((o) => o.key === occ.key)
+      if (a >= 0 && b >= 0) {
+        setSelected(list.slice(Math.min(a, b), Math.max(a, b) + 1).map((o) => o.key))
+        return
+      }
+    }
+    selectionAnchorKey = occ.key
+    if (e.ctrlKey || e.metaKey) {
+      setSelected(
+        selected.includes(occ.key) ? selected.filter((k) => k !== occ.key) : [...selected, occ.key],
+      )
+    } else setSelected([occ.key])
+  }
+
+  function groupOf(occ: EventOccurrence<unknown>): EventOccurrence<unknown>[] {
+    const selected = ctx.selectedEvents.value
+    if (selected.length < 2 || !selected.includes(occ.key)) return []
+    return ctx.occurrences.value.filter((o) => o.key !== occ.key && selected.includes(o.key))
+  }
+
+  /** Where another selected event lands when `occ` gets `times`: by the same wall-clock shift. */
+  function groupTimes(
+    other: EventOccurrence<unknown>,
+    occ: EventOccurrence<unknown>,
+    kind: EventChangeKind,
+    times: EventTimes,
+  ): EventTimes | null {
+    if (other.allDay !== occ.allDay || times.allDay !== occ.allDay) return null
+    const startDelta = times.start.epochMilliseconds - occ.startMs
+    const endDelta = times.end.epochMilliseconds - occ.endMs
+    const start =
+      kind === 'resize-end' ? other.start : other.start.add({ milliseconds: startDelta })
+    const end = kind === 'resize-start' ? other.end : other.end.add({ milliseconds: endDelta })
+    if (end.epochMilliseconds <= start.epochMilliseconds) return null
+    return { start, end, allDay: other.allDay, resourceIds: other.resourceIds }
+  }
+
+  function startMarquee(e: PointerEvent) {
+    const x0 = e.clientX
+    const y0 = e.clientY
+    const before = e.ctrlKey || e.metaKey ? ctx.selectedEvents.value : []
+    const onMove = (ev: PointerEvent) => {
+      const left = Math.min(x0, ev.clientX)
+      const top = Math.min(y0, ev.clientY)
+      const width = Math.abs(ev.clientX - x0)
+      const height = Math.abs(ev.clientY - y0)
+      if (width < DRAG_THRESHOLD && height < DRAG_THRESHOLD) return
+      marquee.value = { left, top, width, height }
+      const inside: string[] = []
+      ctx.rootEl.value?.querySelectorAll<HTMLElement>('[data-orb-key]').forEach((el) => {
+        const r = el.getBoundingClientRect()
+        if (r.left < left + width && r.right > left && r.top < top + height && r.bottom > top)
+          inside.push(el.dataset.orbKey!)
+      })
+      setSelected([...new Set([...before, ...inside])])
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      if (!marquee.value) return
+      marquee.value = null
+      const swallow = (click: Event) => click.stopPropagation()
+      window.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => window.removeEventListener('click', swallow, true), 0)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // --- clipboard ---------------------------------------------------------------------------------
+
+  let clipboard: { occurrences: EventOccurrence<unknown>[]; cut: boolean } | null = null
+  let cursor: Hit | null = null
+
+  function clipboardTargets(): EventOccurrence<unknown>[] {
+    const selected = ctx.selectedEvents.value
+    if (selected.length) return ctx.occurrences.value.filter((o) => selected.includes(o.key))
+    const key = (document.activeElement as HTMLElement | null)?.dataset?.orbKey
+    return ctx.occurrences.value.filter((o) => o.key === key)
+  }
+
+  function copy(cut: boolean): boolean {
+    const occurrences = clipboardTargets()
+    if (!occurrences.length) return false
+    clipboard = { occurrences, cut }
+    ctx.emit('events-copy', { occurrences, cut })
+    return true
+  }
+
+  function paste(nativeEvent: KeyboardEvent): boolean {
+    if (!clipboard?.occurrences.length) return false
+    const { timeZone } = ctx.options.value
+    const { occurrences, cut } = clipboard
+    const first = occurrences.reduce((a, b) => (b.startMs < a.startMs ? b : a))
+    const firstStart = first.start.withTimeZone(timeZone)
+    const date = cursor?.date ?? ctx.date.value
+    const minute =
+      cursor && 'minute' in cursor ? cursor.minute : firstStart.hour * 60 + firstStart.minute
+    // Whole days and minutes, so that wall-clock times stay right across DST.
+    const shift =
+      daysBetween(firstStart.toPlainDate(), date) * 1440 +
+      (first.allDay ? 0 : minute - (firstStart.hour * 60 + firstStart.minute))
+    const items = occurrences.map((occurrence) => {
+      const move = (value: Temporal.ZonedDateTime) =>
+        value
+          .withTimeZone(timeZone)
+          .toPlainDateTime()
+          .add({ minutes: shift })
+          .toZonedDateTime(timeZone)
+      const resourceIds =
+        cursor?.resourceId !== undefined ? [cursor.resourceId] : occurrence.resourceIds
+      return {
+        occurrence,
+        event: occurrence.event,
+        start: move(occurrence.start),
+        end: move(occurrence.end),
+        allDay: occurrence.allDay,
+        resourceIds,
+      }
+    })
+    ctx.emit('events-paste', { items, cut, nativeEvent, view: ctx.activeViewName.value ?? '' })
+    if (cut) clipboard = null
+    return true
+  }
+
   function base(occ: EventOccurrence<unknown>, view: string, kind: EventChangeKind) {
     return { occurrence: occ, event: occ.event, view, kind }
   }
@@ -330,7 +497,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     view: string,
     times: EventTimes,
     nativeEvent: PointerEvent | KeyboardEvent,
+    group: readonly { occurrence: EventOccurrence<unknown>; times: EventTimes }[] = [],
   ) {
+    // An all-day event dragged back into the grid gets the length it had.
+    if (!occ.allDay && times.allDay) timedLengths.set(occ.key, (occ.endMs - occ.startMs) / 60_000)
+    else if (occ.allDay && !times.allDay) timedLengths.delete(occ.key)
+    const scope = raw().recurrenceEditScope ?? 'this'
     const before = kind === 'move' ? 'before-event-drop' : 'before-event-resize'
     const after = kind === 'move' ? 'event-drop' : 'event-resize'
     const { payload, settle } = createCancelable({
@@ -342,8 +514,13 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       ...times,
       resourceIds: times.resourceIds ?? occ.resourceIds,
       recurring: occ.recurring || occ.isException,
-      scope: raw().recurrenceEditScope ?? 'this',
+      scope,
       nativeEvent,
+      others: group.map((g) => ({
+        occurrence: g.occurrence,
+        ...g.times,
+        resourceIds: g.times.resourceIds ?? g.occurrence.resourceIds,
+      })),
       getElement: () => ctx.eventElement(occ.key),
     })
 
@@ -352,13 +529,22 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       if (pending.value.get(occ.key)?.times !== times) return
       const next = new Map(pending.value)
       next.delete(occ.key)
+      for (const g of group) next.delete(g.occurrence.key)
       pending.value = next
     }
-    pending.value = new Map(pending.value).set(occ.key, {
+    const optimistic = new Map(pending.value).set(occ.key, {
       occurrence: occ,
       event: occ.event,
       times,
     })
+    for (const g of group) {
+      optimistic.set(g.occurrence.key, {
+        occurrence: g.occurrence,
+        event: g.occurrence.event,
+        times: g.times,
+      })
+    }
+    pending.value = optimistic
 
     ctx.emit(before, payload)
     const done = (ok: boolean) => {
@@ -492,10 +678,49 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       receiveLeave()
       return false
     }
+    receiveAt(template, found.hit, found.surface.snapMinutes?.() ?? snapMinutes())
+    return true
+  }
+
+  function dropArmed(at: Hit, nativeEvent: KeyboardEvent): boolean {
+    const template = takeArmedTemplate()
+    if (!template) return false
+    receiveAt(template, at, snapMinutes())
+    receiveDrop(nativeEvent)
+    return true
+  }
+
+  const NATIVE_TEMPLATE: ExternalEventTemplate = {}
+
+  function nativeDragOver(e: DragEvent) {
+    if (!raw().nativeDrop) return
+    if (receiveMove(NATIVE_TEMPLATE, e.clientX, e.clientY)) e.preventDefault()
+  }
+
+  function nativeDragLeave() {
+    receiveLeave()
+  }
+
+  function nativeDrop(e: DragEvent) {
+    const s = state.value
+    if (!raw().nativeDrop || s?.kind !== 'receive' || !s.preview) return
+    e.preventDefault()
+    state.value = null
+    receiving = null
+    if (!s.valid) return
+    ctx.emit('native-drop', {
+      view: s.view,
+      ...receiveInfo(s.preview),
+      dataTransfer: e.dataTransfer,
+      nativeEvent: e,
+    })
+  }
+
+  function receiveAt(template: ExternalEventTemplate, at: Hit, snap: number) {
     receiving = template
-    const opts = computeOptions(found.surface.snapMinutes?.() ?? snapMinutes())
+    const opts = computeOptions(snap)
     const preview = computeDrop(
-      found.hit,
+      at,
       {
         allDay: template.allDay,
         durationMinutes: template.duration,
@@ -505,7 +730,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       opts,
     )
     const s = state.value
-    if (s?.kind === 'receive' && sameTimes(preview, s.preview)) return true
+    if (s?.kind === 'receive' && sameTimes(preview, s.preview)) return
     const canReceive = raw().canReceive
     const reason =
       refusal('receive', undefined, preview) ??
@@ -514,19 +739,18 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       kind: 'receive',
       view: ctx.activeViewName.value ?? '',
       occurrence: externalOccurrence(template, preview),
-      origin: found.hit,
+      origin: at,
       preview,
       valid: !reason,
       reason,
     }
-    return true
   }
 
   function receiveLeave() {
     if (state.value?.kind === 'receive') state.value = null
   }
 
-  function receiveDrop(nativeEvent: PointerEvent) {
+  function receiveDrop(nativeEvent: PointerEvent | KeyboardEvent) {
     const s = state.value
     const template = receiving
     receiving = null
@@ -569,10 +793,26 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     originDate?: Temporal.PlainDate,
   ) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    const others = occ && kind !== 'select' ? groupOf(occ) : []
+    let leaveTarget: SchedulerInteraction | null = null
+    const leaveTemplate = (): ExternalEventTemplate => ({
+      title: ctx.accessors.value.title(occ!.event),
+      color: ctx.accessors.value.color(occ!.event),
+      event: occ!.event,
+      data: occ!.event,
+      allDay: occ!.allDay,
+      duration: (occ!.endMs - occ!.startMs) / 60_000,
+      days: occ!.allDay ? Math.round((occ!.endMs - occ!.startMs) / 86_400_000) : undefined,
+    })
     const found = hit(e.clientX, e.clientY)
     if (!found) return
     const origin = originDate ? { ...found.hit, date: originDate } : found.hit
-    const opts = computeOptions(found.surface.snapMinutes?.() ?? snapMinutes())
+    const opts = {
+      ...computeOptions(found.surface.snapMinutes?.() ?? snapMinutes()),
+      ...(occ && timedLengths.has(occ.key)
+        ? { defaultDurationMinutes: timedLengths.get(occ.key)! }
+        : {}),
+    }
 
     const touch = e.pointerType !== 'mouse'
     const pointerId = e.pointerId
@@ -625,9 +865,18 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       // Moving an event off the scheduler takes the preview away: letting go there cancels.
       outside = kind === 'move' && !overSurface(x, y)
       if (outside) {
-        if (s.preview) state.value = { ...s, preview: null }
+        if (s.preview) state.value = { ...s, preview: null, group: undefined }
+        leaveTarget = null
+        if (raw().eventLeave) {
+          for (const other of otherDropTargets(self)) {
+            if (!leaveTarget && other.receiveMove(leaveTemplate(), x, y)) leaveTarget = other
+            else other.receiveLeave()
+          }
+        }
         return
       }
+      for (const other of otherDropTargets(self)) other.receiveLeave()
+      leaveTarget = null
       const current = hit(x, y)?.hit
       if (!current) return
       let preview: EventTimes | null
@@ -642,9 +891,18 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
           opts,
         )
       if (!preview || sameTimes(preview, s.preview)) return
-      const reason = refusal(kind, occ, preview)
+      let reason = refusal(kind, occ, preview)
+      const group: { occurrence: EventOccurrence<unknown>; times: EventTimes }[] = []
+      if (occ && kind !== 'select') {
+        for (const other of others) {
+          const times = groupTimes(other, occ, kind, preview)
+          if (!times) continue
+          reason ??= refusal(kind, other, times)
+          group.push({ occurrence: other, times })
+        }
+      }
       const valid = !reason
-      state.value = { ...s, preview, valid, reason }
+      state.value = { ...s, preview, valid, reason, group: group.length ? group : undefined }
       if (occ && kind !== 'select')
         ctx.emit('event-drag', {
           ...base(occ, view, kind),
@@ -716,6 +974,20 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
     function finish(ev: PointerEvent) {
       const s = state.value
+      if (!s?.preview && outside && occ && kind === 'move' && raw().eventLeave) {
+        const target = leaveTarget
+        state.value = null
+        target?.receiveDrop(ev)
+        for (const other of otherDropTargets(self)) other.receiveLeave()
+        ctx.emit('event-leave', {
+          occurrence: occ,
+          event: occ.event,
+          view,
+          received: !!target,
+          nativeEvent: ev,
+        })
+        return
+      }
       if (!s?.preview) return abort(outside ? 'outside' : 'unchanged')
       if (!s.valid) {
         abort('invalid')
@@ -732,7 +1004,18 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
         resourceIds: occ!.resourceIds,
       }
       if (sameTimes(s.preview, occTimes)) return abort('unchanged')
-      commit(occ!, kind, view, s.preview, ev)
+      if (kind === 'move' && raw().dragToDuplicate && (ev.ctrlKey || ev.metaKey)) {
+        ctx.emit('event-duplicate', {
+          occurrence: occ,
+          event: occ!.event,
+          view,
+          ...s.preview,
+          resourceIds: s.preview.resourceIds ?? occ!.resourceIds,
+          nativeEvent: ev,
+        })
+        return
+      }
+      commit(occ!, kind, view, s.preview, ev, s.group ?? [])
     }
 
     endGesture = () => {
@@ -747,7 +1030,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     if (touch) longPress = setTimeout(() => activate(e), raw().longPressDelay ?? 400)
   }
 
-  return {
+  const self: SchedulerInteraction = {
     state,
     mirror,
     selection,
@@ -761,12 +1044,27 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     },
     applyPending(occurrences) {
       const map = pending.value
-      if (!map.size) return occurrences
+      const group = state.value?.group
+      if (!map.size && !group?.length) return occurrences
       return occurrences.map((occ) => {
+        const live = group?.find((g) => g.occurrence.key === occ.key)
+        if (live) return withTimes(occ, live.times)
         const p = map.get(occ.key)
         return p && p.event === occ.event ? withTimes(occ, p.times) : occ
       })
     },
+    selectEvent,
+    groupOf,
+    marquee,
+    copy,
+    paste,
+    setCursor(hit) {
+      cursor = hit
+    },
+    dropArmed,
+    nativeDragOver,
+    nativeDragLeave,
+    nativeDrop,
     canDrag,
     canResize,
     get selectable() {
@@ -782,6 +1080,11 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       startGesture(e, kind, view, occ, originDate)
     },
     pointerDownOnSlot(e, view) {
+      if (raw().eventSelection && e.shiftKey) {
+        startMarquee(e)
+        return
+      }
+      if (raw().eventSelection && !e.ctrlKey && !e.metaKey) setSelected([])
       clearSelection()
       if (raw().selectable) startGesture(e, 'select', view, undefined)
     },
@@ -860,4 +1163,5 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       if (changed) pending.value = next
     },
   }
+  return self
 }

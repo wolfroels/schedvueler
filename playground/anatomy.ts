@@ -38,6 +38,9 @@ const part = (
 ): PartInfo => ({ name, group, className, description, views, ...extra })
 
 export const PARTS: PartInfo[] = [
+  part('marquee', 'Events', 'orb-marquee', 'The rectangle drawn with Shift + drag.', EVENTS, {
+    hint: 'Needs event-selection.',
+  }),
   part(
     'closedTime',
     'Availability',
