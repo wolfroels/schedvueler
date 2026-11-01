@@ -13,6 +13,7 @@ import {
   daysBetween,
   rangeContains,
   sameTimes,
+  shiftResourceIds,
   withTimes,
   type EventOccurrence,
   type EventTimes,
@@ -881,8 +882,20 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       if (!current) return
       let preview: EventTimes | null
       if (kind === 'select') preview = computeSelection(origin, current, opts)
-      else if (kind === 'move') preview = computeMove(occ!, origin, current, opts)
-      else
+      else if (kind === 'move') {
+        preview = computeMove(occ!, origin, current, opts)
+        if (raw().multiResourceDrag === 'all' && occ!.resourceIds.length > 1) {
+          preview = {
+            ...preview,
+            resourceIds: shiftResourceIds(
+              occ!.resourceIds,
+              origin.resourceId,
+              current.resourceId,
+              ctx.visibleResources.value.map((r) => r.id),
+            ),
+          }
+        }
+      } else
         preview = computeResize(
           occ!,
           kind === 'resize-start' ? 'start' : 'end',

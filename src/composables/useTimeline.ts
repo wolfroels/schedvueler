@@ -31,6 +31,8 @@ export interface TimelineConfig {
   rowMinHeight: number
   /** Minimum event width as a fraction of the axis, so short events stay visible. */
   minEventWidth?: number
+  /** One row per event instead of per resource. */
+  byEvent?: boolean
 }
 
 export interface TimelineDay {
@@ -64,6 +66,21 @@ export interface TimelineOverlay {
   left: number
   width: number
   valid: boolean
+}
+
+/** A row standing for one event. */
+function eventRow<T>(occ: EventOccurrence<T>, title: string | undefined): ResourceNode<unknown> {
+  return {
+    id: occ.key,
+    title: title ?? String(occ.id),
+    color: undefined,
+    businessHours: undefined,
+    lazy: false,
+    resource: occ.event,
+    parentId: undefined,
+    depth: 0,
+    childIds: [],
+  }
 }
 
 /**
@@ -126,9 +143,19 @@ export function useTimeline<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
   }
 
   const rows = computed<TimelineRow<T>[]>(() => {
-    const byResource = groupByResource(ctx.occurrences.value)
     const a = axis.value
     let top = 0
+    if (cfg.value.byEvent) {
+      return ctx.occurrences.value.map((occ) => {
+        const { items, laneCount } = layoutTimelineRow([occ], a, cfg.value.minEventWidth)
+        const height = rowHeight(1)
+        const resource = eventRow(occ, ctx.accessors.value.title(occ.event))
+        const row = { key: occ.key, resource, items, laneCount, height, top }
+        top += height
+        return row
+      })
+    }
+    const byResource = groupByResource(ctx.occurrences.value)
     return cfg.value.resources.map((resource) => {
       const { items, laneCount } = layoutTimelineRow(
         byResource.get(resource.id) ?? [],
@@ -169,7 +196,9 @@ export function useTimeline<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
       const left = a.position(occ.startMs)
       const right = a.position(occ.endMs)
       if (right <= left) return
-      for (const id of occ.resourceIds ?? []) {
+      const sourceKey = (occ as { sourceKey?: string }).sourceKey
+      const rowIds = cfg.value.byEvent ? [sourceKey ?? occ.key] : (occ.resourceIds ?? [])
+      for (const id of rowIds) {
         const list = map.get(id) ?? []
         list.push({ kind, occurrence: occ, left, width: right - left, valid })
         map.set(id, list)

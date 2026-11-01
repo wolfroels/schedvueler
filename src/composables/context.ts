@@ -102,6 +102,10 @@ export interface SchedulerContext<T = unknown> {
   collapsedResources: Readonly<ShallowRef<ReadonlySet<ResourceId>>>
   /** Resources not hidden inside a collapsed group. */
   visibleResources: ComputedRef<ResourceNode<unknown>[]>
+  /** Text the resources are searched with. */
+  resourceQuery: ShallowRef<string>
+  /** Lazy resources whose children are being loaded. */
+  loadingResources: Readonly<ShallowRef<ReadonlySet<ResourceId>>>
   /** Expands or collapses a resource group; toggles when `expanded` is omitted. */
   toggleResource(id: ResourceId, expanded?: boolean): void
 

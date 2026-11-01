@@ -5,11 +5,13 @@ import {
   monthStrategy,
   weekStrategy,
   type RangeStrategy,
+  type HeaderTierUnit,
   type ResourceId,
+  type ResourceNode,
   type VisibleRange,
 } from '../core'
 import { parseTimeOfDay } from '../composables/context'
-import type { EventLayoutOption } from '../types'
+import type { EventLayoutOption, ResourceColumn } from '../types'
 
 /** Width limits that make a view responsive. */
 export interface ResponsiveViewProps {
@@ -41,6 +43,8 @@ export interface TimeGridViewProps extends ResponsiveViewProps {
   resources?: boolean | readonly ResourceId[]
   /** Column order with resources: days within each resource (default) or resources within each day. */
   groupBy?: 'resource' | 'date'
+  /** Only show the scheduler's `work-days`. */
+  workWeek?: boolean
 }
 
 /** Props of `<TimelineView>`. */
@@ -73,8 +77,35 @@ export interface TimelineViewProps extends ResponsiveViewProps {
   rowMinHeight?: number
   /** Only show these resources (in tree order). */
   resourceIds?: readonly ResourceId[]
-  /** Render only the visible rows. Default true. */
+  /** Render only the visible rows and events. Default true. */
   virtual?: boolean
+  /** Rows above the days, from the top, e.g. `['month', 'week']`. */
+  headerTiers?: readonly HeaderTierUnit[]
+  /** With day columns: "compact" thin bars, or "count" a number per day for timed events. */
+  dayEvents?: 'bars' | 'compact' | 'count'
+  /** Named scales to zoom between, with Ctrl + scroll or `v-model:zoom`. */
+  zoomLevels?: readonly TimelineZoomLevel[]
+  /** Show a search box above the resources. */
+  resourceSearch?: boolean
+  /** More columns in the resource area. */
+  resourceColumns?: readonly ResourceColumn[]
+  /** The resource area can be resized by dragging its edge. */
+  resourceAreaResizable?: boolean
+  /** Rows can be dragged to another place; emits `resource-reorder`. */
+  resourceReorder?: boolean
+  /** Show how busy each row is per day. */
+  load?: boolean | { capacity?: number | ((resource: ResourceNode<unknown>) => number) }
+  /** Draw arrows between events with `dependsOn`. */
+  dependencies?: boolean
+}
+
+export interface TimelineZoomLevel {
+  label?: string
+  slotDuration: number
+  slotWidth: number
+  slotLabelInterval?: number
+  snapDuration?: number
+  headerTiers?: readonly HeaderTierUnit[]
 }
 
 /** Timeline settings after defaults, as passed to `<Timeline>`. */
@@ -91,11 +122,28 @@ export interface TimelineSettings {
   rowMinHeight: number
   resourceIds?: readonly ResourceId[]
   virtual: boolean
+  /** One row per event, as in a Gantt chart. */
+  byEvent?: boolean
+  headerTiers?: readonly HeaderTierUnit[]
+  dayEvents?: 'bars' | 'compact' | 'count'
+  zoomLevels?: readonly TimelineZoomLevel[]
+  zoomLevel?: number
+  resourceSearch?: boolean
+  resourceColumns?: readonly ResourceColumn[]
+  resourceAreaResizable?: boolean
+  resourceReorder?: boolean
+  load?: boolean | { capacity?: number | ((resource: ResourceNode<unknown>) => number) }
+  dependencies?: boolean
 }
 
 /** Whether a view's days run past midnight, so that it needs events from the day after. */
 export function endsPastMidnight(dayEndTime: string | undefined, schedulerEnd: number): boolean {
   return parseTimeOfDay(dayEndTime, schedulerEnd) > 1440
+}
+
+/** The weekdays to hide for a view that only shows work days. */
+export function notWorkDays(workDays: readonly number[] = [1, 2, 3, 4, 5]): number[] {
+  return [1, 2, 3, 4, 5, 6, 7].filter((d) => !workDays.includes(d))
 }
 
 export function singleDayTitle(range: VisibleRange, locale: string): string {

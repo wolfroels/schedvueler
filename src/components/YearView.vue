@@ -7,13 +7,17 @@ import { useYearGrid, type YearDayCell, type YearMonth } from '../composables/us
 import type { SchedulerSlots } from '../types'
 import { visualArrow } from './direction'
 import { RenderSlot } from './RenderSlot'
+import YearPlanner from './YearPlanner.vue'
 import type { ResponsiveViewProps } from './view-props'
 
 export interface YearViewProps extends ResponsiveViewProps {
   name?: string
   label?: string
-  /** How days with events are marked: a dot, or a background that darkens with the count. */
-  display?: 'dots' | 'heatmap'
+  /**
+   * How days with events are marked: a dot, a background that darkens with the count, or "planner":
+   * one row per month with event bars.
+   */
+  display?: 'dots' | 'heatmap' | 'planner'
   /** View opened when a month name is clicked, if it exists. Default "month". */
   monthView?: string
   weekStart?: number
@@ -48,6 +52,14 @@ const { weekdays, months } = useYearGrid(ctx, () => ({
 }))
 
 const messages = computed(() => ctx.options.value.messages)
+const showWeeks = computed(() => !!ctx.options.value.raw.weekNumbers)
+
+/** The week of a row of cells, read from a day in it. */
+function weekScope(month: YearMonth<unknown>, index: number) {
+  const row = month.cells.slice(index, index + weekdays.value.length)
+  const date = row.find((c) => c)?.date ?? month.date
+  return { view: props.name, week: date.weekOfYear ?? 0, date }
+}
 
 function dayLabel(cell: YearDayCell<unknown>) {
   const date = formatDate(cell.date, ctx.options.value.locale, {
@@ -117,8 +129,9 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
 </script>
 
 <template>
+  <YearPlanner v-if="isActive && display === 'planner'" :view="name" :resolve="resolve" />
   <div
-    v-if="isActive"
+    v-else-if="isActive"
     ref="root"
     class="orb-year"
     v-bind="ctx.part('year')"
@@ -146,7 +159,12 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
           {{ month.label }}
         </RenderSlot>
       </button>
-      <div class="orb-year__grid" :style="{ '--orb-year-cols': weekdays.length }">
+      <div
+        class="orb-year__grid"
+        :class="{ 'orb-year__grid--weeks': showWeeks }"
+        :style="{ '--orb-year-cols': weekdays.length }"
+      >
+        <span v-if="showWeeks" />
         <span
           v-for="w in weekdays"
           :key="w.weekday"
@@ -157,6 +175,15 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
           {{ w.label }}
         </span>
         <template v-for="(cell, i) in month.cells" :key="cell?.key ?? `pad-${i}`">
+          <span
+            v-if="showWeeks && i % weekdays.length === 0"
+            class="orb-week-number"
+            v-bind="ctx.part('weekNumber', { month })"
+          >
+            <RenderSlot :fn="resolve('week-number')" :scope="weekScope(month, i)">
+              {{ weekScope(month, i).week }}
+            </RenderSlot>
+          </span>
           <span v-if="!cell" class="orb-year__pad" />
           <button
             v-else

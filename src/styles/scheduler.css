@@ -745,6 +745,291 @@
   outline-offset: 2px;
 }
 
+.orb-scheduler__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orb-color-text-muted);
+  background: color-mix(in srgb, var(--orb-color-bg) 70%, transparent);
+}
+
+.orb-scheduler__overlay--empty {
+  background: none;
+  pointer-events: none;
+}
+
+.orb-scheduler__overlay--error {
+  color: var(--orb-color-text);
+}
+
+.orb-week-number {
+  font-size: var(--orb-font-size-sm);
+  color: var(--orb-color-text-muted);
+}
+
+.orb-week-number--month {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 4px;
+}
+
+.orb-year__grid--weeks {
+  grid-template-columns: 1.5em repeat(var(--orb-year-cols), minmax(0, 1fr));
+}
+
+.orb-tg__corner .orb-week-number {
+  display: block;
+  padding: 2px 4px;
+}
+
+.orb-tg__zone-name {
+  display: inline-block;
+  width: calc(100% / (var(--orb-tg-zones) + 1));
+  font-size: var(--orb-font-size-sm);
+  color: var(--orb-color-text-muted);
+  text-align: center;
+}
+
+.orb-tg__zone-label {
+  display: block;
+  color: var(--orb-color-text-muted);
+  opacity: 0.8;
+}
+
+.orb-toolbar__title-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.orb-toolbar__picker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.orb-toolbar__view-menu {
+  height: calc(var(--orb-control-height) - 6px);
+  border: 0;
+  background: transparent;
+  color: var(--orb-color-text-muted);
+  font: inherit;
+}
+
+.orb-multi-month {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.orb-multi-month__title {
+  margin: 0.5rem 0.75rem;
+  font-size: var(--orb-font-size);
+}
+
+.orb-planner {
+  height: 100%;
+  overflow: auto;
+}
+
+.orb-planner__row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  border-bottom: 1px solid var(--orb-color-border);
+}
+
+.orb-planner__label {
+  padding: 0.25rem 0.5rem;
+  font-weight: var(--orb-font-weight-strong);
+  border-inline-end: 1px solid var(--orb-color-border);
+}
+
+.orb-planner__days {
+  display: grid;
+  grid-template-columns: repeat(31, minmax(0, 1fr));
+  grid-auto-rows: var(--orb-month-event-height);
+  position: relative;
+  gap: 1px 0;
+}
+
+.orb-planner__day {
+  grid-row: 1 / -1;
+  grid-row-end: span calc(var(--orb-planner-lanes, 0) + 1);
+  padding: 0;
+  border: 0;
+  border-inline-end: 1px solid var(--orb-color-border-subtle);
+  background: transparent;
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+  vertical-align: top;
+  align-self: stretch;
+  cursor: pointer;
+}
+
+.orb-planner__day.is-weekend {
+  background: var(--orb-color-weekend);
+}
+
+.orb-planner__day.is-today {
+  background: var(--orb-color-today);
+}
+
+.orb-event__progress {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  background: color-mix(in srgb, var(--orb-event-color) 30%, transparent);
+  pointer-events: none;
+}
+
+.orb-event--milestone {
+  width: 14px !important;
+  height: 14px;
+  margin-top: 4px;
+  padding: 0;
+  overflow: visible;
+  transform: translateX(-7px) rotate(45deg);
+  border-radius: 2px;
+  background: var(--orb-event-color);
+}
+
+.orb-event--milestone > * {
+  display: none;
+}
+
+.orb-tl__tier {
+  overflow: hidden;
+  padding: 0.25rem 0.5rem;
+  border-inline-end: 1px solid var(--orb-color-border);
+  border-bottom: 1px solid var(--orb-color-border-subtle);
+  font-size: var(--orb-font-size-sm);
+  font-weight: var(--orb-font-weight-strong);
+  white-space: nowrap;
+}
+
+/* Keeps its label in view while scrolling through a long month. */
+.orb-tl__tier-label {
+  position: sticky;
+  inset-inline-start: calc(var(--orb-tl-resource-width) + 0.5rem);
+}
+
+.orb-tl__search {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--orb-color-border);
+  border-radius: 4px;
+  background: var(--orb-color-bg);
+  color: var(--orb-color-text);
+  font: inherit;
+}
+
+.orb-tl__resource-columns,
+.orb-tl__label:has(.orb-tl__resource-cell) {
+  display: grid;
+  grid-template-columns: auto var(--orb-tl-resource-grid);
+  width: 100%;
+  gap: 0.25rem;
+}
+
+.orb-tl__resource-columns {
+  grid-template-columns: var(--orb-tl-resource-grid);
+}
+
+.orb-tl__resource-cell {
+  overflow: hidden;
+  font-size: var(--orb-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--orb-color-text-muted);
+}
+
+.orb-tl__resizer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -3px;
+  z-index: 2;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.orb-tl__row--reorder-before {
+  box-shadow: inset 0 2px 0 var(--orb-color-accent);
+}
+
+.orb-tl__row--reorder-after {
+  box-shadow: inset 0 -2px 0 var(--orb-color-accent);
+}
+
+.orb-tl__toggle.is-loading {
+  opacity: 0.5;
+}
+
+.orb-tl__load,
+.orb-tl__count {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 1px 3px;
+  font-size: var(--orb-font-size-sm);
+  color: var(--orb-color-text-muted);
+  pointer-events: none;
+}
+
+.orb-tl__count {
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--orb-font-weight-strong);
+}
+
+.orb-tl__load--level-1 {
+  background: color-mix(in srgb, var(--orb-color-accent) 6%, transparent);
+}
+
+.orb-tl__load--level-2 {
+  background: color-mix(in srgb, var(--orb-color-accent) 14%, transparent);
+}
+
+.orb-tl__load--level-3 {
+  background: color-mix(in srgb, var(--orb-color-accent) 24%, transparent);
+}
+
+.orb-tl__load--level-4 {
+  background: color-mix(in srgb, var(--orb-color-now) 24%, transparent);
+}
+
+.orb-tl__dependencies {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--orb-tl-resource-width);
+  z-index: 2;
+  width: calc(100% - var(--orb-tl-resource-width));
+  height: 100%;
+  overflow: visible;
+  color: var(--orb-color-text-muted);
+  pointer-events: none;
+}
+
+.orb-tl__dependencies line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
 .orb-tg__column:last-child {
   border-inline-end: 0;
 }
@@ -1398,6 +1683,7 @@
 
 .orb-tl__corner {
   position: sticky;
+  /* Holds the resize handle. */
   inset-inline-start: 0;
   z-index: 1;
   display: flex;

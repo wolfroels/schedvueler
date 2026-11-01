@@ -199,6 +199,41 @@ defineExpose({
       @pointercancel.capture="onSwipeCancel"
     >
       <slot />
+      <div
+        v-if="error"
+        class="orb-scheduler__overlay orb-scheduler__overlay--error"
+        v-bind="ctx.part('error')"
+        role="alert"
+      >
+        <slot name="error" :view="ctx.activeViewName.value" :error="error">
+          {{ typeof error === 'string' ? error : ctx.options.value.messages.error }}
+        </slot>
+      </div>
+      <div
+        v-else-if="loading"
+        class="orb-scheduler__overlay"
+        v-bind="ctx.part('loading')"
+        role="status"
+      >
+        <slot
+          name="loading"
+          :view="ctx.activeViewName.value"
+          :label="ctx.options.value.messages.loading"
+        >
+          {{ ctx.options.value.messages.loading }}
+        </slot>
+      </div>
+      <div
+        v-else-if="$slots.empty && !ctx.occurrences.value.length"
+        class="orb-scheduler__overlay orb-scheduler__overlay--empty"
+        v-bind="ctx.part('empty')"
+      >
+        <slot
+          name="empty"
+          :view="ctx.activeViewName.value"
+          :label="ctx.options.value.messages.noEvents"
+        />
+      </div>
     </div>
     <div
       v-if="ctx.interaction.marquee.value"

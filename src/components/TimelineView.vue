@@ -35,29 +35,55 @@ const days = computed(() =>
     : [],
 )
 
+/** Index into `zoomLevels`. */
+const zoom = defineModel<number>('zoom', { default: 0 })
+const level = computed(() => props.zoomLevels?.[zoom.value])
+
 const settings = computed<TimelineSettings>(() => {
   const singleDay = props.period === 'day' && (props.days ?? 1) === 1
-  const slotDuration = validMinutes(props.slotDuration, singleDay ? 60 : 1440, 'slotDuration')
+  const slotDuration = validMinutes(
+    level.value?.slotDuration ?? props.slotDuration,
+    singleDay ? 60 : 1440,
+    'slotDuration',
+  )
   const raw = ctx.options.value.raw
   return {
     slotDuration,
-    slotLabelInterval: props.slotLabelInterval,
+    slotLabelInterval: level.value?.slotLabelInterval ?? props.slotLabelInterval,
     snapDuration:
+      level.value?.snapDuration ??
       props.snapDuration ??
       (slotDuration >= 1440 ? 1440 : (raw.snapDuration ?? Math.min(slotDuration, 15))),
     dayStartTime: props.dayStartTime,
     dayEndTime: props.dayEndTime,
     scrollTime: props.scrollTime,
-    slotWidth: props.slotWidth ?? (slotDuration >= 1440 ? 120 : 64),
+    slotWidth: level.value?.slotWidth ?? props.slotWidth ?? (slotDuration >= 1440 ? 120 : 64),
     resourceAreaWidth: props.resourceAreaWidth,
     eventHeight: props.eventHeight,
     rowMinHeight: props.rowMinHeight,
     resourceIds: props.resourceIds,
     virtual: props.virtual,
+    headerTiers: level.value?.headerTiers ?? props.headerTiers,
+    dayEvents: props.dayEvents,
+    zoomLevels: props.zoomLevels,
+    zoomLevel: zoom.value,
+    resourceSearch: props.resourceSearch,
+    resourceColumns: props.resourceColumns,
+    resourceAreaResizable: props.resourceAreaResizable,
+    resourceReorder: props.resourceReorder,
+    load: props.load,
+    dependencies: props.dependencies,
   }
 })
 </script>
 
 <template>
-  <Timeline v-if="isActive" :view="name" :days="days" :settings="settings" :resolve="resolve" />
+  <Timeline
+    v-if="isActive"
+    :view="name"
+    :days="days"
+    :settings="settings"
+    :resolve="resolve"
+    @update:zoom="zoom = $event"
+  />
 </template>

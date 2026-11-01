@@ -18,6 +18,7 @@ import {
   EventStore,
   Temporal,
   buildResourceTree,
+  filterResourceTree,
   createAccessors,
   createResourceAccessors,
   visibleResources as visibleResourceNodes,
@@ -195,13 +196,25 @@ export function useScheduler<T>(
   const resourceAccessorsInput = computed(() => raw.value.resourceAccessors)
   const resourceAccessors = computed(() => createResourceAccessors(resourceAccessorsInput.value))
   const resourcesInput = computed(() => raw.value.resources)
+  const resourceOrder = computed(() => raw.value.resourceOrder)
   const resources = computed(() =>
-    buildResourceTree(resourcesInput.value ?? [], resourceAccessors.value),
+    buildResourceTree(resourcesInput.value ?? [], resourceAccessors.value, resourceOrder.value),
   )
+  const resourceQuery = shallowRef('')
+  const shownResources = computed(() => {
+    const test = raw.value.resourceFilter
+    const query = resourceQuery.value.trim().toLocaleLowerCase()
+    if (!test && !query) return resources.value
+    return filterResourceTree(
+      resources.value,
+      (node) => (!test || test(node)) && (!query || node.title.toLocaleLowerCase().includes(query)),
+    )
+  })
   const resourceMap = computed(() => new Map(resources.value.map((r) => [r.id, r])))
   const collapsedResources = shallowRef<ReadonlySet<ResourceId>>(new Set())
+  const loadingResources = shallowRef<ReadonlySet<ResourceId>>(new Set())
   const visibleResources = computed(() =>
-    visibleResourceNodes(resources.value, collapsedResources.value),
+    visibleResourceNodes(shownResources.value, collapsedResources.value),
   )
 
   // --- current time ----------------------------------------------------------------------------
@@ -241,8 +254,10 @@ export function useScheduler<T>(
   const availableViews = computed(() => {
     const w = width.value
     if (!w) return views.value
+    const preset = raw.value.responsiveViews?.find((r) => w <= r.maxWidth)
     const fits = views.value.filter((v) => {
-      const { minWidth, maxWidth } = v.definition.value
+      const { name, minWidth, maxWidth } = v.definition.value
+      if (preset && !preset.views.includes(name)) return false
       return (minWidth === undefined || w >= minWidth) && (maxWidth === undefined || w <= maxWidth)
     })
     return fits.length ? fits : views.value
@@ -432,8 +447,24 @@ export function useScheduler<T>(
     resourceMap,
     collapsedResources,
     visibleResources,
+    resourceQuery,
+    loadingResources,
     toggleResource(id, expanded) {
       const node = resourceMap.value.get(id)
+      if (node?.lazy && expanded !== false) {
+        const { payload, settle } = createCancelable({ resource: node })
+        emit('resource-expand', payload)
+        const result = settle()
+        if (typeof result !== 'boolean') {
+          loadingResources.value = new Set(loadingResources.value).add(id)
+          void result.finally(() => {
+            const next = new Set(loadingResources.value)
+            next.delete(id)
+            loadingResources.value = next
+          })
+        }
+        return
+      }
       if (!node || !node.childIds.length) return
       const isExpanded = !collapsedResources.value.has(id)
       const next = expanded ?? !isExpanded

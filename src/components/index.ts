@@ -18,3 +18,5 @@ export type {
   TimelineSettings,
   ViewPeriod,
 } from './view-props'
+export { default as MultiMonthView } from './MultiMonthView.vue'
+export { default as GanttView } from './GanttView.vue'

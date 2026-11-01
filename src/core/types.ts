@@ -56,6 +56,10 @@ export interface SchedulerEvent {
   class?: string
   /** Any CSS color for the text. */
   textColor?: string
+  /** Ids of events this one starts after, drawn as arrows in timelines. */
+  dependsOn?: readonly EventId[]
+  /** How far along it is, from 0 to 1. Drawn in timelines and Gantt views. */
+  progress?: number
 }
 
 /** Reads scheduler fields from user event objects, so no wrapper type is required. */
@@ -79,6 +83,8 @@ export interface EventAccessors<T> {
   resizable(event: T): boolean | undefined
   className(event: T): string | undefined
   textColor(event: T): string | undefined
+  dependsOn(event: T): readonly EventId[] | undefined
+  progress(event: T): number | undefined
 }
 
 const EMPTY: readonly never[] = Object.freeze([])
@@ -103,6 +109,8 @@ export const defaultAccessors: EventAccessors<SchedulerEvent> = {
   resizable: (e) => e.resizable,
   className: (e) => e.class,
   textColor: (e) => e.textColor,
+  dependsOn: (e) => e.dependsOn,
+  progress: (e) => e.progress,
 }
 
 /** Builds accessors for a custom event shape, falling back to the default field names. */

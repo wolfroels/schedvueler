@@ -459,6 +459,18 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
               <span v-if="shade.title" class="orb-shade__title">{{ shade.title }}</span>
             </RenderSlot>
           </div>
+          <span
+            v-if="ci === 0 && ctx.options.value.raw.weekNumbers"
+            class="orb-week-number orb-week-number--month"
+            v-bind="ctx.part('weekNumber', { cell })"
+          >
+            <RenderSlot
+              :fn="resolve('week-number')"
+              :scope="{ view, week: cell.date.weekOfYear ?? 0, date: cell.date }"
+            >
+              {{ cell.date.weekOfYear }}
+            </RenderSlot>
+          </span>
           <RenderSlot :fn="resolve('month-cell')" :scope="{ view, ...cell }">
             <button
               type="button"

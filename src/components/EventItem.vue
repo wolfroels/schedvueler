@@ -108,6 +108,15 @@ const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrenc
 const isSelected = computed(
   () => !props.mirror && ctx.selectedEvents.value.includes(props.occurrence.key),
 )
+const progress = computed(() => {
+  const value = ctx.accessors.value.progress(props.occurrence.event)
+  return props.variant === 'timeline' && value !== undefined
+    ? Math.min(Math.max(value, 0), 1)
+    : undefined
+})
+const isMilestone = computed(
+  () => props.variant === 'timeline' && props.occurrence.startMs === props.occurrence.endMs,
+)
 const ownClass = computed(() => ctx.accessors.value.className(props.occurrence.event))
 const textColor = computed(() => ctx.accessors.value.textColor(props.occurrence.event))
 
@@ -257,6 +266,7 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--mirror': mirror,
         'orb-event--invalid': mirror && !valid,
         'orb-event--selected': isSelected,
+        'orb-event--milestone': isMilestone,
       },
     ]"
     :style="
@@ -282,6 +292,13 @@ function onKeydown(e: KeyboardEvent) {
     @mouseleave="!mirror && ctx.emit('event-mouseleave', payload($event))"
     @keydown="!mirror && onKeydown($event)"
   >
+    <span
+      v-if="progress !== undefined"
+      class="orb-event__progress"
+      v-bind="ctx.part('eventProgress', { occurrence, progress })"
+      :style="{ width: `${progress * 100}%` }"
+      aria-hidden="true"
+    />
     <RenderSlot v-if="eventSlot" :fn="eventSlot" :scope="slotProps" />
     <RenderSlot v-else :fn="contentSlot" :scope="slotProps">
       <template v-if="variant === 'agenda'">

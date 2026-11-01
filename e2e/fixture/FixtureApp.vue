@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
+import AgendaCards from './AgendaCards.vue'
 import {
   AgendaView,
   DayView,
+  GanttView,
+  MultiMonthView,
   MonthView,
   Scheduler,
   TimelineView,
@@ -33,6 +36,8 @@ const showSlot = ref(false)
 const extra = JSON.parse(params.get('opts') ?? '{}')
 const extraEvents: SchedulerEvent[] = JSON.parse(params.get('events') ?? '[]')
 const scheduler = ref()
+const timelineProps = JSON.parse(params.get('tl') ?? '{}')
+const zoom = ref(0)
 
 if (params.has('rtl')) document.documentElement.dir = 'rtl'
 
@@ -135,6 +140,11 @@ const onReceive = (p: EventReceivePayload) =>
       @event-drop="(p) => onChanged('event-drop', p)"
       @event-resize="(p) => onChanged('event-resize', p)"
       @event-delete="onDelete"
+      @resource-reorder="
+        (p) => log.push(`resource-reorder ${p.resource.id} ${p.target.id} ${p.position}`)
+      "
+      @resource-expand="(p) => log.push(`resource-expand ${p.resource.id}`)"
+      @zoom-change="(p) => log.push(`zoom-change ${p.level}`)"
       @event-duplicate="
         (p) => {
           events = duplicateEvent(events, p.occurrence, p, { timeZone: 'Europe/Brussels' })
@@ -170,7 +180,19 @@ const onReceive = (p: EventReceivePayload) =>
       <YearView />
       <AgendaView />
       <DayView name="rooms" label="Rooms" :resources="['r1', 'r2']" />
-      <TimelineView label="Timeline" day-start-time="06:00" day-end-time="20:00" />
+      <TimelineView
+        label="Timeline"
+        day-start-time="06:00"
+        day-end-time="20:00"
+        v-bind="timelineProps"
+        v-model:zoom="zoom"
+      />
+      <MonthView name="two-weeks" :weeks="2" />
+      <MultiMonthView />
+      <YearView name="planner" display="planner" label="Planner" />
+      <WeekView name="work" label="Work week" work-week />
+      <GanttView />
+      <AgendaCards />
     </Scheduler>
   </div>
 </template>

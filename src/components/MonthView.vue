@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { monthStrategy } from '../core'
+import { monthStrategy, weekStrategy } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import type { SchedulerSlots } from '../types'
 import MonthGrid from './MonthGrid.vue'
-import { monthTitle, type ResponsiveViewProps } from './view-props'
+import { monthTitle, multiDayTitle, type ResponsiveViewProps } from './view-props'
 
 export interface MonthViewProps extends ResponsiveViewProps {
   name?: string
@@ -22,6 +22,8 @@ export interface MonthViewProps extends ResponsiveViewProps {
   compactWidth?: number
   /** Always show six weeks. Default false. */
   fixedWeeks?: boolean
+  /** Show this many weeks from the week of the date, instead of a month. */
+  weeks?: number
   weekStart?: number
   hiddenDays?: readonly number[]
 }
@@ -39,12 +41,17 @@ const slots = defineSlots<SchedulerSlots<any>>()
 const ctx = useSchedulerContext()
 const { isActive } = useSchedulerView(() => ({
   name: props.name,
-  label: props.label ?? 'Month',
-  strategy: monthStrategy({
-    weekStart: props.weekStart ?? ctx.options.value.weekStart,
-    fixedWeeks: props.fixedWeeks,
-  }),
-  title: monthTitle,
+  label: props.label ?? (props.weeks ? `${props.weeks} weeks` : 'Month'),
+  strategy: props.weeks
+    ? weekStrategy({
+        weekStart: props.weekStart ?? ctx.options.value.weekStart,
+        weeks: props.weeks,
+      })
+    : monthStrategy({
+        weekStart: props.weekStart ?? ctx.options.value.weekStart,
+        fixedWeeks: props.fixedWeeks,
+      }),
+  title: props.weeks ? multiDayTitle : monthTitle,
   minWidth: props.minWidth,
   maxWidth: props.maxWidth,
 }))

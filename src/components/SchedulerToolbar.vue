@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useSchedulerContext } from '../composables/context'
 import { useToolbar } from '../composables/useToolbar'
 import { RenderSlot } from './RenderSlot'
@@ -9,6 +10,25 @@ const toolbar = useToolbar(ctx)
 const slot = (name: string) => {
   void ctx.slotsVersion.value
   return ctx.slots[name]
+}
+
+const limit = computed(() => ctx.options.value.raw.maxViewButtons ?? Infinity)
+const buttons = computed(() => toolbar.value.views.slice(0, limit.value))
+const overflow = computed(() => toolbar.value.views.slice(limit.value))
+
+const picker = ref<HTMLInputElement>()
+function openPicker() {
+  const input = picker.value
+  if (!input) return
+  try {
+    input.showPicker()
+  } catch {
+    input.focus()
+  }
+}
+function onPick(e: Event) {
+  const { value } = e.target as HTMLInputElement
+  if (value) ctx.goTo(value)
 }
 </script>
 
@@ -72,7 +92,28 @@ const slot = (name: string) => {
     >
       <RenderSlot :fn="slot('toolbar-center')" :scope="toolbar">
         <h2 class="orb-toolbar__title" v-bind="ctx.part('title')" aria-live="polite">
-          <RenderSlot :fn="slot('title')" :scope="toolbar">{{ toolbar.title }}</RenderSlot>
+          <button
+            v-if="ctx.options.value.raw.titleDatePicker"
+            type="button"
+            class="orb-toolbar__title-button"
+            v-bind="ctx.part('titlePicker')"
+            @click="openPicker"
+          >
+            <RenderSlot :fn="slot('title')" :scope="toolbar">{{ toolbar.title }}</RenderSlot>
+          </button>
+          <RenderSlot v-else :fn="slot('title')" :scope="toolbar">{{ toolbar.title }}</RenderSlot>
+          <input
+            v-if="ctx.options.value.raw.titleDatePicker"
+            ref="picker"
+            class="orb-toolbar__picker"
+            type="date"
+            tabindex="-1"
+            aria-hidden="true"
+            :value="ctx.date.value.toString()"
+            :min="ctx.options.value.raw.minDate"
+            :max="ctx.options.value.raw.maxDate"
+            @change="onPick"
+          />
         </h2>
       </RenderSlot>
     </div>
@@ -86,7 +127,7 @@ const slot = (name: string) => {
             v-bind="ctx.part('viewSwitcher')"
             role="group"
           >
-            <template v-for="view in toolbar.views" :key="view.name">
+            <template v-for="view in buttons" :key="view.name">
               <RenderSlot :fn="slot('view-button')" :scope="{ view, setView: toolbar.setView }">
                 <button
                   type="button"
@@ -100,6 +141,19 @@ const slot = (name: string) => {
                 </button>
               </RenderSlot>
             </template>
+            <select
+              v-if="overflow.length"
+              class="orb-toolbar__view-menu"
+              v-bind="ctx.part('viewMenu')"
+              :aria-label="ctx.options.value.messages.moreViews"
+              :value="overflow.find((v) => v.active)?.name ?? ''"
+              @change="toolbar.setView(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>{{ ctx.options.value.messages.moreViews }}</option>
+              <option v-for="view in overflow" :key="view.name" :value="view.name">
+                {{ view.label }}
+              </option>
+            </select>
           </div>
         </RenderSlot>
       </RenderSlot>

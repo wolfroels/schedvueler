@@ -43,6 +43,14 @@ export interface SchedulerMessages {
   selected: (when: string) => string
   /** Heading of the timeline's resource column. */
   resources: string
+  /** Label of the menu with more views. */
+  moreViews: string
+  /** Shown while `loading` is set. */
+  loading: string
+  /** Shown while `error` is set. */
+  error: string
+  /** Label of the resource search. */
+  searchResources: string
 }
 
 export const defaultMessages: SchedulerMessages = {
@@ -61,6 +69,10 @@ export const defaultMessages: SchedulerMessages = {
   dragCancelled: 'Move cancelled',
   selected: (when) => `Selected ${when}`,
   resources: 'Resources',
+  moreViews: 'More',
+  loading: 'Loading…',
+  error: 'Something went wrong',
+  searchResources: 'Search resources',
 }
 
 /** Extra attributes for an event or a cell; merged onto the element the scheduler renders. */
@@ -136,6 +148,25 @@ export type SchedulerPart =
   | 'backgroundEvent'
   | 'hiddenIndicator'
   | 'marquee'
+  | 'multiMonth'
+  | 'multiMonthTitle'
+  | 'yearPlanner'
+  | 'yearPlannerRow'
+  | 'weekNumber'
+  | 'zoneLabel'
+  | 'viewMenu'
+  | 'titlePicker'
+  | 'loading'
+  | 'empty'
+  | 'error'
+  | 'timelineTier'
+  | 'resourceSearch'
+  | 'resourceCell'
+  | 'resourceResizer'
+  | 'resourceLoad'
+  | 'dayCount'
+  | 'dependency'
+  | 'eventProgress'
 
 /**
  * Attributes passed through to the parts of the scheduler: classes, styles, `data-*`, listeners.
@@ -198,6 +229,12 @@ export interface SchedulerOptions<T> {
    * with `resourceId` / `resourceIds`. Any shape works with `resourceAccessors`.
    */
   resources?: readonly unknown[]
+  /** Order of sibling resources. */
+  resourceOrder?: (a: any, b: any) => number // eslint-disable-line @typescript-eslint/no-explicit-any
+  /** Which resources to show. Parents of those stay in view. */
+  resourceFilter?: (resource: ResourceNode<unknown>) => boolean
+  /** "all" moves an event on several resources together, row by row. Default "one". */
+  multiResourceDrag?: 'one' | 'all'
   /** Reads resource fields from custom resource objects. */
   resourceAccessors?: Partial<ResourceAccessors<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -264,6 +301,22 @@ export interface SchedulerOptions<T> {
   canReceive?: (info: ReceiveInfo) => boolean
 
   // --- navigation ---
+  /** Which views to offer up to a scheduler width (px). The first match applies. */
+  responsiveViews?: readonly { maxWidth: number; views: readonly string[] }[]
+  /** Weekdays that count as work days, for views with `work-week`. Default Monday to Friday. */
+  workDays?: readonly number[]
+  /** Show ISO week numbers in month, week and year views. */
+  weekNumbers?: boolean
+  /** More zones next to the times in time grids, e.g. `['America/New_York']`. */
+  extraTimeZones?: readonly string[]
+  /** More view buttons than this go into a menu. */
+  maxViewButtons?: number
+  /** The title opens a date picker. */
+  titleDatePicker?: boolean
+  /** Shows the `loading` slot (or a built-in message) over the view. */
+  loading?: boolean
+  /** Shows the `error` slot (or this message) over the view. */
+  error?: unknown
   /** View to open when a date (day header, month day number, agenda day) is clicked. */
   drillDownView?: string
   /** Swipe left/right on touch screens to go to the next/previous period. Default true. */
@@ -391,6 +444,12 @@ export interface RangeChangePayload {
   startMs: number
   endMs: number
   timeZone: string
+}
+
+export interface ResourceReorderPayload {
+  resource: ResourceNode<unknown>
+  target: ResourceNode<unknown>
+  position: 'before' | 'after'
 }
 
 /** A move or resize was refused. */
@@ -681,6 +740,14 @@ export interface SchedulerEmits<T> {
   'events-paste': [payload: EventsPastePayload<T>]
   /** A native drag was dropped here, with `nativeDrop`. */
   'native-drop': [payload: NativeDropPayload]
+  /** A lazy resource is being expanded. Load its children; `waitUntil` shows it as loading. */
+  'resource-expand': [payload: { resource: ResourceNode<unknown> } & Cancelable]
+  /** A row was dragged to another place, with `resource-reorder`. See `reorderResources`. */
+  'resource-reorder': [payload: ResourceReorderPayload]
+  /** The resource column was resized by dragging. */
+  'resource-area-resize': [payload: { view: string; width: number }]
+  /** Another zoom level was chosen on a timeline. */
+  'zoom-change': [payload: { view: string; level: number }]
   /** A move or resize was refused by a rule, and the event stays where it was. */
   'event-change-failed': [payload: EventChangeFailedPayload<T>]
   /** Before `event-delete`. Cancelable, e.g. to ask for confirmation first. */
@@ -840,6 +907,28 @@ export interface SelectionSlotProps {
   resourceId: ResourceId | undefined
 }
 
+/** A column in the timeline's resource area. */
+export interface ResourceColumn {
+  key: string
+  label: string
+  /** Any CSS length. */
+  width?: string
+  /** Reads the value; by default the `key` field of the resource. */
+  value?: (resource: ResourceNode<unknown>) => unknown
+}
+
+export interface ResourceLoadSlotProps<T> {
+  view: string
+  date: Temporal.PlainDate
+  resource: ResourceNode<unknown>
+  minutes: number
+  /** Minutes it is compared with. */
+  capacity: number
+  /** `minutes / capacity`. */
+  ratio: number
+  occurrences: EventOccurrence<T>[]
+}
+
 export interface ShadeSlotProps<T> {
   view: string
   date: Temporal.PlainDate | undefined
@@ -894,6 +983,33 @@ export interface SchedulerSlots<T> {
   'drag-preview'?: SlotFn<EventSlotProps<T>>
   /** The inside of a resize handle. */
   'resize-handle'?: SlotFn<{ edge: 'start' | 'end'; variant: EventVariant }>
+  /** A week number. */
+  'week-number'?: SlotFn<{ view: string; week: number; date: Temporal.PlainDate }>
+  /** Over the view while `loading` is set. */
+  loading?: SlotFn<{ view: string | undefined; label: string }>
+  /** Over the view when the visible range has no events. Nothing is shown without this slot. */
+  empty?: SlotFn<{ view: string | undefined; label: string }>
+  /** Over the view while `error` is set. */
+  error?: SlotFn<{ view: string | undefined; error: unknown }>
+  /** A cell above the timeline's days, with `header-tiers`. */
+  'timeline-tier'?: SlotFn<{ view: string; unit: string; date: Temporal.PlainDate; label: string }>
+  /** A cell of a resource column, with `resource-columns`. */
+  'resource-column'?: SlotFn<{
+    view: string
+    column: ResourceColumn
+    resource: ResourceNode<unknown>
+    value: unknown
+  }>
+  /** The inside of a day's load on a timeline row. */
+  'resource-load'?: SlotFn<ResourceLoadSlotProps<T>>
+  /** The count of events per day, with `day-events="count"`. */
+  'day-count'?: SlotFn<{
+    view: string
+    date: Temporal.PlainDate
+    resourceId: ResourceId
+    count: number
+    occurrences: EventOccurrence<T>[]
+  }>
   /** The inside of a background event. */
   'background-event'?: SlotFn<ShadeSlotProps<T>>
   /** The inside of a blocked time. */

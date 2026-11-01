@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { zonedAtMinute, type Hit, type ResourceId, type ResourceNode, type Temporal } from '../core'
+import {
+  dependencyLinks,
+  groupByResource,
+  headerTiers,
+  loadPerDay,
+  zonedAtMinute,
+  type Hit,
+  type ResourceId,
+  type ResourceNode,
+  type Temporal,
+} from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import { visibleHours } from '../composables/validate'
 import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/useTimeline'
-import type { ResourceLabelSlotProps } from '../types'
+import type { ResourceColumn, ResourceLabelSlotProps } from '../types'
 import EventItem from './EventItem.vue'
 import { stableStyle } from './stable-style'
 import { isRtl } from './direction'
@@ -19,6 +29,7 @@ const props = defineProps<{
   settings: TimelineSettings
   resolve: SlotResolver
 }>()
+const emit = defineEmits<{ 'update:zoom': [level: number] }>()
 
 const ctx = useSchedulerContext()
 const interaction = ctx.interaction
@@ -26,12 +37,15 @@ const messages = computed(() => ctx.options.value.messages)
 
 /** Rows: visible resources (collapsed groups hide their children), optionally filtered. */
 const rowResources = computed(() => {
+  if (props.settings.byEvent) return []
   const ids = props.settings.resourceIds
   const visible = ctx.visibleResources.value
   if (!ids) return visible
   const wanted = new Set(ids)
   return visible.filter((r) => wanted.has(r.id))
 })
+
+const isCompact = (s: TimelineSettings) => s.dayEvents === 'compact' && s.slotDuration >= 1440
 
 /** Slot columns per day, as laid out by the timeline. */
 function slotsPerDay(s: TimelineSettings): number {
@@ -58,12 +72,13 @@ const config = computed(() => {
     slotLabelInterval: s.slotLabelInterval ?? Math.max(60, s.slotDuration),
     dayStartMinute,
     dayEndMinute,
-    eventHeight: s.eventHeight,
+    eventHeight: isCompact(s) ? 8 : s.eventHeight,
     laneGap: 2,
     rowPadding: 4,
     rowMinHeight: s.rowMinHeight,
     // About 24px at the configured slot width.
     minEventWidth: 24 / (s.slotWidth * props.days.length * slotsPerDay(s)),
+    byEvent: s.byEvent,
   }
 })
 
@@ -91,13 +106,280 @@ const selectionScope = computed(() => {
 })
 const pct = (fraction: number) => `${fraction * 100}%`
 
+// --- resource columns ------------------------------------------------------------------------------
+
+const areaWidth = ref<number>()
+const resourceGrid = computed(() =>
+  [
+    'minmax(0, 1fr)',
+    ...(props.settings.resourceColumns ?? []).map((c) => c.width ?? 'minmax(0, 1fr)'),
+  ].join(' '),
+)
+
+function columnValue(column: ResourceColumn, resource: ResourceNode<unknown>) {
+  return column.value
+    ? column.value(resource)
+    : (resource.resource as Record<string, unknown> | undefined)?.[column.key]
+}
+
+function onResizerDown(e: PointerEvent) {
+  e.preventDefault()
+  e.stopPropagation()
+  const startX = e.clientX
+  const startWidth = corner.value?.offsetWidth ?? 0
+  const rtl = isRtl(root.value!)
+  const onMove = (ev: PointerEvent) => {
+    const delta = rtl ? startX - ev.clientX : ev.clientX - startX
+    areaWidth.value = Math.max(80, startWidth + delta)
+  }
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    ctx.emit('resource-area-resize', { view: props.view, width: areaWidth.value ?? startWidth })
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+}
+
+// --- reordering rows -------------------------------------------------------------------------------
+
+const reorder = shallowRef<{ id: ResourceId; target: ResourceId; position: 'before' | 'after' }>()
+
+function onLabelPointerDown(e: PointerEvent, resource: ResourceNode<unknown>) {
+  if (!props.settings.resourceReorder || (e.target as HTMLElement).closest('button')) return
+  const startY = e.clientY
+  let moved = false
+  const onMove = (ev: PointerEvent) => {
+    if (!moved && Math.abs(ev.clientY - startY) < 4) return
+    moved = true
+    const top = body.value!.getBoundingClientRect().top
+    const row = rows.value[rowAt(ev.clientY - top)]
+    if (!row) return
+    const position = ev.clientY - top < row.top + row.height / 2 ? 'before' : 'after'
+    reorder.value = { id: resource.id, target: row.resource.id, position }
+  }
+  const finish = (commit: boolean) => {
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('keydown', onKey, true)
+    const r = reorder.value
+    reorder.value = undefined
+    if (!commit || !r || r.target === r.id) return
+    const map = ctx.resourceMap.value
+    ctx.emit('resource-reorder', {
+      resource: map.get(r.id),
+      target: map.get(r.target),
+      position: r.position,
+    })
+  }
+  const onUp = () => finish(true)
+  const onKey = (ev: KeyboardEvent) => {
+    if (ev.key === 'Escape') finish(false)
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('keydown', onKey, true)
+}
+
+// --- load per day -----------------------------------------------------------------------------------
+
+/** A resource's own events and those of everything below it, for group totals. */
+function subtreeIds(resource: ResourceNode<unknown>): ResourceId[] {
+  const map = ctx.resourceMap.value
+  const ids = [resource.id]
+  for (let i = 0; i < ids.length; i++) ids.push(...(map.get(ids[i]!)?.childIds ?? []))
+  return ids
+}
+
+const occurrencesByResource = computed(() => groupByResource(ctx.occurrences.value))
+
+function rowLoad(resource: ResourceNode<unknown>) {
+  const option = props.settings.load
+  if (!option) return []
+  const given = option === true ? undefined : option.capacity
+  const leaves = subtreeIds(resource).filter(
+    (id) => !ctx.resourceMap.value.get(id)?.childIds.length,
+  )
+  const each = (id: ResourceId) => {
+    const node = ctx.resourceMap.value.get(id)!
+    return typeof given === 'function' ? given(node) : (given ?? 480)
+  }
+  const capacity = leaves.reduce<number>((sum, id) => sum + each(id), 0) || 480
+  const seen = new Set<string>()
+  const list = leaves
+    .flatMap((id) => occurrencesByResource.value.get(id) ?? [])
+    .filter((o) => !seen.has(o.key) && !!seen.add(o.key))
+  const a = axis.value
+  const tz = ctx.options.value.timeZone
+  return loadPerDay(list, props.days, tz).map((load, i) => {
+    const ratio = load.minutes / capacity
+    return {
+      ...load,
+      key: load.date.toString(),
+      capacity,
+      ratio,
+      level: ratio === 0 ? 0 : ratio < 0.5 ? 1 : ratio < 0.8 ? 2 : ratio <= 1 ? 3 : 4,
+      left: i / a.days.length,
+      width: 1 / a.days.length,
+    }
+  })
+}
+
+// --- count per day ----------------------------------------------------------------------------------
+
+const countsOnly = computed(() => props.settings.dayEvents === 'count' && daySlots.value)
+
+function dayCounts(row: TimelineRow<unknown>) {
+  const timed = row.items.filter((i) => !i.occurrence.allDay).map((i) => i.occurrence)
+  const n = props.days.length
+  return loadPerDay(timed, props.days, ctx.options.value.timeZone)
+    .map((load, i) => ({
+      key: load.date.toString(),
+      date: load.date,
+      occurrences: load.occurrences,
+      count: load.occurrences.length,
+      left: i / n,
+      width: 1 / n,
+    }))
+    .filter((c) => c.count > 0)
+}
+
+// --- virtual time axis ------------------------------------------------------------------------------
+
+/** The part of the axis in view, as fractions, with some room on both sides. */
+const xWindow = shallowRef({ from: 0, to: 1 })
+let xFrame = 0
+
+function measureX() {
+  xFrame = 0
+  const el = scroller.value
+  const head = timeHead.value
+  if (!el || !head) return
+  const width = head.offsetWidth
+  const area = el.clientWidth - (corner.value?.offsetWidth ?? 0)
+  if (!width || width <= area) {
+    if (xWindow.value.from !== 0 || xWindow.value.to !== 1) xWindow.value = { from: 0, to: 1 }
+    return
+  }
+  const room = area / width
+  const position = Math.abs(el.scrollLeft) / width
+  // Steps of half a screen, so that scrolling only re-renders now and then.
+  const step = room / 2
+  const from = Math.max(0, Math.floor(position / step) * step - room)
+  const to = Math.min(1, Math.ceil((position + room) / step) * step + room)
+  if (from !== xWindow.value.from || to !== xWindow.value.to) xWindow.value = { from, to }
+}
+
+function onScrollX() {
+  if (!xFrame) xFrame = requestAnimationFrame(measureX)
+}
+
+function visibleItems<I extends { left: number; width: number; occurrence: { key: string } }>(
+  items: readonly I[],
+): readonly I[] {
+  if (!props.settings.virtual || (xWindow.value.from === 0 && xWindow.value.to === 1)) return items
+  const { from, to } = xWindow.value
+  const dragged = interaction.state.value?.occurrence?.key
+  return items.filter(
+    (i) => (i.left < to && i.left + i.width > from) || i.occurrence.key === dragged,
+  )
+}
+
+/** Slot headings in view, with their column on the grid. */
+const visibleSlots = computed(() => {
+  const perDay = slots.value.length
+  const total = dayList.value.length * perDay
+  const virtual = props.settings.virtual
+  const { from, to } = xWindow.value
+  const out: {
+    key: string
+    column: number
+    day: TimelineDay
+    slot: (typeof slots.value)[number]
+  }[] = []
+  dayList.value.forEach((day, d) => {
+    slots.value.forEach((slot, s) => {
+      const index = d * perDay + s
+      if (virtual && ((index + 1) / total < from || index / total > to)) return
+      out.push({ key: `${day.key}-${slot.minute}`, column: index + 1, day, slot })
+    })
+  })
+  return out
+})
+
+// --- zoom -------------------------------------------------------------------------------------------
+
+function onWheel(e: WheelEvent) {
+  const levels = props.settings.zoomLevels
+  if (!levels?.length || !(e.ctrlKey || e.metaKey)) return
+  e.preventDefault()
+  const current = props.settings.zoomLevel ?? 0
+  const next = Math.min(levels.length - 1, Math.max(0, current + (e.deltaY < 0 ? 1 : -1)))
+  if (next === current) return
+  // Keep the moment under the pointer where it is.
+  const el = scroller.value!
+  const fraction = laneFraction(e.clientX)
+  const pointer =
+    Math.abs(
+      e.clientX - (isRtl(el) ? el.getBoundingClientRect().right : el.getBoundingClientRect().left),
+    ) - (corner.value?.offsetWidth ?? 0)
+  emit('update:zoom', next)
+  ctx.emit('zoom-change', { view: props.view, level: next })
+  void nextTick(() => {
+    const distance = Math.max(0, fraction * timeHead.value!.offsetWidth - pointer)
+    el.scrollLeft = isRtl(el) ? -distance : distance
+    measureX()
+  })
+}
+
+// --- header tiers -----------------------------------------------------------------------------------
+
+const tierRows = computed(() =>
+  (props.settings.headerTiers ?? []).map((unit) =>
+    headerTiers(props.days, unit, ctx.options.value.locale, ctx.options.value.weekStart),
+  ),
+)
+
+// --- dependencies -----------------------------------------------------------------------------------
+
+/** Lines for arrows between events on rendered rows, in % of the width and px of the height. */
+const dependencyLines = computed(() => {
+  if (!props.settings.dependencies) return []
+  const places = new Map<string, { left: number; right: number; y: number }>()
+  const { eventHeight } = config.value
+  for (const row of rows.value) {
+    for (const item of row.items) {
+      const top = row.top + parseFloat(eventTop(item.lane)) + eventHeight / 2
+      places.set(item.occurrence.key, { left: item.left, right: item.left + item.width, y: top })
+    }
+  }
+  const rtl = !!root.value && isRtl(root.value)
+  const x = (fraction: number) => `${(rtl ? 1 - fraction : fraction) * 100}%`
+  const seen = new Set<string>()
+  const occurrences = rows.value
+    .flatMap((r) => r.items.map((i) => i.occurrence))
+    .filter((o) => !seen.has(o.key) && !!seen.add(o.key))
+  return dependencyLinks(occurrences, ctx.accessors.value).flatMap((link) => {
+    const a = places.get(link.from.key)
+    const b = places.get(link.to.key)
+    if (!a || !b) return []
+    const mid = x(Math.max(a.right, Math.min(b.left, a.right)))
+    return [{ key: link.key, x1: x(a.right), y1: a.y, mid, x2: x(b.left), y2: b.y, link }]
+  })
+})
+
 const rootStyle = computed(() => ({
   '--orb-tl-days': dayList.value.length,
   '--orb-tl-slots': slotCount.value,
   '--orb-tl-slot-width': `${props.settings.slotWidth}px`,
-  '--orb-tl-event-height': `${props.settings.eventHeight}px`,
-  ...(props.settings.resourceAreaWidth
-    ? { '--orb-tl-resource-width': props.settings.resourceAreaWidth }
+  '--orb-tl-event-height': `${config.value.eventHeight}px`,
+  ...(areaWidth.value !== undefined
+    ? { '--orb-tl-resource-width': `${areaWidth.value}px` }
+    : props.settings.resourceAreaWidth
+      ? { '--orb-tl-resource-width': props.settings.resourceAreaWidth }
+      : {}),
+  ...(props.settings.resourceColumns?.length
+    ? { '--orb-tl-resource-grid': resourceGrid.value }
     : {}),
 }))
 
@@ -199,7 +481,12 @@ function hitTest(x: number, y: number): Hit | null {
   if (x < outer.left || x > outer.right || y < outer.top || y > outer.bottom) return null
   const { date, minute } = axis.value.at(laneFraction(x))
   const row = rows.value[rowAt(y - body.value.getBoundingClientRect().top)]!
-  return { zone: 'timeline', date, minute, resourceId: row.resource.id }
+  return {
+    zone: 'timeline',
+    date,
+    minute,
+    resourceId: props.settings.byEvent ? undefined : row.resource.id,
+  }
 }
 
 let unregister: (() => void) | undefined
@@ -248,15 +535,23 @@ let resizeObserver: ResizeObserver | undefined
 onMounted(() => {
   measureMargin()
   scrollToTime()
+  measureX()
   if (typeof ResizeObserver !== 'undefined' && body.value?.previousElementSibling) {
-    resizeObserver = new ResizeObserver(measureMargin)
+    resizeObserver = new ResizeObserver(() => {
+      measureMargin()
+      measureX()
+    })
     resizeObserver.observe(body.value.previousElementSibling)
   }
 })
 onBeforeUnmount(() => resizeObserver?.disconnect())
 watch(
   () => props.days[0]?.toString(),
-  () => nextTick(() => scrollToTime()),
+  () =>
+    nextTick(() => {
+      scrollToTime()
+      measureX()
+    }),
 )
 
 // --- visible-resources-change ---------------------------------------------------------------------
@@ -338,7 +633,7 @@ function eventTop(lane: number) {
     :aria-label="ctx.title.value"
     :style="rootStyle"
   >
-    <div ref="scroller" class="orb-tl__scroller">
+    <div ref="scroller" class="orb-tl__scroller" @scroll.passive="onScrollX" @wheel="onWheel">
       <div class="orb-tl__inner">
         <div class="orb-tl__head">
           <div ref="corner" class="orb-tl__corner" v-bind="ctx.part('timelineCorner')">
@@ -346,10 +641,53 @@ function eventTop(lane: number) {
               :fn="resolve('resource-area-header')"
               :scope="{ view, label: messages.resources }"
             >
-              {{ messages.resources }}
+              <input
+                v-if="settings.resourceSearch"
+                class="orb-tl__search"
+                v-bind="ctx.part('resourceSearch')"
+                type="search"
+                :placeholder="messages.searchResources"
+                :aria-label="messages.searchResources"
+                :value="ctx.resourceQuery.value"
+                @input="ctx.resourceQuery.value = ($event.target as HTMLInputElement).value"
+              />
+              <div v-else-if="settings.resourceColumns?.length" class="orb-tl__resource-columns">
+                <span>{{ messages.resources }}</span>
+                <span v-for="column in settings.resourceColumns" :key="column.key">
+                  {{ column.label }}
+                </span>
+              </div>
+              <template v-else>{{ messages.resources }}</template>
             </RenderSlot>
+            <span
+              v-if="settings.resourceAreaResizable"
+              class="orb-tl__resizer"
+              v-bind="ctx.part('resourceResizer')"
+              aria-hidden="true"
+              @pointerdown="onResizerDown"
+            />
           </div>
           <div ref="timeHead" class="orb-tl__time-head">
+            <div
+              v-for="(cells, ti) in tierRows"
+              :key="ti"
+              class="orb-tl__days-row orb-tl__tier-row"
+            >
+              <div
+                v-for="cell in cells"
+                :key="cell.key"
+                class="orb-tl__tier"
+                v-bind="ctx.part('timelineTier', { cell })"
+                :style="{ gridColumn: `${cell.start + 1} / span ${cell.span}` }"
+              >
+                <RenderSlot
+                  :fn="resolve('timeline-tier')"
+                  :scope="{ view, unit: cell.unit, date: cell.date, label: cell.label }"
+                >
+                  <span class="orb-tl__tier-label">{{ cell.label }}</span>
+                </RenderSlot>
+              </div>
+            </div>
             <div class="orb-tl__days-row">
               <div
                 v-for="day in dayList"
@@ -380,13 +718,12 @@ function eventTop(lane: number) {
               </div>
             </div>
             <div v-if="!daySlots" class="orb-tl__slots-row" aria-hidden="true">
-              <template v-for="day in dayList" :key="day.key">
+              <template v-for="{ key, column, day, slot } in visibleSlots" :key="key">
                 <div
-                  v-for="slot in slots"
-                  :key="slot.minute"
                   class="orb-tl__slot-heading"
                   v-bind="ctx.part('timelineSlotHeading', { day, slot })"
                   :class="{ 'is-labelled': !!slot.label }"
+                  :style="{ gridColumn: column }"
                 >
                   <RenderSlot
                     v-if="slot.label"
@@ -408,6 +745,36 @@ function eventTop(lane: number) {
         </div>
 
         <div ref="body" class="orb-tl__body" :style="{ height: `${totalHeight}px` }">
+          <svg v-if="dependencyLines.length" class="orb-tl__dependencies" aria-hidden="true">
+            <defs>
+              <marker
+                :id="`${view}-arrow`"
+                viewBox="0 0 6 6"
+                refX="5"
+                refY="3"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto"
+              >
+                <path d="M0 0L6 3L0 6z" fill="currentColor" />
+              </marker>
+            </defs>
+            <g
+              v-for="line in dependencyLines"
+              :key="line.key"
+              v-bind="ctx.part('dependency', { from: line.link.from, to: line.link.to })"
+            >
+              <line :x1="line.x1" :y1="line.y1" :x2="line.mid" :y2="line.y1" />
+              <line :x1="line.mid" :y1="line.y1" :x2="line.mid" :y2="line.y2" />
+              <line
+                :x1="line.mid"
+                :y1="line.y2"
+                :x2="line.x2"
+                :y2="line.y2"
+                :marker-end="`url(#${view}-arrow)`"
+              />
+            </g>
+          </svg>
           <div class="orb-tl__day-columns" aria-hidden="true">
             <div
               v-for="day in dayList"
@@ -437,7 +804,13 @@ function eventTop(lane: number) {
             :key="row.key"
             class="orb-tl__row"
             v-bind="ctx.part('timelineRow', { resource: row.resource })"
-            :class="{ 'orb-tl__row--group': row.resource.childIds.length > 0 }"
+            :class="{
+              'orb-tl__row--group': row.resource.childIds.length > 0,
+              'orb-tl__row--reorder-before':
+                reorder?.target === row.resource.id && reorder.position === 'before',
+              'orb-tl__row--reorder-after':
+                reorder?.target === row.resource.id && reorder.position === 'after',
+            }"
             :style="{ height: `${row.height}px`, transform: `translateY(${start}px)` }"
             role="group"
             :aria-label="row.resource.title"
@@ -446,13 +819,17 @@ function eventTop(lane: number) {
               class="orb-tl__label"
               v-bind="ctx.part('resourceLabel', { resource: row.resource })"
               :style="{ '--orb-tl-depth': row.resource.depth }"
+              @pointerdown="onLabelPointerDown($event, row.resource)"
             >
               <button
-                v-if="row.resource.childIds.length"
+                v-if="row.resource.childIds.length || row.resource.lazy"
                 type="button"
                 class="orb-tl__toggle"
                 v-bind="ctx.part('resourceToggle', { resource: row.resource })"
-                :aria-expanded="!ctx.collapsedResources.value.has(row.resource.id)"
+                :class="{ 'is-loading': ctx.loadingResources.value.has(row.resource.id) }"
+                :aria-expanded="
+                  !row.resource.lazy && !ctx.collapsedResources.value.has(row.resource.id)
+                "
                 :aria-label="row.resource.title"
                 @click="ctx.toggleResource(row.resource.id)"
               />
@@ -470,6 +847,24 @@ function eventTop(lane: number) {
                   {{ row.resource.title }}
                 </span>
               </RenderSlot>
+              <span
+                v-for="column in settings.resourceColumns"
+                :key="column.key"
+                class="orb-tl__resource-cell"
+                v-bind="ctx.part('resourceCell', { column, resource: row.resource })"
+              >
+                <RenderSlot
+                  :fn="resolve('resource-column')"
+                  :scope="{
+                    view,
+                    column,
+                    resource: row.resource,
+                    value: columnValue(column, row.resource),
+                  }"
+                >
+                  {{ columnValue(column, row.resource) }}
+                </RenderSlot>
+              </span>
             </div>
             <div
               class="orb-tl__lane"
@@ -479,6 +874,51 @@ function eventTop(lane: number) {
               @dblclick="onLane('slot-dblclick', row, $event)"
               @contextmenu="onLane('slot-contextmenu', row, $event)"
             >
+              <div
+                v-for="load in rowLoad(row.resource)"
+                :key="load.key"
+                class="orb-tl__load"
+                :class="`orb-tl__load--level-${load.level}`"
+                v-bind="ctx.part('resourceLoad', { load, resource: row.resource })"
+                :style="{ insetInlineStart: pct(load.left), width: pct(load.width) }"
+              >
+                <RenderSlot
+                  :fn="resolve('resource-load')"
+                  :scope="{
+                    view,
+                    date: load.date,
+                    resource: row.resource,
+                    minutes: load.minutes,
+                    capacity: load.capacity,
+                    ratio: load.ratio,
+                    occurrences: load.occurrences,
+                  }"
+                >
+                  <span v-if="load.minutes" class="orb-tl__load-text">
+                    {{ Math.round(load.ratio * 100) }}%
+                  </span>
+                </RenderSlot>
+              </div>
+              <div
+                v-for="c in countsOnly ? dayCounts(row) : []"
+                :key="c.key"
+                class="orb-tl__count"
+                v-bind="ctx.part('dayCount', { resource: row.resource, date: c.date })"
+                :style="{ insetInlineStart: pct(c.left), width: pct(c.width) }"
+              >
+                <RenderSlot
+                  :fn="resolve('day-count')"
+                  :scope="{
+                    view,
+                    date: c.date,
+                    resourceId: row.resource.id,
+                    count: c.count,
+                    occurrences: c.occurrences,
+                  }"
+                >
+                  {{ c.count }}
+                </RenderSlot>
+              </div>
               <div
                 v-for="shade in rowShades(row.resource.id)"
                 :key="shade.key"
@@ -533,7 +973,9 @@ function eventTop(lane: number) {
                 />
               </template>
               <EventItem
-                v-for="item in row.items"
+                v-for="item in visibleItems(
+                  countsOnly ? row.items.filter((i) => i.occurrence.allDay) : row.items,
+                )"
                 :key="item.occurrence.key"
                 :occurrence="item.occurrence"
                 variant="timeline"

@@ -13,6 +13,8 @@ import {
   Temporal,
   computeSelection,
   formatDate,
+  formatTime,
+  zonedAtMinute,
   leafResources,
   timeGridLayouts,
   type Hit,
@@ -92,6 +94,31 @@ const {
 } = useTimeGrid(ctx, config)
 
 const availability = ctx.availability
+
+const extraZones = computed(() => ctx.options.value.raw.extraTimeZones ?? [])
+
+/** A short name per extra zone, for the corner above the times. */
+const zoneNames = computed(() =>
+  extraZones.value.map((zone) => {
+    const parts = new Intl.DateTimeFormat(ctx.options.value.locale, {
+      timeZone: zone,
+      timeZoneName: 'short',
+    }).formatToParts(new Date())
+    return parts.find((p) => p.type === 'timeZoneName')?.value ?? zone
+  }),
+)
+
+/** The time in each extra zone at a minute of the first visible day. */
+function zoneLabels(minute: number) {
+  const first = props.days[0]
+  if (!extraZones.value.length || !first) return []
+  const { timeZone, locale, hour12 } = ctx.options.value
+  const moment = zonedAtMinute(first, minute, timeZone)
+  return extraZones.value.map((zone) => ({
+    zone,
+    text: formatTime(moment.withTimeZone(zone), locale, { hour12, compact: true }),
+  }))
+}
 
 /** Fractions of the column for a stretch of minutes. */
 function shadeStyle(shade: { start: number; end: number; color?: string }) {
@@ -489,12 +516,32 @@ defineExpose({ scrollToMinute })
     v-bind="ctx.part('timeGrid')"
     role="group"
     :aria-label="ctx.title.value"
-    :style="{ '--orb-tg-days': columns.length, '--orb-tg-slots': slots.length }"
+    :style="{
+      '--orb-tg-days': columns.length,
+      '--orb-tg-slots': slots.length,
+      '--orb-tg-zones': extraZones.length,
+    }"
   >
     <div ref="scroller" class="orb-tg__scroller">
       <div ref="head" class="orb-tg__head" v-bind="ctx.part('gridHead')">
         <div v-for="(row, ri) in headerRows" :key="ri" class="orb-tg__row">
-          <div class="orb-tg__corner" />
+          <div class="orb-tg__corner">
+            <span
+              v-if="ri === 0 && ctx.options.value.raw.weekNumbers && days[0]"
+              class="orb-week-number"
+              v-bind="ctx.part('weekNumber', { date: days[0] })"
+            >
+              <RenderSlot
+                :fn="resolve('week-number')"
+                :scope="{ view, week: days[0].weekOfYear ?? 0, date: days[0] }"
+              >
+                {{ days[0].weekOfYear }}
+              </RenderSlot>
+            </span>
+            <span v-for="zone in zoneNames" v-show="ri === 0" :key="zone" class="orb-tg__zone-name">
+              {{ zone }}
+            </span>
+          </div>
           <template v-for="cell in row" :key="cell.key">
             <div
               v-if="cell.kind === 'day'"
@@ -620,6 +667,14 @@ defineExpose({ scrollToMinute })
               :scope="{ minute: slot.startMinute, label: slot.label }"
             >
               <span>{{ slot.label }}</span>
+              <span
+                v-for="label in zoneLabels(slot.startMinute)"
+                :key="label.zone"
+                class="orb-tg__zone-label"
+                v-bind="ctx.part('zoneLabel', { zone: label.zone, minute: slot.startMinute })"
+              >
+                {{ label.text }}
+              </span>
             </RenderSlot>
           </div>
         </div>

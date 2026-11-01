@@ -7,6 +7,7 @@ import type { SchedulerSlots } from '../types'
 import TimeGrid from './TimeGrid.vue'
 import {
   endsPastMidnight,
+  notWorkDays,
   multiDayTitle,
   singleDayTitle,
   type TimeGridViewProps,
@@ -27,7 +28,11 @@ const props = withDefaults(defineProps<DayViewProps>(), {
 const slots = defineSlots<SchedulerSlots<any>>()
 
 const ctx = useSchedulerContext()
-const hiddenDays = computed(() => props.hiddenDays ?? ctx.options.value.hiddenDays)
+const hiddenDays = computed(() =>
+  props.workWeek
+    ? notWorkDays(ctx.options.value.raw.workDays)
+    : (props.hiddenDays ?? ctx.options.value.hiddenDays),
+)
 
 const { isActive } = useSchedulerView(() => ({
   name: props.name,

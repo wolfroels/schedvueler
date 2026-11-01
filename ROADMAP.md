@@ -95,14 +95,14 @@ The "no built-in editor" decision stays: these are behaviors and helpers, not di
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 11.1 | Document and test the custom view API, with one example view | P1 | M |
-| [ ] | 11.2 | Multi-month view; N-week day grid (`<MonthView :weeks="2">`) | P2 | M |
-| [ ] | 11.3 | Week numbers in month, week and year views | P2 | S |
-| [ ] | 11.4 | Multiple time zones in the time-grid gutter | P2 | M |
-| [ ] | 11.5 | Year view as a linear planner with event bars | P3 | M |
-| [ ] | 11.6 | Toolbar: overflow menu for many views, date picker on the title, `empty` and `loading` slots | P2 | M |
-| [ ] | 11.7 | Day and N-day views that follow a work-week definition | P3 | S |
-| [ ] | 11.8 | Responsive presets: change the view set by breakpoint with one prop | P3 | S |
+| [x] | 11.1 | Document and test the custom view API, with one example view | P1 | M |
+| [x] | 11.2 | Multi-month view; N-week day grid (`<MonthView :weeks="2">`) | P2 | M |
+| [x] | 11.3 | Week numbers in month, week and year views | P2 | S |
+| [x] | 11.4 | Multiple time zones in the time-grid gutter | P2 | M |
+| [x] | 11.5 | Year view as a linear planner with event bars | P3 | M |
+| [x] | 11.6 | Toolbar: overflow menu for many views, date picker on the title, `empty` and `loading` slots | P2 | M |
+| [x] | 11.7 | Day and N-day views that follow a work-week definition | P3 | S |
+| [x] | 11.8 | Responsive presets: change the view set by breakpoint with one prop | P3 | S |
 
 ## Phase 12: Timeline and resources
 
@@ -110,17 +110,17 @@ This is the free, differentiating feature, so it should be the strongest part.
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 12.1 | Virtualize the time axis and events. Today's baseline is 17 780 DOM nodes and 350–460 ms per navigation in timeline month at 20 000 events | P1 | L |
-| [ ] | 12.2 | Readable timed events in day columns: compact bars, stacking, or a count per day | P1 | M |
-| [ ] | 12.3 | Multi-tier headers (month / week / day / hour) with zoom levels | P1 | L |
-| [ ] | 12.4 | Resource search, sort and filter | P1 | M |
-| [ ] | 12.5 | Several resource columns with a `resource-column` slot, and resizable resource area | P1 | M |
-| [ ] | 12.6 | Group totals and per-resource load or capacity rows | P2 | M |
-| [ ] | 12.7 | Drag rows to reorder resources | P2 | M |
-| [ ] | 12.8 | Lazy-loaded resource trees and `resource-expand` loading | P2 | M |
-| [ ] | 12.9 | Events split across several resources: drag one, or all of them | P2 | M |
-| [ ] | 12.10 | Dependencies between events (arrows, finish-to-start) | P3 | L |
-| [ ] | 12.11 | Gantt-style view with progress and milestones | P3 | L |
+| [x] | 12.1 | Virtualize the time axis and events. Today's baseline is 17 780 DOM nodes and 350–460 ms per navigation in timeline month at 20 000 events | P1 | L |
+| [x] | 12.2 | Readable timed events in day columns: compact bars, stacking, or a count per day | P1 | M |
+| [x] | 12.3 | Multi-tier headers (month / week / day / hour) with zoom levels | P1 | L |
+| [x] | 12.4 | Resource search, sort and filter | P1 | M |
+| [x] | 12.5 | Several resource columns with a `resource-column` slot, and resizable resource area | P1 | M |
+| [x] | 12.6 | Group totals and per-resource load or capacity rows | P2 | M |
+| [x] | 12.7 | Drag rows to reorder resources | P2 | M |
+| [x] | 12.8 | Lazy-loaded resource trees and `resource-expand` loading | P2 | M |
+| [x] | 12.9 | Events split across several resources: drag one, or all of them | P2 | M |
+| [x] | 12.10 | Dependencies between events (arrows, finish-to-start) | P3 | L |
+| [x] | 12.11 | Gantt-style view with progress and milestones | P3 | L |
 
 ## Phase 13: Accessibility, global use, performance
 
@@ -141,7 +141,7 @@ This is the free, differentiating feature, so it should be the strongest part.
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
 | [ ] | 14.1 | `useEventSource`: fetch by range and visible resources, cache ranges, cancel stale requests, `refetch()` | P1 | M |
-| [ ] | 14.2 | `loading` and `error` states with slots | P1 | S |
+| [x] | 14.2 | `loading` and `error` states with slots | P1 | S |
 | [ ] | 14.3 | iCalendar import and export, including VTIMEZONE and exceptions | P1 | L |
 | [ ] | 14.4 | RRULE to readable text, localized | P2 | M |
 | [ ] | 14.5 | Headless recurrence form helper (rule ↔ form state) | P2 | M |

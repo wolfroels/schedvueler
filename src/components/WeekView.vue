@@ -5,7 +5,7 @@ import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import type { SchedulerSlots } from '../types'
 import TimeGrid from './TimeGrid.vue'
-import { endsPastMidnight, multiDayTitle, type TimeGridViewProps } from './view-props'
+import { endsPastMidnight, notWorkDays, multiDayTitle, type TimeGridViewProps } from './view-props'
 
 export interface WeekViewProps extends TimeGridViewProps {
   /** Days shown from the start of the week, e.g. 5 for a work week. Default 7. */
@@ -40,7 +40,12 @@ const { isActive } = useSchedulerView(() => ({
 const resolve = useSlotResolver(slots as never, ctx as never)
 const days = computed(() =>
   ctx.range.value
-    ? rangeDays(ctx.range.value, props.hiddenDays ?? ctx.options.value.hiddenDays)
+    ? rangeDays(
+        ctx.range.value,
+        props.workWeek
+          ? notWorkDays(ctx.options.value.raw.workDays)
+          : (props.hiddenDays ?? ctx.options.value.hiddenDays),
+      )
     : [],
 )
 </script>

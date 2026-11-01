@@ -60,6 +60,15 @@ The root component. Views are its children; the first one is the default.
 | `drag-to-duplicate` | `boolean` | `false` | Ctrl/Cmd + drag emits `event-duplicate`. |
 | `event-leave` | `boolean` | `false` | Dragging off the scheduler emits `event-leave`; another scheduler below can take it. |
 | `native-drop` | `boolean` | `false` | Native HTML5 drops emit `native-drop`, with the `dataTransfer`. |
+| `week-numbers` | `boolean` | `false` | ISO week numbers in month, week and year views. |
+| `extra-time-zones` | `string[]` | – | More zones next to the times in time grids (at the first visible day). |
+| `max-view-buttons` | `number` | – | More view buttons than this go into a menu. |
+| `title-date-picker` | `boolean` | `false` | The title opens a date picker. |
+| `loading` / `error` | `boolean` / `unknown` | – | Overlays, with the `loading` and `error` slots. The `empty` slot appears over a range without events. |
+| `work-days` | `number[]` | Monday to Friday | Used by views with `work-week`. |
+| `responsive-views` | `{ maxWidth, views }[]` | – | Which views to offer up to a width. The first match applies. |
+| `resource-order` / `resource-filter` | functions | – | Order of siblings, and which resources show (their parents stay). |
+| `multi-resource-drag` | `'one' \| 'all'` | `'one'` | `'all'` moves an event on several resources together, row by row. |
 | `slot-attrs` | `(info) => attrs` | – | Extra class, style or attributes per cell. |
 | `business-hours` | `BusinessHours` | – | Opening hours, `{ days?, start, end }` or a list. Everything else is shaded. A resource's own `businessHours` wins. |
 | `business-hours-only` | `boolean` | `false` | Refuse changes outside business hours. |
@@ -186,6 +195,28 @@ Arrow keys move over the days (crossing into the next or previous year), Enter o
 Resources with `parentId` form collapsible groups; children inherit the group's `color`, and
 events without a color use their resource's. On a timeline, Alt+up/down moves the focused event to
 the previous/next row.
+
+### `<MonthView :weeks="2">` and `<MultiMonthView>`
+
+`weeks` shows that many weeks instead of a month. `<MultiMonthView :months="3">` shows several month grids, with `max-event-rows`.
+
+### `<YearView display="planner">`
+
+One row per month with event bars, which can be moved.
+
+### Timeline props
+
+`header-tiers` (`['month', 'week']`), `day-events` (`'compact'` or `'count'` with day columns), `zoom-levels` with `v-model:zoom` and Ctrl + scroll, `resource-search`, `resource-columns` (`{ key, label, width?, value? }`), `resource-area-resizable`, `resource-reorder` (emits `resource-reorder`; apply it with `reorderResources`), `load` (`true` or `{ capacity }`, in minutes or per resource), and `dependencies` (arrows from an event's `dependsOn`).
+
+Resources with `lazy: true` show a toggle that emits `resource-expand`; call `waitUntil` with your request to show it as loading.
+
+### `<GanttView>`
+
+One row per event, with `progress` (0 to 1), milestones (events without length), arrows from `dependsOn`, and `header-tiers`.
+
+## Custom views
+
+See [CUSTOM_VIEWS.md](CUSTOM_VIEWS.md).
 
 ## Emits
 
