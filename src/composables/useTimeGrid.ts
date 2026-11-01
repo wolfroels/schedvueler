@@ -96,6 +96,9 @@ export interface AllDayEventLayout<T> {
 export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGetter<TimeGridConfig>) {
   const cfg = computed(() => toValue(config))
 
+  /** Where a column's day begins, for days running past midnight. */
+  const dayOffset = computed(() => (cfg.value.dayEndMinute > 1440 ? cfg.value.dayStartMinute : 0))
+
   /** Resources as column groups; a single `undefined` group without resources. */
   const groups = computed(() => (cfg.value.resources?.length ? cfg.value.resources : [undefined]))
   const byResource = computed(() => cfg.value.resources?.length && cfg.value.groupBy !== 'date')
@@ -262,7 +265,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     ) => {
       groups.value.forEach((resource, g) => {
         if (resource && occ.resourceIds && !occ.resourceIds.includes(resource.id)) return
-        segmentByDay([occ], days, tz).forEach((segments, d) => {
+        segmentByDay([occ], days, tz, dayOffset.value).forEach((segments, d) => {
           const col = colIndex(d, g)
           for (const segment of segments) {
             const pos = verticalPosition(
@@ -315,7 +318,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     const tz = ctx.options.value.timeZone
     const result: TimedEventLayout<T>[][] = columns.value.map(() => [])
     perGroup(partitioned.value.timed).forEach((list, g) => {
-      segmentByDay(list, days, tz).forEach((segments, d) => {
+      segmentByDay(list, days, tz, dayOffset.value).forEach((segments, d) => {
         const col = colIndex(d, g)
         const visible: { segment: DaySegment<T>; top: number; height: number }[] = []
         for (const segment of segments) {
@@ -348,14 +351,37 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return result
   })
 
+  /** Events entirely before or after the visible hours, per column. */
+  const hiddenEvents = computed(() => {
+    const { days, dayStartMinute, dayEndMinute } = cfg.value
+    const tz = ctx.options.value.timeZone
+    const result = columns.value.map(() => ({
+      before: [] as EventOccurrence<T>[],
+      after: [] as EventOccurrence<T>[],
+    }))
+    if (dayStartMinute === 0 && dayEndMinute === 1440) return result
+    perGroup(partitioned.value.timed).forEach((list, g) => {
+      segmentByDay(list, days, tz, dayOffset.value).forEach((segments, d) => {
+        const col = colIndex(d, g)
+        for (const s of segments) {
+          if (s.endMinute <= dayStartMinute) result[col]!.before.push(s.occurrence)
+          else if (s.startMinute >= dayEndMinute) result[col]!.after.push(s.occurrence)
+        }
+      })
+    })
+    return result
+  })
+
   /** Where to draw the now line, or `null` when today is not visible. */
   const nowLine = computed(() => {
     const now = ctx.now.value
-    const date = now.toPlainDate()
+    const { dayStartMinute, dayEndMinute } = cfg.value
+    // Early in the morning, a day running past midnight is still yesterday's column.
+    const lateNight = dayOffset.value > 0 && minutesIntoDay(now) < dayOffset.value
+    const date = lateNight ? now.toPlainDate().subtract({ days: 1 }) : now.toPlainDate()
     const columnIndexes = columns.value.flatMap((c, i) => (c.date.equals(date) ? [i] : []))
     if (!columnIndexes.length) return null
-    const { dayStartMinute, dayEndMinute } = cfg.value
-    const minute = minutesIntoDay(now)
+    const minute = minutesIntoDay(now) + (lateNight ? 1440 : 0)
     if (minute < dayStartMinute || minute > dayEndMinute) return null
     return {
       columnIndex: columnIndexes[0]!,
@@ -381,5 +407,16 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     }
   }
 
-  return { columns, slots, allDay, timed, overlays, allDaySelection, nowLine, slotRange, dayRange }
+  return {
+    hiddenEvents,
+    columns,
+    slots,
+    allDay,
+    timed,
+    overlays,
+    allDaySelection,
+    nowLine,
+    slotRange,
+    dayRange,
+  }
 }

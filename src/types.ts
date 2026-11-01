@@ -1,9 +1,12 @@
 import type { HTMLAttributes, StyleValue, VNodeChild } from 'vue'
 import type {
+  BlockedTime,
+  BusinessHours,
   DateAdapter,
   EventAccessors,
   EventOccurrence,
   RangeStrategy,
+  RefusalReason,
   RecurrenceEditScope,
   ResourceAccessors,
   ResourceId,
@@ -26,6 +29,8 @@ export interface SchedulerMessages {
   noEvents: string
   /** Label of the overflow link, e.g. "+3 more". */
   more: (count: number) => string
+  /** Marker for events outside the visible hours. */
+  hiddenEvents: (count: number, direction: 'before' | 'after') => string
   /** Number of events on a day, read out with month cells. */
   eventCount: (count: number) => string
   /** Screen-reader hint on editable events. */
@@ -48,6 +53,7 @@ export const defaultMessages: SchedulerMessages = {
   close: 'Close',
   noEvents: 'No events',
   more: (count) => `+${count} more`,
+  hiddenEvents: (count, direction) => `${direction === 'before' ? '↑' : '↓'} ${count}`,
   eventCount: (count) => (count === 1 ? '1 event' : `${count} events`),
   dragHint:
     'Press Alt and the arrow keys to move, Alt Shift and the arrow keys to resize, Delete to remove.',
@@ -125,6 +131,10 @@ export type SchedulerPart =
   | 'resourceLabel'
   | 'resourceToggle'
   | 'timelineLane'
+  | 'closedTime'
+  | 'blockedTime'
+  | 'backgroundEvent'
+  | 'hiddenIndicator'
 
 /**
  * Attributes passed through to the parts of the scheduler: classes, styles, `data-*`, listeners.
@@ -191,6 +201,28 @@ export interface SchedulerOptions<T> {
   resourceAccessors?: Partial<ResourceAccessors<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
 
   // --- interaction ---
+  // --- availability ---
+  /** Opening hours; everything else is shaded. A resource's own `businessHours` wins. */
+  businessHours?: BusinessHours
+  /** Refuse moves, resizes, selections and drops outside business hours. */
+  businessHoursOnly?: boolean
+  /** Times nothing can be placed in, drawn as blocked. */
+  blockedTimes?: readonly BlockedTime[]
+  /** Whether a range is off limits; refuses selections, moves, resizes and drops there. */
+  isSlotDisabled?: (info: SelectInfo) => boolean
+  /** First date that can be navigated to or edited, "YYYY-MM-DD". */
+  minDate?: string
+  /** Last date that can be navigated to or edited, "YYYY-MM-DD". */
+  maxDate?: string
+  /** Whether events may overlap after a change. A function decides per pair. Default "allow". */
+  eventOverlap?: 'allow' | 'forbid' | ((info: OverlapInfo<T>) => boolean)
+  /** Shortest and longest length in minutes, for all events or per event. */
+  durationLimits?: DurationLimits | ((occurrence: EventOccurrence<T> | undefined) => DurationLimits)
+  /** Extra class, style or attributes per cell (time slots, all-day cells, month cells). */
+  slotAttrs?: (
+    info: SelectInfo & { view: string; date: Temporal.PlainDate },
+  ) => ElementAttrs | undefined
+
   /** Lets users move and resize events. Default false. */
   editable?: boolean
   /** Overrides `editable` for moving. */
@@ -224,6 +256,22 @@ export interface SchedulerOptions<T> {
   drillDownView?: string
   /** Swipe left/right on touch screens to go to the next/previous period. Default true. */
   swipeNavigation?: boolean
+}
+
+export interface DurationLimits {
+  /** Minutes. */
+  min?: number
+  /** Minutes. */
+  max?: number
+}
+
+export interface OverlapInfo<T> {
+  /** What is being placed; missing for a selection or an event from outside. */
+  occurrence: EventOccurrence<T> | undefined
+  /** The event it would overlap. */
+  other: EventOccurrence<T>
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
 }
 
 export type EventChangeKind = 'move' | 'resize-start' | 'resize-end'
@@ -301,6 +349,8 @@ export interface SchedulerViewDefinition {
   minWidth?: number
   /** Only offered while the scheduler is at most this wide (px). */
   maxWidth?: number
+  /** Days run past midnight: fetch one more day of events. */
+  overnight?: boolean
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -329,6 +379,19 @@ export interface RangeChangePayload {
   startMs: number
   endMs: number
   timeZone: string
+}
+
+/** A move or resize was refused. */
+export interface EventChangeFailedPayload<T> {
+  occurrence: EventOccurrence<T>
+  event: T
+  view: string
+  kind: EventChangeKind
+  reason: RefusalReason
+  start: Temporal.ZonedDateTime
+  end: Temporal.ZonedDateTime
+  allDay: boolean
+  resourceIds: readonly ResourceId[]
 }
 
 export type NavigateReason = 'prev' | 'next' | 'today' | 'date'
@@ -443,6 +506,8 @@ export interface EventChangePayload<T> {
    */
   scope: RecurrenceEditScope
   nativeEvent: PointerEvent | KeyboardEvent
+  /** The event's element as it is now, to anchor your own popover. */
+  getElement(): HTMLElement | null
 }
 
 export type BeforeEventChangePayload<T> = EventChangePayload<T> & Cancelable
@@ -462,7 +527,11 @@ export interface EventDeletePayload<T> {
   recurring: boolean
   scope: RecurrenceEditScope
   nativeEvent: KeyboardEvent
+  /** The event's element, to anchor your own confirmation. */
+  element: HTMLElement
 }
+
+export type BeforeEventDeletePayload<T> = EventDeletePayload<T> & Cancelable
 
 export interface SelectPayload {
   view: string
@@ -472,6 +541,8 @@ export interface SelectPayload {
   /** Resource the range was selected on. */
   resourceId?: ResourceId
   nativeEvent: PointerEvent | KeyboardEvent
+  /** The element of the selected range, to anchor your own popover. */
+  getElement(): HTMLElement | null
 }
 
 /** An event dragged in from outside was dropped. Add it to your data. */
@@ -542,6 +613,10 @@ export interface SchedulerEmits<T> {
   'before-event-resize': [payload: BeforeEventChangePayload<T>]
   /** An event was resized. Update your data; call `revert()` if that fails. */
   'event-resize': [payload: EventChangedPayload<T>]
+  /** A move or resize was refused by a rule, and the event stays where it was. */
+  'event-change-failed': [payload: EventChangeFailedPayload<T>]
+  /** Before `event-delete`. Cancelable, e.g. to ask for confirmation first. */
+  'before-event-delete': [payload: BeforeEventDeletePayload<T>]
   /** The user pressed Delete on an editable event. Remove it from your data to delete it. */
   'event-delete': [payload: EventDeletePayload<T>]
   /** A range was selected by dragging (or Shift + arrows and Enter). */
@@ -697,6 +772,25 @@ export interface SelectionSlotProps {
   resourceId: ResourceId | undefined
 }
 
+export interface ShadeSlotProps<T> {
+  view: string
+  date: Temporal.PlainDate | undefined
+  resourceId: ResourceId | undefined
+  title: string | undefined
+  color: string | undefined
+  occurrence: EventOccurrence<T> | undefined
+}
+
+export interface HiddenEventsSlotProps<T> {
+  view: string
+  date: Temporal.PlainDate
+  /** Whether they are before or after the visible hours. */
+  direction: 'before' | 'after'
+  count: number
+  occurrences: EventOccurrence<T>[]
+  label: string
+}
+
 type SlotFn<P> = (props: P) => VNodeChild
 
 /**
@@ -732,6 +826,14 @@ export interface SchedulerSlots<T> {
   'drag-preview'?: SlotFn<EventSlotProps<T>>
   /** The inside of a resize handle. */
   'resize-handle'?: SlotFn<{ edge: 'start' | 'end'; variant: EventVariant }>
+  /** The inside of a background event. */
+  'background-event'?: SlotFn<ShadeSlotProps<T>>
+  /** The inside of a blocked time. */
+  'blocked-time'?: SlotFn<ShadeSlotProps<T>>
+  /** The inside of a closed time, outside business hours. */
+  'closed-time'?: SlotFn<ShadeSlotProps<T>>
+  /** The marker for events outside the visible hours. */
+  'hidden-events'?: SlotFn<HiddenEventsSlotProps<T>>
   /** The inside of the selected range (time grid, all-day row, timeline). */
   selection?: SlotFn<SelectionSlotProps>
   'day-header'?: SlotFn<DayHeaderSlotProps>

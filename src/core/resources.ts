@@ -1,3 +1,4 @@
+import type { BusinessHours } from './availability'
 import type { ResourceId } from './types'
 
 /** Default resource shape. Any other shape works too, with matching resource accessors. */
@@ -8,6 +9,8 @@ export interface SchedulerResource {
   parentId?: ResourceId | null
   /** Accent color for the resource's events without a color of their own. Children inherit it. */
   color?: string
+  /** Opening hours of this resource, instead of the scheduler's. */
+  businessHours?: BusinessHours
 }
 
 export interface ResourceAccessors<R> {
@@ -15,6 +18,7 @@ export interface ResourceAccessors<R> {
   title(resource: R): string | undefined
   parentId(resource: R): ResourceId | null | undefined
   color(resource: R): string | undefined
+  businessHours(resource: R): BusinessHours | undefined
 }
 
 export const defaultResourceAccessors: ResourceAccessors<SchedulerResource> = {
@@ -22,6 +26,7 @@ export const defaultResourceAccessors: ResourceAccessors<SchedulerResource> = {
   title: (r) => r.title,
   parentId: (r) => r.parentId,
   color: (r) => r.color,
+  businessHours: (r) => r.businessHours,
 }
 
 export function createResourceAccessors<R>(
@@ -35,6 +40,7 @@ export interface ResourceNode<R = SchedulerResource> {
   readonly id: ResourceId
   readonly title: string
   readonly color: string | undefined
+  readonly businessHours: BusinessHours | undefined
   /** The user's original resource object. */
   readonly resource: R
   readonly parentId: ResourceId | undefined
@@ -90,6 +96,7 @@ export function buildResourceTree<R>(
         id,
         title: accessors.title(r) ?? String(id),
         color,
+        businessHours: accessors.businessHours(r),
         resource: r,
         parentId,
         depth,

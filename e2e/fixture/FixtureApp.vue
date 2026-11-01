@@ -27,13 +27,17 @@ const date = ref(params.get('date') ?? '2026-06-15')
 const hiddenDays = (params.get('hidden') ?? '').split(',').filter(Boolean).map(Number)
 const blockWeekends = params.has('blockWeekends')
 const showSlot = ref(false)
+// Any other scheduler options and extra events, as JSON, so tests can try a feature.
+const extra = JSON.parse(params.get('opts') ?? '{}')
+const extraEvents: SchedulerEvent[] = JSON.parse(params.get('events') ?? '[]')
+const scheduler = ref()
 
 if (params.has('rtl')) document.documentElement.dir = 'rtl'
 
 const log: string[] = []
-Object.assign(window, { orbLog: log })
+Object.assign(window, { orbLog: log, orbScheduler: scheduler })
 
-const resources = [
+const resources = extra.resources ?? [
   { id: 'r1', title: 'Room one' },
   { id: 'r2', title: 'Room two' },
 ]
@@ -63,6 +67,7 @@ const events = shallowRef<SchedulerEvent[]>([
     rrule: 'FREQ=DAILY;COUNT=3',
   },
   ...busy,
+  ...extraEvents,
 ])
 
 const pt: SchedulerPt = {
@@ -104,6 +109,8 @@ const onReceive = (p: EventReceivePayload) =>
   >
   <div class="fixture-frame">
     <Scheduler
+      ref="scheduler"
+      v-bind="extra"
       v-model:date="date"
       v-model:view="view"
       :events="events"
@@ -125,6 +132,7 @@ const onReceive = (p: EventReceivePayload) =>
       @event-drop="(p) => onChanged('event-drop', p)"
       @event-resize="(p) => onChanged('event-resize', p)"
       @event-delete="onDelete"
+      @event-change-failed="(p) => log.push(`event-change-failed ${p.event.title} ${p.reason}`)"
       @event-receive="onReceive"
       @select="onSelect"
       @unselect="log.push('unselect')"

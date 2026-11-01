@@ -38,6 +38,50 @@ const part = (
 ): PartInfo => ({ name, group, className, description, views, ...extra })
 
 export const PARTS: PartInfo[] = [
+  part(
+    'closedTime',
+    'Availability',
+    'orb-shade--closed',
+    'Hours outside business hours.',
+    ['week', 'rooms', 'timeline'],
+    {
+      scope: '{ shade, column | resource }',
+      hint: 'Needs business-hours.',
+    },
+  ),
+  part(
+    'blockedTime',
+    'Availability',
+    'orb-shade--blocked',
+    'A blocked time.',
+    ['week', 'rooms', 'month', 'timeline'],
+    {
+      scope: '{ shade, column | resource }',
+      hint: 'Needs blocked-times.',
+    },
+  ),
+  part(
+    'backgroundEvent',
+    'Availability',
+    'orb-shade--background',
+    'An event with display: background.',
+    ['week', 'rooms', 'month', 'timeline'],
+    {
+      scope: '{ shade, column | resource }',
+      hint: 'Needs a background event.',
+    },
+  ),
+  part(
+    'hiddenIndicator',
+    'Availability',
+    'orb-tg__hidden',
+    'Marks events outside the visible hours.',
+    GRID,
+    {
+      scope: '{ column, direction }',
+      hint: 'Needs limited visible hours.',
+    },
+  ),
   part('root', 'Scheduler', 'orb-scheduler', 'The whole scheduler.', ALL),
   part('body', 'Scheduler', 'orb-scheduler__body', 'Holds the active view.', ALL),
   part('toolbar', 'Toolbar', 'orb-toolbar', 'The bar above the view.', ALL),
@@ -259,6 +303,46 @@ const EVENT_PROPS =
 const TOOLBAR_PROPS = 'title, view, views, prev(), next(), today(), setView(name)'
 
 export const SLOTS: SlotInfo[] = [
+  {
+    name: 'closed-time',
+    group: 'Availability',
+    part: 'closedTime',
+    mode: 'inside',
+    description: 'Inside a stretch outside business hours.',
+    props: 'view, date, resourceId, title, color, occurrence',
+    views: ['week', 'rooms', 'timeline'],
+    hint: 'Needs business-hours.',
+  },
+  {
+    name: 'blocked-time',
+    group: 'Availability',
+    part: 'blockedTime',
+    mode: 'inside',
+    description: 'Inside a blocked time.',
+    props: 'view, date, resourceId, title, color, occurrence',
+    views: ['week', 'rooms', 'month', 'timeline'],
+    hint: 'Needs blocked-times.',
+  },
+  {
+    name: 'background-event',
+    group: 'Availability',
+    part: 'backgroundEvent',
+    mode: 'inside',
+    description: 'Inside a background event.',
+    props: 'view, date, resourceId, title, color, occurrence',
+    views: ['week', 'rooms', 'month', 'timeline'],
+    hint: 'Needs a background event.',
+  },
+  {
+    name: 'hidden-events',
+    group: 'Availability',
+    part: 'hiddenIndicator',
+    mode: 'inside',
+    description: 'The marker for events outside the visible hours.',
+    props: 'view, date, direction, count, occurrences, label',
+    views: GRID,
+    hint: 'Needs limited visible hours.',
+  },
   {
     name: 'toolbar',
     group: 'Toolbar',

@@ -1,5 +1,5 @@
 import type { Temporal } from '../temporal'
-import { dayBounds, minutesIntoDay } from '../dates'
+import { dayBounds, daysBetween, minutesIntoDay, zonedAtMinute } from '../dates'
 import type { EventOccurrence } from '../types'
 
 /** The part of an occurrence that falls on one day column. */
@@ -61,14 +61,27 @@ function firstDayEndingAfter(days: readonly DayWindow[], ms: number): number {
 /**
  * Splits occurrences into per-day segments for time-grid columns.
  * Days must be ascending but need not be consecutive (hidden weekdays are fine).
+ * @param dayStartMinute where a column's day begins, for days running past midnight: each then
+ * covers 24 hours from this minute, and segments can have minutes past 1440.
  * @returns one array of segments per day, in the order of `occurrences`.
  */
 export function segmentByDay<T>(
   occurrences: readonly EventOccurrence<T>[],
   days: readonly Temporal.PlainDate[],
   timeZone: string,
+  dayStartMinute = 0,
 ): DaySegment<T>[][] {
-  const windows = dayWindows(days, timeZone)
+  const windows = dayStartMinute
+    ? days.map((date) => ({
+        date,
+        startMs: zonedAtMinute(date, dayStartMinute, timeZone).epochMilliseconds,
+        endMs: zonedAtMinute(date, dayStartMinute + 1440, timeZone).epochMilliseconds,
+      }))
+    : dayWindows(days, timeZone)
+  const minuteOn = (date: Temporal.PlainDate, value: Temporal.ZonedDateTime) => {
+    const zoned = value.withTimeZone(timeZone)
+    return daysBetween(date, zoned.toPlainDate()) * 1440 + minutesIntoDay(zoned)
+  }
   const result: DaySegment<T>[][] = windows.map(() => [])
   for (const occ of occurrences) {
     for (let i = firstDayEndingAfter(windows, occ.startMs); i < windows.length; i++) {
@@ -79,11 +92,11 @@ export function segmentByDay<T>(
       }
       const isStart = occ.startMs >= day.startMs
       const isEnd = occ.endMs <= day.endMs
-      const startMinute = isStart ? minutesIntoDay(occ.start.withTimeZone(timeZone)) : 0
+      const startMinute = isStart ? minuteOn(day.date, occ.start) : dayStartMinute
       // Wall-clock minutes can run backwards across a DST fall-back hour; never let the end precede the start.
       const endMinute = isEnd
-        ? Math.max(startMinute, minutesIntoDay(occ.end.withTimeZone(timeZone)))
-        : 1440
+        ? Math.max(startMinute, minuteOn(day.date, occ.end))
+        : dayStartMinute + 1440
       result[i]!.push({
         occurrence: occ,
         date: day.date,
@@ -91,7 +104,7 @@ export function segmentByDay<T>(
         startMs: Math.max(occ.startMs, day.startMs),
         endMs: Math.min(occ.endMs, day.endMs),
         startMinute,
-        endMinute: isEnd && occ.endMs === day.endMs ? 1440 : endMinute,
+        endMinute: isEnd && occ.endMs === day.endMs ? dayStartMinute + 1440 : endMinute,
         isStart,
         isEnd,
       })

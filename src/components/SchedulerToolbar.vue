@@ -27,6 +27,7 @@ const slot = (name: string) => {
               v-bind="ctx.part('prevButton')"
               :aria-label="ctx.options.value.messages.previous"
               :title="ctx.options.value.messages.previous"
+              :disabled="!ctx.canStep(-1)"
               @click="toolbar.prev"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
@@ -42,6 +43,7 @@ const slot = (name: string) => {
               v-bind="ctx.part('nextButton')"
               :aria-label="ctx.options.value.messages.next"
               :title="ctx.options.value.messages.next"
+              :disabled="!ctx.canStep(1)"
               @click="toolbar.next"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>

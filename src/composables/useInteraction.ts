@@ -1,9 +1,13 @@
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue'
 import {
+  Temporal,
   computeDrop,
   computeMove,
   computeResize,
   computeSelection,
+  findBlocked,
+  findOverlaps,
+  fitsBusinessHours,
   formatDate,
   formatTimeRange,
   rangeContains,
@@ -12,10 +16,15 @@ import {
   type EventOccurrence,
   type EventTimes,
   type Hit,
+  type RefusalReason,
   type ResourceId,
-  type Temporal,
 } from '../core'
-import type { EventChangeKind, ExternalEventTemplate, SelectPayload } from '../types'
+import type {
+  DurationLimits,
+  EventChangeKind,
+  ExternalEventTemplate,
+  SelectPayload,
+} from '../types'
 import { createCancelable } from './cancelable'
 import { parseTimeOfDay, type SchedulerContext } from './context'
 
@@ -28,6 +37,8 @@ export interface DragSurface {
   scrollArea?: () => { left: number; top: number; right: number; bottom: number } | undefined
   /** Minutes to snap gestures that start on this surface to. Defaults to the scheduler's. */
   snapMinutes?: () => number
+  /** Scrolls to a wall-clock minute. */
+  scrollToMinute?: (minute: number) => void
 }
 
 /** A keyboard move or resize step. */
@@ -50,6 +61,8 @@ export interface DragState {
   origin: Hit
   preview: EventTimes | null
   valid: boolean
+  /** Why the current spot is refused. */
+  reason: RefusalReason | null
 }
 
 export interface Selection {
@@ -114,6 +127,14 @@ export interface SchedulerInteraction {
   receiveDrop(nativeEvent: PointerEvent): void
   /** Scrolls a view when (x, y) is near its edge; returns whether it scrolled. */
   scrollNear(x: number, y: number): boolean
+  /** Scrolls the active view to a wall-clock minute. */
+  scrollToMinute(minute: number): void
+  /** Why these times would be refused, or `null`. Runs every rule, for your own checks too. */
+  refusal(
+    kind: DragState['kind'],
+    occurrence: EventOccurrence<unknown> | undefined,
+    times: EventTimes,
+  ): RefusalReason | null
 }
 
 const EXTERNAL_KEY = '__orb-external'
@@ -164,13 +185,17 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
   function canDrag(occ: EventOccurrence<unknown>): boolean {
     const o = raw()
-    if (!(o.eventDraggable ?? o.editable ?? false)) return false
+    const a = ctx.accessors.value
+    const own = a.draggable(occ.event) ?? a.editable(occ.event)
+    if (!(own ?? o.eventDraggable ?? o.editable ?? false)) return false
     return o.canDrag ? o.canDrag(occ) : true
   }
 
   function canResize(occ: EventOccurrence<unknown>): boolean {
     const o = raw()
-    if (!(o.eventResizable ?? o.editable ?? false)) return false
+    const a = ctx.accessors.value
+    const own = a.resizable(occ.event) ?? a.editable(occ.event)
+    if (!(own ?? o.eventResizable ?? o.editable ?? false)) return false
     return o.canResize ? o.canResize(occ) : true
   }
 
@@ -190,6 +215,86 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
           resourceIds: times.resourceIds ?? occ.resourceIds,
         })
       : true
+  }
+
+  function refusal(
+    kind: DragState['kind'],
+    occ: EventOccurrence<unknown> | undefined,
+    times: EventTimes,
+  ): RefusalReason | null {
+    const o = raw()
+    const { timeZone } = ctx.options.value
+    const startMs = times.start.epochMilliseconds
+    const endMs = times.end.epochMilliseconds
+    const resourceIds = times.resourceIds ?? occ?.resourceIds ?? []
+
+    const { min, max } = ctx.dateLimits.value
+    const first = times.start.withTimeZone(timeZone).toPlainDate()
+    const last = times.end.withTimeZone(timeZone).subtract({ nanoseconds: 1 }).toPlainDate()
+    if (min && Temporal.PlainDate.compare(first, min) < 0) return 'date-limit'
+    if (max && Temporal.PlainDate.compare(last, max) > 0) return 'date-limit'
+
+    if (findBlocked(ctx.availability.blockedTimes.value, startMs, endMs, resourceIds))
+      return 'blocked'
+    if (o.isSlotDisabled?.({ ...selectInfo(times), resourceId: resourceIds[0] })) return 'disabled'
+
+    if (o.businessHoursOnly && !times.allDay) {
+      const zoned = (value: Temporal.ZonedDateTime) => value.withTimeZone(timeZone)
+      const targets: readonly (ResourceId | undefined)[] = resourceIds.length
+        ? resourceIds
+        : [undefined]
+      for (const id of targets) {
+        const hours = ctx.availability.hoursFor(id)
+        if (hours && !fitsBusinessHours(zoned(times.start), zoned(times.end), hours))
+          return 'business-hours'
+      }
+    }
+
+    // Moves keep their length, so only what changes it is checked.
+    if (kind !== 'move' && kind !== 'receive' && o.durationLimits) {
+      const limits: DurationLimits =
+        typeof o.durationLimits === 'function' ? o.durationLimits(occ) : o.durationLimits
+      const minutes = (endMs - startMs) / 60_000
+      if (limits.min !== undefined && minutes < limits.min) return 'duration'
+      if (limits.max !== undefined && minutes > limits.max) return 'duration'
+    }
+
+    const overlap = o.eventOverlap ?? 'allow'
+    if (overlap !== 'allow') {
+      const others = findOverlaps(
+        ctx.store
+          .query({ startMs, endMs })
+          .filter((x) => ctx.accessors.value.display(x.event) !== 'background'),
+        startMs,
+        endMs,
+        resourceIds,
+        occ?.key,
+      )
+      const allowed =
+        overlap === 'forbid'
+          ? !others.length
+          : others.every((other) =>
+              overlap({ occurrence: occ, other, start: times.start, end: times.end }),
+            )
+      if (!allowed) return 'overlap'
+    }
+    return isValid(kind, occ, times) ? null : 'custom'
+  }
+
+  function reportRefused(
+    occ: EventOccurrence<unknown>,
+    kind: EventChangeKind,
+    view: string,
+    times: EventTimes,
+    reason: RefusalReason,
+  ) {
+    ctx.emit('event-change-failed', {
+      ...base(occ, view, kind),
+      reason,
+      ...times,
+      resourceIds: times.resourceIds ?? occ.resourceIds,
+    })
+    ctx.announce(ctx.options.value.messages.dragCancelled)
   }
 
   function selectInfo(times: EventTimes) {
@@ -239,6 +344,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       recurring: occ.recurring || occ.isException,
       scope: raw().recurrenceEditScope ?? 'this',
       nativeEvent,
+      getElement: () => ctx.eventElement(occ.key),
     })
 
     // Show the new position right away; it stays until `events` changes or the change is reverted.
@@ -274,7 +380,13 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
 
   function emitSelect(view: string, times: EventTimes, nativeEvent: PointerEvent | KeyboardEvent) {
     committedSelection.value = { view, times }
-    const payload: SelectPayload = { view, ...selectInfo(times), nativeEvent }
+    const payload: SelectPayload = {
+      view,
+      ...selectInfo(times),
+      nativeEvent,
+      getElement: () =>
+        ctx.rootEl.value?.querySelector<HTMLElement>('[data-orb-part="selection"]') ?? null,
+    }
     ctx.emit('select', payload)
     ctx.announce(ctx.options.value.messages.selected(describe(times)))
   }
@@ -395,13 +507,17 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     const s = state.value
     if (s?.kind === 'receive' && sameTimes(preview, s.preview)) return true
     const canReceive = raw().canReceive
+    const reason =
+      refusal('receive', undefined, preview) ??
+      (canReceive && !canReceive({ ...receiveInfo(preview), template }) ? 'custom' : null)
     state.value = {
       kind: 'receive',
       view: ctx.activeViewName.value ?? '',
       occurrence: externalOccurrence(template, preview),
       origin: found.hit,
       preview,
-      valid: canReceive ? canReceive({ ...receiveInfo(preview), template }) : true,
+      valid: !reason,
+      reason,
     }
     return true
   }
@@ -488,7 +604,15 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
         if (settle() !== true) return cleanup()
       }
       active = true
-      state.value = { kind, view, occurrence: occ, origin, preview: null, valid: true }
+      state.value = {
+        kind,
+        view,
+        occurrence: occ,
+        origin,
+        preview: null,
+        valid: true,
+        reason: null,
+      }
       document.documentElement.classList.add('orb-dragging')
       if (touch) navigator.vibrate?.(10)
       update(lastX, lastY)
@@ -518,8 +642,9 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
           opts,
         )
       if (!preview || sameTimes(preview, s.preview)) return
-      const valid = isValid(kind, occ, preview)
-      state.value = { ...s, preview, valid }
+      const reason = refusal(kind, occ, preview)
+      const valid = !reason
+      state.value = { ...s, preview, valid, reason }
       if (occ && kind !== 'select')
         ctx.emit('event-drag', {
           ...base(occ, view, kind),
@@ -592,7 +717,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     function finish(ev: PointerEvent) {
       const s = state.value
       if (!s?.preview) return abort(outside ? 'outside' : 'unchanged')
-      if (!s.valid) return abort('invalid')
+      if (!s.valid) {
+        abort('invalid')
+        if (occ && kind !== 'select' && s.reason)
+          reportRefused(occ, kind, view, s.preview, s.reason)
+        return
+      }
       state.value = null
       if (kind === 'select') return emitSelect(view, s.preview, ev)
       const occTimes = {
@@ -625,6 +755,10 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     receiveLeave,
     receiveDrop,
     scrollNear,
+    refusal,
+    scrollToMinute(minute) {
+      for (const surface of surfaces) surface.scrollToMinute?.(minute)
+    },
     applyPending(occurrences) {
       const map = pending.value
       if (!map.size) return occurrences
@@ -688,8 +822,9 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
             : computeResize(occ, kind === 'resize-start' ? 'start' : 'end', from, to, opts)
       }
       if (!times || sameTimes(times, occ)) return
-      if (!isValid(kind, occ, times)) {
-        ctx.announce(ctx.options.value.messages.dragCancelled)
+      const reason = refusal(kind, occ, times)
+      if (reason) {
+        reportRefused(occ, kind, view, times, reason)
         return
       }
       requestFocus(occ, times)

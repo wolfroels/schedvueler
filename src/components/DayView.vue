@@ -5,7 +5,12 @@ import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import type { SchedulerSlots } from '../types'
 import TimeGrid from './TimeGrid.vue'
-import { multiDayTitle, singleDayTitle, type TimeGridViewProps } from './view-props'
+import {
+  endsPastMidnight,
+  multiDayTitle,
+  singleDayTitle,
+  type TimeGridViewProps,
+} from './view-props'
 
 export interface DayViewProps extends TimeGridViewProps {
   /** Number of consecutive days. Default 1. */
@@ -31,6 +36,7 @@ const { isActive } = useSchedulerView(() => ({
   minWidth: props.minWidth,
   maxWidth: props.maxWidth,
   title: props.days === 1 ? singleDayTitle : multiDayTitle,
+  overnight: endsPastMidnight(props.dayEndTime, ctx.options.value.dayEndMinute),
 }))
 
 const resolve = useSlotResolver(slots as never, ctx as never)

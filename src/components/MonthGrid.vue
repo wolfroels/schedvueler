@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import {
+  computed,
+  mergeProps,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue'
+import {
+  Temporal,
   computeSelection,
   formatDate,
   type EventOccurrence,
   type Hit,
-  type Temporal,
   type VisibleRange,
 } from '../core'
 import { createCancelable, whenAllowed } from '../composables/cancelable'
@@ -75,6 +84,37 @@ function setEventsLayer(el: unknown, index: number) {
 }
 
 // --- interactions ----------------------------------------------------------------------------
+
+function isOutOfRange(date: Temporal.PlainDate) {
+  const { min, max } = ctx.dateLimits.value
+  return (
+    (!!min && Temporal.PlainDate.compare(date, min) < 0) ||
+    (!!max && Temporal.PlainDate.compare(date, max) > 0)
+  )
+}
+
+/** Blocked times and background events of a day; closed hours only show as `is-closed`. */
+function dayShades(date: Temporal.PlainDate) {
+  return ctx.availability.hasShades.value
+    ? ctx.availability.shadesFor(date, undefined).filter((s) => s.kind !== 'closed')
+    : []
+}
+
+function cellAttrs(cell: MonthCell) {
+  const o = ctx.options.value.raw
+  if (!o.slotAttrs) return ctx.part('monthCell', cell)
+  const tz = ctx.options.value.timeZone
+  return mergeProps(
+    ctx.part('monthCell', cell),
+    (o.slotAttrs({
+      view: props.view,
+      date: cell.date,
+      start: cell.date.toZonedDateTime({ timeZone: tz }),
+      end: cell.date.add({ days: 1 }).toZonedDateTime({ timeZone: tz }),
+      allDay: true,
+    }) ?? {}) as Record<string, unknown>,
+  )
+}
 
 type SlotEmit = 'slot-click' | 'slot-dblclick' | 'slot-contextmenu'
 
@@ -353,13 +393,15 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
           v-for="(cell, ci) in week.cells"
           :key="cell.key"
           class="orb-month__cell"
-          v-bind="ctx.part('monthCell', cell)"
+          v-bind="cellAttrs(cell)"
           :class="{
             'is-today': cell.isToday,
             'is-past': cell.isPast,
             'is-other-month': cell.isOtherMonth,
             'is-weekend': cell.date.dayOfWeek >= 6,
             'is-selected': cell.isSelected,
+            'is-closed': ctx.availability.isClosedDay(cell.date),
+            'is-out-of-range': isOutOfRange(cell.date),
           }"
           role="gridcell"
           :tabindex="cell.key === activeKey ? 0 : -1"
@@ -375,6 +417,31 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
           @dblclick="onCell('slot-dblclick', cell, $event)"
           @contextmenu="onCell('slot-contextmenu', cell, $event)"
         >
+          <div
+            v-for="shade in dayShades(cell.date)"
+            :key="shade.key"
+            class="orb-shade"
+            :class="`orb-shade--${shade.kind}`"
+            v-bind="
+              ctx.part(shade.kind === 'blocked' ? 'blockedTime' : 'backgroundEvent', { shade })
+            "
+            :style="shade.color ? { '--orb-background-event-color': shade.color } : undefined"
+            aria-hidden="true"
+          >
+            <RenderSlot
+              :fn="resolve(shade.kind === 'blocked' ? 'blocked-time' : 'background-event')"
+              :scope="{
+                view,
+                date: cell.date,
+                resourceId: undefined,
+                title: shade.title,
+                color: shade.color,
+                occurrence: shade.occurrence,
+              }"
+            >
+              <span v-if="shade.title" class="orb-shade__title">{{ shade.title }}</span>
+            </RenderSlot>
+          </div>
           <RenderSlot :fn="resolve('month-cell')" :scope="{ view, ...cell }">
             <button
               type="button"

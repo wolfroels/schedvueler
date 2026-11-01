@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import {
+  computed,
+  mergeProps,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue'
+import {
+  Temporal,
   computeSelection,
   formatDate,
   leafResources,
   timeGridLayouts,
   type Hit,
   type ResourceNode,
-  type Temporal,
 } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
@@ -69,8 +78,72 @@ const config = computed(() => {
   }
 })
 
-const { columns, slots, allDay, timed, overlays, allDaySelection, nowLine, slotRange, dayRange } =
-  useTimeGrid(ctx, config)
+const {
+  columns,
+  slots,
+  allDay,
+  timed,
+  overlays,
+  allDaySelection,
+  nowLine,
+  slotRange,
+  dayRange,
+  hiddenEvents,
+} = useTimeGrid(ctx, config)
+
+const availability = ctx.availability
+
+/** Fractions of the column for a stretch of minutes. */
+function shadeStyle(shade: { start: number; end: number; color?: string }) {
+  const { dayStartMinute, dayEndMinute } = config.value
+  const total = dayEndMinute - dayStartMinute
+  return {
+    top: pct((shade.start - dayStartMinute) / total),
+    height: pct((shade.end - shade.start) / total),
+    ...(shade.color ? { '--orb-background-event-color': shade.color } : {}),
+  }
+}
+
+const SHADE_PART = {
+  closed: 'closedTime',
+  blocked: 'blockedTime',
+  background: 'backgroundEvent',
+} as const
+const SHADE_SLOT = {
+  closed: 'closed-time',
+  blocked: 'blocked-time',
+  background: 'background-event',
+} as const
+
+function isOutOfRange(date: Temporal.PlainDate) {
+  const { min, max } = ctx.dateLimits.value
+  return (
+    (!!min && Temporal.PlainDate.compare(date, min) < 0) ||
+    (!!max && Temporal.PlainDate.compare(date, max) > 0)
+  )
+}
+
+function cellInfo(col: TimeGridColumn, slot: TimeGridSlotRow) {
+  return {
+    view: props.view,
+    date: col.date,
+    ...slotRange(col.date, slot.startMinute, slot.endMinute),
+    allDay: false,
+    resourceId: col.resourceId,
+  }
+}
+
+function slotAttrs(col: TimeGridColumn, slot: TimeGridSlotRow) {
+  const o = ctx.options.value.raw
+  if (!o.slotAttrs && !o.isSlotDisabled)
+    return ctx.part('timeSlot', { column: col, minute: slot.startMinute })
+  const info = cellInfo(col, slot)
+  return mergeProps(
+    ctx.part('timeSlot', { column: col, minute: slot.startMinute }),
+    (o.slotAttrs?.(info) ?? {}) as Record<string, unknown>,
+    o.isSlotDisabled?.(info) ? { class: 'is-disabled' } : {},
+  )
+}
 
 const selectionScope = computed(() => {
   const sel = interaction.selection.value
@@ -257,6 +330,7 @@ onMounted(() => {
       return rect && headRect && { ...rect.toJSON(), top: headRect.bottom }
     },
     snapMinutes,
+    scrollToMinute,
   })
 })
 onBeforeUnmount(() => unregister?.())
@@ -541,6 +615,7 @@ defineExpose({ scrollToMinute })
             'is-past': col.isPast,
             'is-weekend': col.isWeekend,
             'is-group-end': col.isGroupEnd,
+            'is-out-of-range': isOutOfRange(col.date),
           }"
           role="group"
           :aria-label="columnLabel(col)"
@@ -550,7 +625,7 @@ defineExpose({ scrollToMinute })
             v-for="(slot, si) in slots"
             :key="slot.startMinute"
             class="orb-tg__slot"
-            v-bind="ctx.part('timeSlot', { column: col, minute: slot.startMinute })"
+            v-bind="slotAttrs(col, slot)"
             :class="{ 'is-labelled': slot.isLabelled }"
             role="button"
             :aria-label="slot.label || undefined"
@@ -573,6 +648,36 @@ defineExpose({ scrollToMinute })
                 ...slotRange(col.date, slot.startMinute, slot.endMinute),
               }"
             />
+          </div>
+
+          <div v-if="availability.hasShades.value" class="orb-tg__shades" aria-hidden="true">
+            <div
+              v-for="shade in availability.shadesFor(
+                col.date,
+                col.resourceId,
+                config.dayStartMinute,
+                config.dayEndMinute,
+              )"
+              :key="shade.key"
+              class="orb-shade"
+              :class="`orb-shade--${shade.kind}`"
+              v-bind="ctx.part(SHADE_PART[shade.kind], { shade, column: col })"
+              :style="shadeStyle(shade)"
+            >
+              <RenderSlot
+                :fn="resolve(SHADE_SLOT[shade.kind])"
+                :scope="{
+                  view,
+                  date: col.date,
+                  resourceId: col.resourceId,
+                  title: shade.title,
+                  color: shade.color,
+                  occurrence: shade.occurrence,
+                }"
+              >
+                <span v-if="shade.title" class="orb-shade__title">{{ shade.title }}</span>
+              </RenderSlot>
+            </div>
           </div>
 
           <div class="orb-tg__events">
@@ -614,6 +719,29 @@ defineExpose({ scrollToMinute })
               />
             </template>
           </div>
+
+          <template v-for="direction in ['before', 'after'] as const" :key="direction">
+            <div
+              v-if="hiddenEvents[ci]?.[direction].length"
+              class="orb-tg__hidden"
+              :class="`orb-tg__hidden--${direction}`"
+              v-bind="ctx.part('hiddenIndicator', { column: col, direction })"
+            >
+              <RenderSlot
+                :fn="resolve('hidden-events')"
+                :scope="{
+                  view,
+                  date: col.date,
+                  direction,
+                  count: hiddenEvents[ci]![direction].length,
+                  occurrences: hiddenEvents[ci]![direction],
+                  label: messages.hiddenEvents(hiddenEvents[ci]![direction].length, direction),
+                }"
+              >
+                {{ messages.hiddenEvents(hiddenEvents[ci]![direction].length, direction) }}
+              </RenderSlot>
+            </div>
+          </template>
 
           <div
             v-if="ctx.options.value.nowIndicator && nowLine && nowLine.columnIndexes.includes(ci)"

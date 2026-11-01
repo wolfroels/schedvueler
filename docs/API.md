@@ -55,6 +55,14 @@ The root component. Views are its children; the first one is the default.
 | `event-layout` | `'columns' \| 'stack' \| fn` | `'columns'` | How overlapping timed events share a column. |
 | `event-order` | `(a, b) => number` | all-day first, start, longest | Order of events within a day. |
 | `event-attrs` | `(occurrence) => attrs` | – | Extra class, style or attributes per event (pure function). |
+| `slot-attrs` | `(info) => attrs` | – | Extra class, style or attributes per cell. |
+| `business-hours` | `BusinessHours` | – | Opening hours, `{ days?, start, end }` or a list. Everything else is shaded. A resource's own `businessHours` wins. |
+| `business-hours-only` | `boolean` | `false` | Refuse changes outside business hours. |
+| `blocked-times` | `BlockedTime[]` | – | `{ start, end, resourceId?, resourceIds?, title? }`. Drawn, and nothing can be placed there. |
+| `is-slot-disabled` | `(info) => boolean` | – | Refuses ranges by your own rule. |
+| `min-date` / `max-date` | `string` | – | Limits for navigation and edits, inclusive. |
+| `event-overlap` | `'allow' \| 'forbid' \| (info) => boolean` | `'allow'` | Whether events may overlap after a change. Events with resources only conflict when they share one. |
+| `duration-limits` | `{ min?, max? } \| (occurrence) => { min?, max? }` | – | Length limits in minutes, for resizes and selections. |
 | `pt` | `SchedulerPt` | – | Attributes for any part of the scheduler. See [Passthrough](#passthrough-pt). |
 | `now-indicator` | `boolean` | `true` | Current-time line. |
 | `messages` | `Partial<SchedulerMessages>` | English | All texts, including screen-reader announcements. |
@@ -79,7 +87,11 @@ The root component. Views are its children; the first one is the default.
 `prev()`, `next()`, `today()`, `goTo(date)`, `setView(name)`, `refresh()` (re-read events
 mutated in place), `clearSelection()`, and `context` (the full headless context).
 
+Also: `scrollToTime('HH:mm')`, `scrollToEvent(id)` (goes to the date and scrolls; resolves to `false` when not found within a year) and `getEvents(start?, end?)`.
+
 ### Event shape
+
+Besides the fields below, events can have `display: 'background'` (drawn behind the others, as a holiday), `editable`, `draggable`, `resizable` (these override the scheduler's options), `class` and `textColor`.
 
 ```ts
 interface SchedulerEvent {
@@ -190,8 +202,10 @@ cancelled when the promise rejects or resolves to `false`.
 | `event-drag-cancel` | `reason`: `escape`, `invalid`, `unchanged`, `outside` (a moved event let go off the scheduler) or `prevented` |
 | `before-event-drop` ✋, `before-event-resize` ✋ | old and new `start` / `end` / `allDay` / `resourceIds`, `recurring`, `scope` (set it here) |
 | `event-drop`, `event-resize` | the same plus `revert()`. Update your data; call `revert()` if saving fails. |
-| `event-delete` | `occurrence`, `recurring`, `scope` (Delete/Backspace on an editable event) |
-| `select` | `start`, `end`, `allDay`, `resourceId?` |
+| `before-event-delete` | Same as `event-delete`, cancelable |
+| `event-delete` | `occurrence`, `recurring`, `scope`, `element` (Delete/Backspace on an editable event) |
+| `event-change-failed` | `occurrence`, `kind`, `reason`, `start`, `end`, `allDay`, `resourceIds` (a rule refused a move or resize) |
+| `select` | `start`, `end`, `allDay`, `resourceId?`, `getElement()` |
 | `before-event-receive` ✋ | an event dragged in from outside is about to be dropped: `start`, `end`, `allDay`, `resourceIds`, `resourceId`, `template`, `data` |
 | `event-receive` | the same, after the drop. Add the event to your data. |
 | `unselect` | – |
@@ -228,6 +242,10 @@ All slots are available on `<Scheduler>` and on each view. Specific event slots 
 | `timeline-header` | `view`, `date`, `minute` (`undefined` for the day heading), `label`, `isToday` |
 | `year-day` | `view`, `date`, `dayNumber`, `isToday`, `count`, `occurrences`, `level` (0-4) |
 | `year-month-header` | `view`, `date`, `label` |
+
+Availability slots, each with `view`, `date`, `resourceId`, `title`, `color`, `occurrence`: `closed-time`, `blocked-time`, `background-event`. `hidden-events` marks events outside the visible hours, with `view`, `date`, `direction`, `count`, `occurrences`, `label`.
+
+`day-end-time` can go past midnight, up to 24 hours after `day-start-time`: `day-start-time="18:00" day-end-time="30:00"` runs each column until 06:00 the next morning, in time grids. `refusal(kind, occurrence, times)` on `context.interaction` runs every rule for your own checks.
 
 ## Passthrough (`pt`)
 

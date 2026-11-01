@@ -1,9 +1,9 @@
 <script setup lang="ts" generic="T = SchedulerEvent">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useScheduler } from '../composables/useScheduler'
 import { useToolbar } from '../composables/useToolbar'
-import type { SchedulerContext } from '../composables/context'
-import type { SchedulerEvent } from '../core'
+import { parseTimeOfDay, type SchedulerContext } from '../composables/context'
+import { toZoned, type DateInput, type EventId, type SchedulerEvent } from '../core'
 import type { SchedulerEmits, SchedulerOptions, SchedulerSlots } from '../types'
 import SchedulerToolbar from './SchedulerToolbar.vue'
 
@@ -48,6 +48,7 @@ const root = ref<HTMLElement>()
 let observer: ResizeObserver | undefined
 onMounted(() => {
   if (!root.value) return
+  ctx.rootEl.value = root.value
   ctx.width.value = root.value.clientWidth
   if (typeof ResizeObserver === 'undefined') return
   observer = new ResizeObserver(([entry]) => {
@@ -106,6 +107,19 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+/** The occurrence of an event nearest after the anchor date, within a year either way. */
+function findEvent(id: EventId) {
+  const key = String(id)
+  const anchor = ctx.date.value.toZonedDateTime({ timeZone: ctx.options.value.timeZone })
+  const list = ctx.store
+    .query({
+      startMs: anchor.subtract({ years: 1 }).epochMilliseconds,
+      endMs: anchor.add({ years: 1 }).epochMilliseconds,
+    })
+    .filter((o) => String(o.id) === key || String(o.seriesId) === key)
+  return list.find((o) => o.startMs >= anchor.epochMilliseconds) ?? list[list.length - 1]
+}
+
 defineExpose({
   prev: ctx.prev,
   next: ctx.next,
@@ -114,6 +128,30 @@ defineExpose({
   setView: ctx.setView,
   refresh: ctx.refresh,
   clearSelection: ctx.interaction.clearSelection,
+  /** Scrolls the active view to a time of day, "HH:mm". */
+  scrollToTime(time: string) {
+    ctx.interaction.scrollToMinute(parseTimeOfDay(time, 0))
+  },
+  /** Goes to an event (by id, the next occurrence for a series) and scrolls it into view. */
+  async scrollToEvent(id: EventId): Promise<boolean> {
+    const found = findEvent(id)
+    if (!found) return false
+    ctx.goTo(found.start.withTimeZone(ctx.options.value.timeZone).toPlainDate())
+    await nextTick()
+    if (!found.allDay) ctx.interaction.scrollToMinute(found.start.hour * 60 + found.start.minute)
+    await nextTick()
+    ctx.eventElement(found.key)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    return true
+  },
+  /** Occurrences in a range, by default the visible one. */
+  getEvents(start?: DateInput, end?: DateInput) {
+    const zone = ctx.options.value.timeZone
+    const win = ctx.window.value
+    return ctx.store.query({
+      startMs: start === undefined ? (win?.startMs ?? 0) : toZoned(start, zone).epochMilliseconds,
+      endMs: end === undefined ? (win?.endMs ?? 0) : toZoned(end, zone).epochMilliseconds,
+    })
+  },
   /** Full headless context, for advanced use. */
   context: ctx,
 })

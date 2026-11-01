@@ -43,6 +43,10 @@ export function validWeekStart(value: number | undefined): number | undefined {
 
 /** Visible hours in minutes; the whole day when the end is not after the start. */
 export function visibleHours(start: number, end: number): [number, number] {
+  if (end - start > 1440) {
+    warnOnce(`A day can show at most 24 hours; dayEndTime is cut to 24 hours after dayStartTime.`)
+    return [start, start + 1440]
+  }
   if (start < end) return [start, end]
   warnOnce(`dayStartTime must be before dayEndTime; showing the whole day.`)
   return [0, 1440]

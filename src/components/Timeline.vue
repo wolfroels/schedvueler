@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { type Hit, type ResourceNode, type Temporal } from '../core'
+import { zonedAtMinute, type Hit, type ResourceId, type ResourceNode, type Temporal } from '../core'
 import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import { visibleHours } from '../composables/validate'
@@ -222,18 +222,20 @@ onMounted(() => {
       }
     },
     snapMinutes,
+    scrollToMinute: (minute) => scrollToTime(minute),
   })
 })
 onBeforeUnmount(() => unregister?.())
 
 // --- initial scroll position ---------------------------------------------------------------------
 
-/** Scrolls horizontally to the scroll time of today (or the first day). */
-function scrollToTime() {
+/** Scrolls horizontally to a time (default the scroll time) of today, or else the first day. */
+function scrollToTime(
+  minute = parseTimeOfDay(props.settings.scrollTime, ctx.options.value.scrollMinute),
+) {
   const el = scroller.value
   const head = timeHead.value
   if (!el || !head || daySlots.value) return
-  const minute = parseTimeOfDay(props.settings.scrollTime, ctx.options.value.scrollMinute)
   const today = props.days.find((d) => d.equals(ctx.today.value)) ?? props.days[0]
   if (!today) return
   const tz = ctx.options.value.timeZone
@@ -254,7 +256,7 @@ onMounted(() => {
 onBeforeUnmount(() => resizeObserver?.disconnect())
 watch(
   () => props.days[0]?.toString(),
-  () => nextTick(scrollToTime),
+  () => nextTick(() => scrollToTime()),
 )
 
 // --- visible-resources-change ---------------------------------------------------------------------
@@ -281,6 +283,45 @@ watch(
   },
   { flush: 'post', immediate: true },
 )
+
+const SHADE_PART = {
+  closed: 'closedTime',
+  blocked: 'blockedTime',
+  background: 'backgroundEvent',
+} as const
+const SHADE_SLOT = {
+  closed: 'closed-time',
+  blocked: 'blocked-time',
+  background: 'background-event',
+} as const
+
+/** Closed hours, blocked times and background events on a row, per visible day. */
+function rowShades(resourceId: ResourceId) {
+  if (!ctx.availability.hasShades.value) return []
+  const a = axis.value
+  const tz = ctx.options.value.timeZone
+  const whole = daySlots.value
+  return props.days.flatMap((date) => {
+    const from = whole ? 0 : a.dayStartMinute
+    const to = whole ? 1440 : a.dayEndMinute
+    return (
+      ctx.availability
+        .shadesFor(date, resourceId, from, to)
+        // A day column can only show a closed day as a whole.
+        .filter((s) => !whole || s.kind !== 'closed' || (s.start === 0 && s.end === 1440))
+        .flatMap((shade) => {
+          const left = a.position(zonedAtMinute(date, shade.start, tz).epochMilliseconds)
+          const right =
+            shade.end >= 1440 && whole
+              ? a.position(date.add({ days: 1 }).toZonedDateTime(tz).epochMilliseconds)
+              : a.position(zonedAtMinute(date, shade.end, tz).epochMilliseconds)
+          return right > left
+            ? [{ ...shade, key: `${date}-${shade.key}`, date, left, width: right - left }]
+            : []
+        })
+    )
+  })
+}
 
 function eventTop(lane: number) {
   const { rowPadding, eventHeight, laneGap } = config.value
@@ -438,6 +479,33 @@ function eventTop(lane: number) {
               @dblclick="onLane('slot-dblclick', row, $event)"
               @contextmenu="onLane('slot-contextmenu', row, $event)"
             >
+              <div
+                v-for="shade in rowShades(row.resource.id)"
+                :key="shade.key"
+                class="orb-shade"
+                :class="`orb-shade--${shade.kind}`"
+                v-bind="ctx.part(SHADE_PART[shade.kind], { shade, resource: row.resource })"
+                :style="{
+                  insetInlineStart: pct(shade.left),
+                  width: pct(shade.width),
+                  ...(shade.color ? { '--orb-background-event-color': shade.color } : {}),
+                }"
+                aria-hidden="true"
+              >
+                <RenderSlot
+                  :fn="resolve(SHADE_SLOT[shade.kind])"
+                  :scope="{
+                    view,
+                    date: shade.date,
+                    resourceId: row.resource.id,
+                    title: shade.title,
+                    color: shade.color,
+                    occurrence: shade.occurrence,
+                  }"
+                >
+                  <span v-if="shade.title" class="orb-shade__title">{{ shade.title }}</span>
+                </RenderSlot>
+              </div>
               <template v-for="overlay in overlays.get(row.resource.id)" :key="overlay.kind">
                 <div
                   v-if="overlay.kind === 'selection'"

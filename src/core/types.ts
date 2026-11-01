@@ -44,6 +44,18 @@ export interface SchedulerEvent {
   recurrenceId?: DateInput
   /** Any CSS color. Used as the event's accent color by the default theme. */
   color?: string
+  /** "background" draws it behind the events, as a holiday or closure. Default "auto". */
+  display?: 'auto' | 'background'
+  /** Overrides the scheduler's `editable` for this event. */
+  editable?: boolean
+  /** Overrides `editable` and the scheduler's `eventDraggable` for this event. */
+  draggable?: boolean
+  /** Overrides `editable` and the scheduler's `eventResizable` for this event. */
+  resizable?: boolean
+  /** Extra class on this event. */
+  class?: string
+  /** Any CSS color for the text. */
+  textColor?: string
 }
 
 /** Reads scheduler fields from user event objects, so no wrapper type is required. */
@@ -61,6 +73,12 @@ export interface EventAccessors<T> {
   recurringEventId(event: T): EventId | undefined
   recurrenceId(event: T): unknown
   color(event: T): string | undefined
+  display(event: T): 'auto' | 'background' | undefined
+  editable(event: T): boolean | undefined
+  draggable(event: T): boolean | undefined
+  resizable(event: T): boolean | undefined
+  className(event: T): string | undefined
+  textColor(event: T): string | undefined
 }
 
 const EMPTY: readonly never[] = Object.freeze([])
@@ -79,6 +97,12 @@ export const defaultAccessors: EventAccessors<SchedulerEvent> = {
   recurringEventId: (e) => e.recurringEventId,
   recurrenceId: (e) => e.recurrenceId,
   color: (e) => e.color,
+  display: (e) => e.display,
+  editable: (e) => e.editable,
+  draggable: (e) => e.draggable,
+  resizable: (e) => e.resizable,
+  className: (e) => e.class,
+  textColor: (e) => e.textColor,
 }
 
 /** Builds accessors for a custom event shape, falling back to the default field names. */

@@ -19,8 +19,16 @@ export const test = base.extend<{ pageProblems: void }>({
 export { expect }
 
 /** Opens the test page. The week starts on Monday 15 June 2026; slots are 30 minutes. */
-export async function open(page: Page, query: Record<string, string> = {}) {
-  await page.goto(`/e2e/fixture/?${new URLSearchParams(query)}`)
+export async function open(
+  page: Page,
+  query: Record<string, string> = {},
+  opts?: object,
+  events?: object[],
+) {
+  const all = new URLSearchParams(query)
+  if (opts) all.set('opts', JSON.stringify(opts))
+  if (events) all.set('events', JSON.stringify(events))
+  await page.goto(`/e2e/fixture/?${all}`)
   await expect(page.locator('[data-orb-part="root"]')).toBeVisible()
 }
 

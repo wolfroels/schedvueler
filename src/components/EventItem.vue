@@ -8,6 +8,7 @@ import {
   type ResourceId,
   type Temporal,
 } from '../core'
+import { createCancelable, whenAllowed } from '../composables/cancelable'
 import { useSchedulerContext } from '../composables/context'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import type { KeyboardStep } from '../composables/useInteraction'
@@ -104,6 +105,8 @@ const eventSlot = computed(() =>
 const handleSlot = computed(() => props.resolve('resize-handle'))
 const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
+const ownClass = computed(() => ctx.accessors.value.className(props.occurrence.event))
+const textColor = computed(() => ctx.accessors.value.textColor(props.occurrence.event))
 
 const draggable = computed(
   () => !props.mirror && props.variant !== 'agenda' && interaction.canDrag(props.occurrence),
@@ -214,13 +217,19 @@ function onKeydown(e: KeyboardEvent) {
   if ((e.key === 'Delete' || e.key === 'Backspace') && canEdit.value) {
     e.preventDefault()
     const occ = props.occurrence
-    ctx.emit('event-delete', {
+    const { payload: request, settle } = createCancelable({
       occurrence: occ,
       event: occ.event,
       view: props.view,
       recurring: occ.recurring || occ.isException,
       scope: ctx.options.value.raw.recurrenceEditScope ?? 'this',
       nativeEvent: e,
+      element: e.currentTarget as HTMLElement,
+    })
+    ctx.emit('before-event-delete', request)
+    whenAllowed(settle(), () => {
+      const { preventDefault: _p, waitUntil: _w, defaultPrevented: _d, ...rest } = request
+      ctx.emit('event-delete', rest)
     })
   }
 }
@@ -232,6 +241,7 @@ function onKeydown(e: KeyboardEvent) {
     class="orb-event"
     :class="[
       `orb-event--${variant}`,
+      ownClass,
       {
         'orb-event--custom': eventSlot,
         'orb-event--past': slotProps.isPast && !mirror,
@@ -243,7 +253,15 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--invalid': mirror && !valid,
       },
     ]"
-    :style="slotProps.color ? { '--orb-event-color': slotProps.color } : undefined"
+    :style="
+      slotProps.color || textColor
+        ? {
+            '--orb-event-color': slotProps.color,
+            '--orb-event-text-color': textColor,
+          }
+        : undefined
+    "
+    :data-orb-key="mirror ? undefined : occurrence.key"
     :role="mirror ? undefined : 'button'"
     :tabindex="mirror ? undefined : 0"
     :aria-hidden="mirror ? 'true' : undefined"

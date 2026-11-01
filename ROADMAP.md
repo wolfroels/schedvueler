@@ -49,13 +49,13 @@ B7 (RTL) is fixed for drag, keyboard and layout; the remaining work is item 13.4
 | [x] | 8.1 | Browser tests with Playwright in Chromium, Firefox and WebKit (`e2e/`): drag, resize, select, keyboard and rendering across the views. Touch runs in Chromium only and covers the week view | P0 | L |
 | [ ] | 8.10 | Touch tests beyond Chromium's week view: other views, swipe navigation, Firefox and WebKit on real devices | P1 | M |
 | [ ] | 8.2 | Component tests for slots, emits and props; visual regression for each view in light and dark | P1 | M |
-| [ ] | 8.3 | CI: lint, types, unit, browser, build, bundle-size budget | P0 | S |
-| [ ] | 8.4 | Package: `LICENSE`, version, remove `private`, changelog, release flow, `publint` and type checks | P0 | S |
+| [x] | 8.3 | CI: lint, types, unit, browser, build, bundle-size budget | P0 | S |
+| [x] | 8.4 | Package: `LICENSE`, version, changelog, `publint`, size budget. `private` stays on until you choose to publish; removing it is the only release step left | P0 | S |
 | [ ] | 8.5 | Verify SSR hydration in Nuxt: stable ids, no time or locale mismatch, no `window` at import | P1 | M |
 | [ ] | 8.6 | Docs site with live examples, migration notes and recipes (editor dialog, lazy loading, server sync) | P1 | L |
 | [ ] | 8.7 | Stabilize the public API: mark internals, freeze names before 1.0 | P1 | M |
 | [x] | 8.9 | Passthrough: `pt` prop and `data-orb-part` on every element, plus the slots and parts page | P1 | M |
-| [ ] | 8.8 | Fill the promised API gaps: anchor `element` / rect on `select`, `event-drop` and `event-delete`; `before-event-delete`; `scrollToTime()`, `scrollToEvent()`, `getEvents()` | P1 | M |
+| [x] | 8.8 | Fill the promised API gaps: anchor `element` / rect on `select`, `event-drop` and `event-delete`; `before-event-delete`; `scrollToTime()`, `scrollToEvent()`, `getEvents()` | P1 | M |
 
 ## Phase 9: Availability and rules
 
@@ -63,17 +63,17 @@ The biggest functional gap for real planning use.
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 9.1 | `business-hours` per weekday, shaded in every view | P1 | M |
-| [ ] | 9.2 | Business hours and availability per resource | P1 | M |
-| [ ] | 9.3 | Blocked time: `is-slot-disabled` and declarative ranges, refusing select, drop and receive | P1 | M |
-| [ ] | 9.4 | `min-date` / `max-date`: limit navigation and edits | P1 | S |
-| [ ] | 9.5 | Background events (holidays, closures) with their own layer and slot | P1 | M |
-| [ ] | 9.6 | Per-event `editable`, `draggable`, `resizable`, `class` and `textColor` fields | P1 | S |
-| [ ] | 9.7 | `event-overlap` rule (allow, forbid, or a function), with an `event-change-failed` emit | P1 | M |
-| [ ] | 9.8 | Duration rules: min and max length, per event type | P2 | S |
-| [ ] | 9.9 | `slot-attrs` for classes and attributes on cells, matching `event-attrs` | P2 | S |
-| [ ] | 9.10 | Indicators for events outside the visible hours | P2 | S |
-| [ ] | 9.11 | Overnight days (`day-end-time` past 24:00, for example `30:00`) | P2 | L |
+| [x] | 9.1 | `business-hours` per weekday, shaded in every view | P1 | M |
+| [x] | 9.2 | Business hours and availability per resource | P1 | M |
+| [x] | 9.3 | Blocked time: `is-slot-disabled` and declarative ranges, refusing select, drop and receive | P1 | M |
+| [x] | 9.4 | `min-date` / `max-date`: limit navigation and edits | P1 | S |
+| [x] | 9.5 | Background events (holidays, closures) with their own layer and slot | P1 | M |
+| [x] | 9.6 | Per-event `editable`, `draggable`, `resizable`, `class` and `textColor` fields | P1 | S |
+| [x] | 9.7 | `event-overlap` rule (allow, forbid, or a function), with an `event-change-failed` emit | P1 | M |
+| [x] | 9.8 | Duration rules: min and max length, per event type | P2 | S |
+| [x] | 9.9 | `slot-attrs` for classes and attributes on cells, matching `event-attrs` | P2 | S |
+| [x] | 9.10 | Indicators for events outside the visible hours | P2 | S |
+| [x] | 9.11 | Overnight days (`day-end-time` past 24:00, for example `30:00`) | P2 | L |
 
 ## Phase 10: Editing power
 

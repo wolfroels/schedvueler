@@ -25,6 +25,7 @@ import type {
   SchedulerPt,
   SchedulerViewDefinition,
 } from '../types'
+import type { SchedulerAvailability } from './useAvailability'
 import type { SchedulerInteraction } from './useInteraction'
 
 export interface ViewRegistration {
@@ -72,8 +73,20 @@ export interface SchedulerContext<T = unknown> {
   activeViewName: ComputedRef<string | undefined>
   range: ComputedRef<VisibleRange | undefined>
   window: ComputedRef<TimeWindow | undefined>
-  /** Occurrences overlapping the visible range, sorted. */
+  /** Occurrences overlapping the visible range, sorted. Background events are left out. */
   occurrences: ComputedRef<EventOccurrence<T>[]>
+  /** Events with `display: 'background'` overlapping the visible range. */
+  backgroundOccurrences: ComputedRef<EventOccurrence<T>[]>
+  /** Business hours, blocked times and what to draw for them. */
+  availability: SchedulerAvailability
+  /** `minDate` and `maxDate`, as dates. */
+  dateLimits: ComputedRef<{ min?: Temporal.PlainDate; max?: Temporal.PlainDate }>
+  /** Whether the previous or next period has any allowed date. */
+  canStep(direction: 1 | -1): boolean
+  /** The root element, once mounted. */
+  rootEl: ShallowRef<HTMLElement | undefined>
+  /** The element of an event on screen. */
+  eventElement(key: string): HTMLElement | null
   title: ComputedRef<string>
   today: ComputedRef<Temporal.PlainDate>
   /** Current time, updated every minute. */
@@ -133,11 +146,11 @@ export function useSchedulerContext<T = unknown>(): SchedulerContext<T> {
   return ctx as SchedulerContext<T>
 }
 
-/** "HH:mm" -> minutes since midnight. "24:00" is allowed. */
+/** "HH:mm" -> minutes since midnight. Past "24:00" means the next morning, up to "48:00". */
 export function parseTimeOfDay(value: string | undefined, fallback: number): number {
   if (!value) return fallback
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim())
   if (!match) return fallback
   const minutes = Number(match[1]) * 60 + Number(match[2])
-  return minutes >= 0 && minutes <= 1440 ? minutes : fallback
+  return minutes >= 0 && minutes <= 2880 ? minutes : fallback
 }

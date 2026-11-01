@@ -8,6 +8,7 @@ import {
   type ResourceId,
   type VisibleRange,
 } from '../core'
+import { parseTimeOfDay } from '../composables/context'
 import type { EventLayoutOption } from '../types'
 
 /** Width limits that make a view responsive. */
@@ -90,6 +91,11 @@ export interface TimelineSettings {
   rowMinHeight: number
   resourceIds?: readonly ResourceId[]
   virtual: boolean
+}
+
+/** Whether a view's days run past midnight, so that it needs events from the day after. */
+export function endsPastMidnight(dayEndTime: string | undefined, schedulerEnd: number): boolean {
+  return parseTimeOfDay(dayEndTime, schedulerEnd) > 1440
 }
 
 export function singleDayTitle(range: VisibleRange, locale: string): string {

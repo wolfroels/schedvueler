@@ -27,13 +27,22 @@ import {
   systemTimeZone,
   timeGridLayouts,
   type EventOccurrence,
+  type TimeWindow,
   type VisibleRange,
   weekStartForLocale,
 } from '../core'
 import { defaultMessages, type SchedulerOptions } from '../types'
 import { createCancelable, whenAllowed } from './cancelable'
-import { validLocale, validMinutes, validTimeZone, validWeekStart, visibleHours } from './validate'
+import {
+  validLocale,
+  validMinutes,
+  validTimeZone,
+  validWeekStart,
+  visibleHours,
+  warnOnce,
+} from './validate'
 import { registerDropTarget } from './externalDrag'
+import { createAvailability, type SchedulerAvailability } from './useAvailability'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
 import { trackSlotNames } from './useSchedulerView'
 import {
@@ -250,18 +259,62 @@ export function useScheduler<T>(
   const timeWindow = computed(() =>
     range.value ? rangeToWindow(range.value, timeZone.value) : undefined,
   )
-  // Occurrences straight from the store, before optimistic drag/resize results are applied.
-  const queried = computed(() => {
-    void version.value
-    return timeWindow.value ? store.query(timeWindow.value) : []
+  const queryWindow = computed<TimeWindow | undefined>(() => {
+    const w = timeWindow.value
+    return w && activeView.value?.definition.value.overnight
+      ? { startMs: w.startMs, endMs: w.endMs + 86_400_000 }
+      : w
   })
+  // Occurrences straight from the store, before optimistic drag/resize results are applied.
+  const queriedAll = computed(() => {
+    void version.value
+    return queryWindow.value ? store.query(queryWindow.value) : []
+  })
+  const isBackground = (occ: EventOccurrence<T>) =>
+    accessors.value.display(occ.event) === 'background'
+  const queried = computed(() =>
+    queriedAll.value.some(isBackground)
+      ? queriedAll.value.filter((o) => !isBackground(o))
+      : queriedAll.value,
+  )
+  const backgroundOccurrences = computed(() => queriedAll.value.filter(isBackground))
+
+  const dateLimits = computed(() => {
+    const parse = (value: string | undefined) => {
+      if (!value) return undefined
+      try {
+        return Temporal.PlainDate.from(value)
+      } catch {
+        warnOnce(`Invalid date "${value}" in minDate or maxDate; ignoring it.`)
+        return undefined
+      }
+    }
+    return { min: parse(raw.value.minDate), max: parse(raw.value.maxDate) }
+  })
+
+  function clampDate(value: Temporal.PlainDate): Temporal.PlainDate {
+    const { min, max } = dateLimits.value
+    if (min && Temporal.PlainDate.compare(value, min) < 0) return min
+    if (max && Temporal.PlainDate.compare(value, max) > 0) return max
+    return value
+  }
+
+  function canStep(direction: 1 | -1): boolean {
+    const strategy = activeView.value?.definition.value.strategy
+    if (!strategy) return false
+    const { min, max } = dateLimits.value
+    const target = strategy.range(strategy.step(date.value, direction))
+    if (direction < 0) return !min || Temporal.PlainDate.compare(target.end, min) > 0
+    return !max || Temporal.PlainDate.compare(target.start, max) <= 0
+  }
   const title = computed(() =>
     range.value && activeView.value
       ? activeView.value.definition.value.title(range.value, locale.value)
       : '',
   )
 
-  function navigate(to: Temporal.PlainDate, reason: 'prev' | 'next' | 'today' | 'date') {
+  function navigate(target: Temporal.PlainDate, reason: 'prev' | 'next' | 'today' | 'date') {
+    const to = clampDate(target)
     const from = date.value
     if (Temporal.PlainDate.compare(from, to) === 0 && state.date.value) return
     const { payload, settle } = createCancelable({
@@ -281,7 +334,7 @@ export function useScheduler<T>(
 
   const step = (direction: 1 | -1) => {
     const strategy = activeView.value?.definition.value.strategy
-    if (!strategy) return
+    if (!strategy || !canStep(direction)) return
     const from = date.value
     let to = strategy.step(from, direction)
     if (strategy.keepsDayOfMonth) {
@@ -351,6 +404,13 @@ export function useScheduler<T>(
     range,
     window: timeWindow,
     occurrences,
+    backgroundOccurrences,
+    availability: undefined as unknown as SchedulerAvailability,
+    dateLimits,
+    canStep,
+    rootEl: shallowRef(),
+    eventElement: (key) =>
+      ctx.rootEl.value?.querySelector<HTMLElement>(`[data-orb-key="${CSS.escape(key)}"]`) ?? null,
     title,
     today,
     now,
@@ -438,7 +498,8 @@ export function useScheduler<T>(
       setTimeout(() => (announcement.value = message), 50)
     },
   }
-  // Created after the context object because the controller reads options and emits through it.
+  // Created after the context object because they read options and emit through it.
+  ctx.availability = createAvailability(ctx)
   ctx.interaction = createInteraction(ctx as SchedulerContext<unknown>)
   // Lets events dragged in from outside (v-orb-draggable) find this scheduler.
   const unregisterDropTarget = registerDropTarget(ctx.interaction)
