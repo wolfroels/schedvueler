@@ -100,22 +100,29 @@ export interface MonthRangeOptions {
   weekStart?: number
   /** Always show 6 weeks so the grid height never changes. Default false. */
   fixedWeeks?: boolean
+  /** Calendar whose months are shown, such as "persian". Default Gregorian. */
+  calendar?: string
 }
 
 /** The month containing the anchor, padded out to whole weeks. */
 export function monthStrategy(options: MonthRangeOptions = {}): RangeStrategy {
   const weekStart = options.weekStart ?? 1
+  const { calendar } = options
+  const toIso = (date: Temporal.PlainDate) => date.withCalendar('iso8601')
+  const inCalendar = (date: Temporal.PlainDate) => (calendar ? date.withCalendar(calendar) : date)
   return {
     range(anchor) {
-      const activeStart = startOfMonth(anchor)
-      const activeEnd = activeStart.add({ months: 1 })
+      const first = startOfMonth(inCalendar(anchor))
+      const activeStart = toIso(first)
+      const activeEnd = toIso(first.add({ months: 1 }))
       const start = startOfWeek(activeStart, weekStart)
       let end = startOfWeek(activeEnd.subtract({ days: 1 }), weekStart).add({ days: 7 })
       if (options.fixedWeeks) end = start.add({ weeks: 6 })
       return { start, end, active: { start: activeStart, end: activeEnd } }
     },
-    step: (anchor, direction) => anchor.add({ months: direction }),
-    keepsDayOfMonth: true,
+    step: (anchor, direction) => toIso(inCalendar(anchor).add({ months: direction })),
+    // Day numbers differ per calendar, so there is nothing to bring back.
+    keepsDayOfMonth: !calendar,
   }
 }
 

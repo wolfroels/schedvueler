@@ -110,9 +110,11 @@ export function useScheduler<T>(
   const timeZone = computed(() =>
     raw.value.timeZone ? validTimeZone(raw.value.timeZone, systemTimeZone) : systemTimeZone(),
   )
-  const locale = computed(() =>
-    raw.value.locale ? validLocale(raw.value.locale, defaultLocale) : defaultLocale(),
-  )
+  const locale = computed(() => {
+    const base = raw.value.locale ? validLocale(raw.value.locale, defaultLocale) : defaultLocale()
+    const { calendar } = raw.value
+    return calendar && !base.includes('-u-') ? `${base}-u-ca-${calendar}` : base
+  })
 
   // Templates often pass fresh arrays and objects on every render (`:hidden-days="[6, 7]"`).
   // Keeping the previous object when nothing really changed spares every view and event from
@@ -395,7 +397,10 @@ export function useScheduler<T>(
   const occurrences = computed(
     () => ctx.interaction.applyPending(queried.value) as EventOccurrence<T>[],
   )
-  watch(version, () => ctx.interaction.prunePending())
+  watch(version, () => {
+    ctx.interaction.prunePending()
+    ctx.interaction.stopIfDeleted()
+  })
 
   const ownSelection = shallowRef<readonly string[]>([])
   const selectedEvents = computed(
@@ -554,5 +559,16 @@ export function useScheduler<T>(
   }
 
   provide(SchedulerContextKey, ctx as SchedulerContext<unknown>)
+
+  const seenPlugins = new Set<string>()
+  for (const plugin of raw.value.plugins ?? []) {
+    if (seenPlugins.has(plugin.name)) {
+      warnOnce(`Plugin "${plugin.name}" is listed twice; using the first.`)
+      continue
+    }
+    seenPlugins.add(plugin.name)
+    const cleanup = plugin.install(ctx)
+    if (cleanup && getCurrentScope()) onScopeDispose(cleanup)
+  }
   return ctx
 }

@@ -69,6 +69,10 @@ The root component. Views are its children; the first one is the default.
 | `responsive-views` | `{ maxWidth, views }[]` | – | Which views to offer up to a width. The first match applies. |
 | `resource-order` / `resource-filter` | functions | – | Order of siblings, and which resources show (their parents stay). |
 | `multi-resource-drag` | `'one' \| 'all'` | `'one'` | `'all'` moves an event on several resources together, row by row. |
+| `click-to-move` | `boolean` | `false` | Clicking an event picks it up, and clicking a slot or day puts it down: moving without dragging (WCAG 2.5.7). `interaction.armMove(occurrence, 'resize-end')` does the same for resizing, for your own buttons. |
+| `calendar` | `string` | – | Months and dates of another calendar, such as `persian` or `hebrew`, in `MonthView` and everything that shows dates. The year view stays Gregorian. |
+| `month-event-order` | `(a, b) => number` | – | Order of events in month rows. |
+| `plugins` | `SchedulerPlugin[]` | – | `{ name, install(context) }`; what `install` returns is called on unmount. |
 | `slot-attrs` | `(info) => attrs` | – | Extra class, style or attributes per cell. |
 | `business-hours` | `BusinessHours` | – | Opening hours, `{ days?, start, end }` or a list. Everything else is shaded. A resource's own `businessHours` wins. |
 | `business-hours-only` | `boolean` | `false` | Refuse changes outside business hours. |
@@ -445,6 +449,20 @@ const popover = useEventPopover<SchedulerEvent>()
   </Teleport>
 </template>
 ```
+
+## Data
+
+`useEventSource` loads events by range and resource, caches what was loaded and cancels stale requests. `useChangeTracking` lists created, updated and deleted events for a batch save.
+
+`parseICal` and `stringifyICal` read and write iCalendar, including rules, exceptions and `VTIMEZONE`. Time zones are read by their IANA name; others are reported in `warnings`. `occurrencesToCsv` and `occurrencesToJson` export occurrences. `print()` on the template ref opens the print dialog, with print styles.
+
+`recurrenceToText` puts a rule in words. `recurrenceToForm` and `formToRecurrence` go between a rule and the fields of a form. Translated wording for the scheduler and for rules is in `orb-scheduler/locales` (`nl`, `fr`, `de`, `es`): `:messages="nl.messages"`.
+
+See [RECIPES.md](RECIPES.md).
+
+## Accessibility
+
+Time grids and month grids are ARIA grids, whose rows in a time grid are days. Every slot is read out with its date and time. Everything that can be dragged can also be done from the keyboard (Alt + arrows, Alt + Shift, Alt + Ctrl, N, Enter) and, with `click-to-move`, with single clicks. `forced-colors` is supported, and `contrastRatio` and `readableTextColor` help when picking event colors. The automated scan in `e2e/a11y.spec.ts` runs axe on every view in both themes; it cannot replace a review with a screen reader.
 
 ## Headless use
 

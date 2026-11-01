@@ -36,6 +36,9 @@ const showSlot = ref(false)
 const extra = JSON.parse(params.get('opts') ?? '{}')
 const extraEvents: SchedulerEvent[] = JSON.parse(params.get('events') ?? '[]')
 const scheduler = ref()
+const reverseMonth = params.has('reverseMonth')
+  ? (a: { startMs: number }, b: { startMs: number }) => b.startMs - a.startMs
+  : undefined
 const timelineProps = JSON.parse(params.get('tl') ?? '{}')
 const zoom = ref(0)
 
@@ -118,7 +121,6 @@ const onReceive = (p: EventReceivePayload) =>
   <div class="fixture-frame">
     <Scheduler
       ref="scheduler"
-      v-bind="extra"
       v-model:date="date"
       v-model:view="view"
       :events="events"
@@ -133,6 +135,8 @@ const onReceive = (p: EventReceivePayload) =>
       editable
       selectable
       drill-down-view="day"
+      :month-event-order="reverseMonth"
+      v-bind="extra"
       :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
       @event-click="(p) => log.push(`event-click ${p.event.title}`)"
       @event-drag-start="(p) => log.push(`event-drag-start ${p.event.title} ${p.kind}`)"

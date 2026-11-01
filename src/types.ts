@@ -1,4 +1,5 @@
 import type { HTMLAttributes, StyleValue, VNodeChild } from 'vue'
+import type { SchedulerContext } from './composables/context'
 import type {
   BlockedTime,
   BusinessHours,
@@ -37,6 +38,8 @@ export interface SchedulerMessages {
   dragHint: string
   /** Announced after an event was moved or resized. */
   eventChanged: (title: string, when: string) => string
+  /** Announced after picking an event up with `click-to-move`. */
+  moveArmed: (title: string) => string
   /** Announced when a drag was cancelled. */
   dragCancelled: string
   /** Announced when a range was selected. */
@@ -66,6 +69,7 @@ export const defaultMessages: SchedulerMessages = {
   dragHint:
     'Press Alt and the arrow keys to move, Alt Shift to resize the end, Alt Control to resize the start, Delete to remove.',
   eventChanged: (title, when) => `${title} moved to ${when}`,
+  moveArmed: (title) => `${title} picked up. Choose where it goes, or press Escape.`,
   dragCancelled: 'Move cancelled',
   selected: (when) => `Selected ${when}`,
   resources: 'Resources',
@@ -261,6 +265,12 @@ export interface SchedulerOptions<T> {
     info: SelectInfo & { view: string; date: Temporal.PlainDate },
   ) => ElementAttrs | undefined
 
+  /** Clicking an event picks it up, and clicking a slot or day puts it down: moving without dragging. */
+  clickToMove?: boolean
+  /** Calendar for months and dates, such as "persian" or "hebrew". Default Gregorian. */
+  calendar?: string
+  /** Order of events in month rows. */
+  monthEventOrder?: (a: EventOccurrence<T>, b: EventOccurrence<T>) => number
   /** Click, Ctrl/Cmd + click, Shift + click and Shift + drag select events (`v-model:selected-events`). */
   eventSelection?: boolean
   /** Ctrl/Cmd + C, X and V emit `events-copy` and `events-paste`. */
@@ -300,6 +310,9 @@ export interface SchedulerOptions<T> {
    */
   canReceive?: (info: ReceiveInfo) => boolean
 
+  /** Extensions: each `install` gets the context, and can return a cleanup function. */
+  plugins?: readonly SchedulerPlugin<T>[]
+
   // --- navigation ---
   /** Which views to offer up to a scheduler width (px). The first match applies. */
   responsiveViews?: readonly { maxWidth: number; views: readonly string[] }[]
@@ -337,6 +350,11 @@ export interface OverlapInfo<T> {
   other: EventOccurrence<T>
   start: Temporal.ZonedDateTime
   end: Temporal.ZonedDateTime
+}
+
+export interface SchedulerPlugin<T = unknown> {
+  name: string
+  install(context: SchedulerContext<T>): void | (() => void)
 }
 
 export type EventChangeKind = 'move' | 'resize-start' | 'resize-end'

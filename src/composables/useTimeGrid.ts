@@ -1,4 +1,4 @@
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { computed, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import {
   Temporal,
   buildTimeSlots,
@@ -313,6 +313,9 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     return ranges
   })
 
+  /** Last layout per column, reused while its events and the settings stay the same. */
+  const layoutCache = new Map<string, { signature: unknown[]; layouts: TimedEventLayout<T>[] }>()
+
   const timed = computed<TimedEventLayout<T>[][]>(() => {
     const { days, layout, dayStartMinute, dayEndMinute, slotDuration } = cfg.value
     const tz = ctx.options.value.timeZone
@@ -320,6 +323,24 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
     perGroup(partitioned.value.timed).forEach((list, g) => {
       segmentByDay(list, days, tz, dayOffset.value).forEach((segments, d) => {
         const col = colIndex(d, g)
+        const cacheKey = columns.value[col]!.key
+        const signature = [
+          layout,
+          dayStartMinute,
+          dayEndMinute,
+          slotDuration,
+          col,
+          ...segments.flatMap((s) => [s.occurrence.event, s.startMinute, s.endMinute]),
+        ]
+        const cached = layoutCache.get(cacheKey)
+        if (
+          cached &&
+          cached.signature.length === signature.length &&
+          cached.signature.every((v, i) => v === signature[i])
+        ) {
+          result[col] = cached.layouts
+          return
+        }
         const visible: { segment: DaySegment<T>; top: number; height: number }[] = []
         for (const segment of segments) {
           const pos = verticalPosition(
@@ -346,6 +367,7 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
             order: p.order,
           }
         })
+        layoutCache.set(cacheKey, { signature, layouts: result[col]! })
       })
     })
     return result
@@ -406,6 +428,12 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
       end: Temporal.Instant.fromEpochMilliseconds(bounds.endMs).toZonedDateTimeISO(tz),
     }
   }
+
+  // Only the columns of the current range stay in the cache.
+  watch(columns, (list) => {
+    const keys = new Set(list.map((c) => c.key))
+    for (const key of layoutCache.keys()) if (!keys.has(key)) layoutCache.delete(key)
+  })
 
   return {
     hiddenEvents,

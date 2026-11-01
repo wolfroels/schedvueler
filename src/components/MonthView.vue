@@ -50,6 +50,7 @@ const { isActive } = useSchedulerView(() => ({
     : monthStrategy({
         weekStart: props.weekStart ?? ctx.options.value.weekStart,
         fixedWeeks: props.fixedWeeks,
+        calendar: ctx.options.value.raw.calendar,
       }),
   title: props.weeks ? multiDayTitle : monthTitle,
   minWidth: props.minWidth,

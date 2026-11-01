@@ -29,6 +29,7 @@ export function createTimelineAxis(
   const windows = days.map((date) => dayBounds(date, timeZone))
   const count = days.length
   const span = Math.max(dayEndMinute - dayStartMinute, 1)
+  const wholeDay = dayStartMinute === 0 && dayEndMinute === 1440
 
   function position(ms: number): number {
     if (!count) return 0
@@ -43,6 +44,8 @@ export function createTimelineAxis(
     if (lo >= count) return 1
     const day = windows[lo]!
     if (ms <= day.startMs) return lo / count
+    // A whole day needs no wall-clock time, which is slow to work out for thousands of events.
+    if (wholeDay) return (lo + (ms - day.startMs) / (day.endMs - day.startMs)) / count
     const minute = minutesIntoDay(
       Temporal.Instant.fromEpochMilliseconds(ms).toZonedDateTimeISO(timeZone),
     )

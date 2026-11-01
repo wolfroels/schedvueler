@@ -105,6 +105,7 @@ test.describe('timeline', () => {
   test('counts timed events per day', async ({ page }) => {
     await open(page, { view: 'timeline', tl: JSON.stringify({ ...MONTH, dayEvents: 'count' }) })
     await expect(page.locator('[data-orb-part="dayCount"]').first()).toHaveText('1')
+    await page.locator('.orb-tl__scroller').evaluate((el) => (el.scrollLeft = 1400))
     await expect(event(page, 'Alpha')).toHaveCount(0)
     await expect(event(page, 'Holiday')).toHaveCount(1)
   })
@@ -204,7 +205,9 @@ test('Gantt: one row per event, with progress, milestones and arrows', async ({ 
   ])
   await expect(page.locator('[data-orb-part="resourceLabel"]', { hasText: 'Design' })).toBeVisible()
   await expect(page.locator('[data-orb-part="eventProgress"]')).toHaveCount(1)
+  await page.locator('.orb-tl__scroller').evaluate((el) => (el.scrollLeft = 500))
   await expect(page.locator('.orb-event--milestone')).toHaveCount(1)
+  await page.locator('.orb-tl__scroller').evaluate((el) => (el.scrollLeft = 0))
   await expect(page.locator('[data-orb-part="dependency"]')).toHaveCount(1)
   const rows = await page.locator('[data-orb-part="timelineRow"]').count()
   expect(rows).toBeGreaterThanOrEqual(3)

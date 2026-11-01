@@ -59,11 +59,11 @@
   --orb-gutter-width: 4rem;
   --orb-slot-height: 2.25rem;
   --orb-day-header-height: 3.25rem;
-  --orb-allday-event-height: 1.375rem;
+  --orb-allday-event-height: 1.5rem;
   --orb-allday-min-height: 1.75rem;
   --orb-month-header-height: 2rem;
   --orb-month-daynum-height: 1.75rem;
-  --orb-month-event-height: 1.375rem;
+  --orb-month-event-height: 1.5rem;
   --orb-month-event-gap: 2px;
   --orb-month-week-min-height: 6.5rem;
   --orb-now-width: 2px;
@@ -469,7 +469,7 @@
   border: 1px solid var(--orb-color-border);
   border-radius: var(--orb-radius);
   overflow: hidden;
-  --orb-tg-columns: var(--orb-gutter-width)
+  --orb-tg-columns: calc(var(--orb-gutter-width) * (1 + var(--orb-tg-zones, 0)))
     repeat(var(--orb-tg-days), minmax(var(--orb-tg-column-min-width), 1fr));
 }
 
@@ -627,6 +627,11 @@
 
 .orb-tg__time-label:first-child span {
   transform: none;
+}
+
+/* The scheduler's own zone stays closest to the grid; the others go further out. */
+.orb-tg__time-label .orb-tg__zone-label {
+  inset-inline-end: calc(var(--orb-gutter-width) * (var(--orb-zone-index, 0) + 1) + 0.5rem);
 }
 
 .orb-tg__column {
@@ -859,12 +864,16 @@
 .orb-planner__days {
   display: grid;
   grid-template-columns: repeat(31, minmax(0, 1fr));
+  grid-template-rows: 1.75rem;
   grid-auto-rows: var(--orb-month-event-height);
   position: relative;
   gap: 1px 0;
 }
 
 .orb-planner__day {
+  display: flex;
+  justify-content: center;
+  padding-block-start: 2px;
   grid-row: 1 / -1;
   grid-row-end: span calc(var(--orb-planner-lanes, 0) + 1);
   padding: 0;
@@ -1028,6 +1037,81 @@
 .orb-tl__dependencies line {
   stroke: currentColor;
   stroke-width: 1.5;
+}
+
+@media print {
+  .orb-scheduler,
+  .orb-scheduler__body,
+  .orb-tg,
+  .orb-tg__scroller,
+  .orb-month,
+  .orb-month__body,
+  .orb-tl,
+  .orb-tl__scroller,
+  .orb-agenda,
+  .orb-agenda__scroller,
+  .orb-year,
+  .orb-planner {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .orb-toolbar__nav,
+  .orb-segmented,
+  .orb-toolbar [data-orb-part='todayButton'],
+  .orb-event__resizer,
+  .orb-tg__now,
+  .orb-tl__now {
+    display: none !important;
+  }
+
+  .orb-event {
+    print-color-adjust: exact;
+    break-inside: avoid;
+  }
+
+  .orb-month__week,
+  .orb-tl__row,
+  .orb-agenda__row {
+    break-inside: avoid;
+  }
+}
+
+.orb-event--armed {
+  outline: 2px dashed var(--orb-color-accent);
+  outline-offset: 1px;
+}
+
+@media (forced-colors: active) {
+  .orb-event {
+    border: 1px solid CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .orb-event--selected,
+  .orb-event--armed {
+    outline-color: Highlight;
+  }
+
+  .orb-tg__selection,
+  .orb-tg__allday-selection,
+  .orb-tl__selection,
+  .orb-month__cell.is-selected {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  .orb-tg__now,
+  .orb-tl__now {
+    background: Highlight;
+  }
+
+  .orb-shade--blocked,
+  .orb-shade--closed,
+  .orb-shade--background {
+    border: 1px dashed GrayText;
+  }
 }
 
 .orb-tg__column:last-child {

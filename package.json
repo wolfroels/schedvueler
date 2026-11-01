@@ -19,10 +19,15 @@
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core.js"
     },
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "import": "./dist/locales.js"
+    },
     "./style.css": "./dist/orb-scheduler.css"
   },
   "sideEffects": [
-    "*.css"
+    "**/*.css",
+    "./src/index.ts"
   ],
   "scripts": {
     "dev": "vite",
@@ -50,6 +55,7 @@
     "temporal-polyfill": "^1.0.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^24.13.4",

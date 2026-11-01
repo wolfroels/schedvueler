@@ -127,6 +127,7 @@ function dayRange(date: Temporal.PlainDate) {
 }
 
 function onCell(name: SlotEmit, cell: MonthCell, e: MouseEvent) {
+  if (name === 'slot-click' && interaction.placeArmed({ zone: 'month', date: cell.date }, e)) return
   ctx.emit(name, {
     view: props.view,
     date: cell.date,
@@ -497,7 +498,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
           </RenderSlot>
         </div>
 
-        <div v-if="!compact" :ref="(el) => setEventsLayer(el, wi)" class="orb-month__events">
+        <div
+          v-if="!compact"
+          :ref="(el) => setEventsLayer(el, wi)"
+          class="orb-month__events"
+          role="gridcell"
+        >
           <span v-if="wi === 0" :ref="setProbe" class="orb-month__probe" aria-hidden="true" />
           <EventItem
             v-for="item in week.events"

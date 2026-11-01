@@ -50,7 +50,7 @@ const settings = computed<TimelineSettings>(() => {
     rowMinHeight: props.rowMinHeight,
     virtual: props.virtual,
     byEvent: true,
-    headerTiers: props.headerTiers,
+    headerTiers: props.headerTiers ?? ['month'],
     dependencies: true,
   }
 })

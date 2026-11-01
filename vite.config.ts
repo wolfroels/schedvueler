@@ -23,6 +23,7 @@ export default defineConfig({
       entry: {
         index: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
         core: fileURLToPath(new URL('./src/core/index.ts', import.meta.url)),
+        locales: fileURLToPath(new URL('./src/locales/index.ts', import.meta.url)),
       },
       formats: ['es'],
     },

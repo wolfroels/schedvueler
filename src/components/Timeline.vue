@@ -79,6 +79,7 @@ const config = computed(() => {
     // About 24px at the configured slot width.
     minEventWidth: 24 / (s.slotWidth * props.days.length * slotsPerDay(s)),
     byEvent: s.byEvent,
+    narrowDays: s.slotDuration >= 1440 && s.slotWidth < 80,
   }
 })
 
@@ -265,24 +266,45 @@ function measureX() {
   const position = Math.abs(el.scrollLeft) / width
   // Steps of half a screen, so that scrolling only re-renders now and then.
   const step = room / 2
-  const from = Math.max(0, Math.floor(position / step) * step - room)
-  const to = Math.min(1, Math.ceil((position + room) / step) * step + room)
+  const from = Math.max(0, Math.floor(position / step) * step - step)
+  const to = Math.min(1, Math.ceil((position + room) / step) * step + step)
   if (from !== xWindow.value.from || to !== xWindow.value.to) xWindow.value = { from, to }
 }
 
 function onScrollX() {
   if (!xFrame) xFrame = requestAnimationFrame(measureX)
+  measureY()
 }
 
-function visibleItems<I extends { left: number; width: number; occurrence: { key: string } }>(
-  items: readonly I[],
-): readonly I[] {
-  if (!props.settings.virtual || (xWindow.value.from === 0 && xWindow.value.to === 1)) return items
+/** The part of the rows in view in px, in steps, with some room on both sides. */
+const yWindow = shallowRef({ top: 0, bottom: Infinity })
+
+function measureY() {
+  const el = scroller.value
+  if (!el) return
+  const screen = el.clientHeight || 800
+  const offset = Math.max(0, el.scrollTop - scrollMargin.value)
+  const step = screen / 2
+  const top = Math.max(0, Math.floor(offset / step) * step - step)
+  const bottom = Math.ceil((offset + screen) / step) * step + step
+  if (top !== yWindow.value.top || bottom !== yWindow.value.bottom) yWindow.value = { top, bottom }
+}
+
+/** What is in view on a row: rows can be far taller than the screen when many events overlap. */
+function visibleItems<
+  I extends { left: number; width: number; lane: number; occurrence: { key: string } },
+>(items: readonly I[], rowStart: number): readonly I[] {
+  if (!props.settings.virtual) return items
   const { from, to } = xWindow.value
+  const { top, bottom } = yWindow.value
+  const { eventHeight, laneGap, rowPadding } = config.value
+  const laneSize = eventHeight + laneGap
   const dragged = interaction.state.value?.occurrence?.key
-  return items.filter(
-    (i) => (i.left < to && i.left + i.width > from) || i.occurrence.key === dragged,
-  )
+  return items.filter((i) => {
+    if (i.occurrence.key === dragged) return true
+    const y = rowStart + rowPadding + i.lane * laneSize
+    return i.left < to && i.left + i.width > from && y < bottom && y + eventHeight > top
+  })
 }
 
 /** Slot headings in view, with their column on the grid. */
@@ -456,6 +478,10 @@ function laneFraction(clientX: number): number {
 
 function onLane(name: SlotEmit, row: TimelineRow<unknown>, e: MouseEvent) {
   if ((e.target as HTMLElement).closest('.orb-event')) return
+  if (name === 'slot-click') {
+    const at = hitTest(e.clientX, e.clientY)
+    if (at && interaction.placeArmed(at, e, snapMinutes())) return
+  }
   ctx.emit(name, {
     view: props.view,
     ...slotAt(laneFraction(e.clientX)),
@@ -536,6 +562,7 @@ onMounted(() => {
   measureMargin()
   scrollToTime()
   measureX()
+  measureY()
   if (typeof ResizeObserver !== 'undefined' && body.value?.previousElementSibling) {
     resizeObserver = new ResizeObserver(() => {
       measureMargin()
@@ -975,6 +1002,7 @@ function eventTop(lane: number) {
               <EventItem
                 v-for="item in visibleItems(
                   countsOnly ? row.items.filter((i) => i.occurrence.allDay) : row.items,
+                  row.top,
                 )"
                 :key="item.occurrence.key"
                 :occurrence="item.occurrence"

@@ -85,7 +85,8 @@ export function useMonthGrid<T>(
     const { range, hiddenDays, maxRows } = cfg.value
     const { locale, timeZone } = ctx.options.value
     const today = ctx.today.value
-    const occurrences = ctx.occurrences.value
+    const order = ctx.options.value.raw.monthEventOrder
+    const occurrences = order ? [...ctx.occurrences.value].sort(order) : ctx.occurrences.value
     const sel = ctx.interaction.selection.value
     const selStart = sel?.times.start.withTimeZone(timeZone).toPlainDate()
     const selEnd = sel

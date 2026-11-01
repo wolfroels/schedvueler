@@ -9,7 +9,7 @@ export default defineConfig({
   retries: ci ? 1 : 0,
   reporter: ci ? 'github' : 'list',
   use: {
-    baseURL: 'http://localhost:6190',
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:6190',
     viewport: { width: 1280, height: 900 },
     locale: 'en-GB',
     timezoneId: 'Europe/Brussels',

@@ -105,6 +105,9 @@ const eventSlot = computed(() =>
 const handleSlot = computed(() => props.resolve('resize-handle'))
 const contentSlot = computed(() => props.resolve('event-content'))
 const extraAttrs = computed(() => ctx.options.value.eventAttrs?.(props.occurrence) ?? {})
+const isArmed = computed(
+  () => !props.mirror && interaction.armed.value?.occurrence.key === props.occurrence.key,
+)
 const isSelected = computed(
   () => !props.mirror && ctx.selectedEvents.value.includes(props.occurrence.key),
 )
@@ -143,14 +146,22 @@ const isDragSource = computed(() => {
   return !props.mirror && !!s?.preview && s.occurrence?.key === props.occurrence.key
 })
 
+// The name starts with what is shown, in that order, so that voice control can find it by it.
 const ariaLabel = computed(() => {
   const p = slotProps.value
-  const date = formatDate(props.occurrence.start.toPlainDate(), ctx.options.value.locale, {
+  const { locale, hour12 } = ctx.options.value
+  const occ = props.occurrence
+  const date = formatDate(occ.start.toPlainDate(), locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   })
-  return [p.title, date, p.timeText].filter(Boolean).join(', ')
+  const timeFirst = ['agenda', 'month-timed', 'list'].includes(props.variant)
+  const shown = (timeFirst ? [p.timeText, p.title] : [p.title, p.timeText])
+    .filter(Boolean)
+    .join(' ')
+  const range = occ.allDay ? '' : formatTimeRange(occ.start, occ.end, locale, { hour12 })
+  return [shown, date, p.timeText === range ? '' : range].filter(Boolean).join(', ')
 })
 
 function payload<E extends Event>(nativeEvent: E) {
@@ -166,6 +177,8 @@ function payload<E extends Event>(nativeEvent: E) {
 function onClick(e: MouseEvent) {
   if (props.mirror) return
   if (ctx.options.value.raw.eventSelection) interaction.selectEvent(props.occurrence, e)
+  if (ctx.options.value.raw.clickToMove && interaction.canDrag(props.occurrence))
+    interaction.armMove(isArmed.value ? null : props.occurrence)
   ctx.emit('event-click', payload(e))
 }
 
@@ -266,6 +279,7 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--mirror': mirror,
         'orb-event--invalid': mirror && !valid,
         'orb-event--selected': isSelected,
+        'orb-event--armed': isArmed,
         'orb-event--milestone': isMilestone,
       },
     ]"
@@ -303,6 +317,7 @@ function onKeydown(e: KeyboardEvent) {
     <RenderSlot v-else :fn="contentSlot" :scope="slotProps">
       <template v-if="variant === 'agenda'">
         <span class="orb-event__time" v-bind="ctx.part('eventTime')">{{ slotProps.timeText }}</span>
+        {{ ' ' }}
         <span class="orb-event__dot" v-bind="ctx.part('eventDot')" aria-hidden="true" />
         <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
       </template>
@@ -311,10 +326,12 @@ function onKeydown(e: KeyboardEvent) {
         <span v-if="slotProps.timeText" class="orb-event__time" v-bind="ctx.part('eventTime')">{{
           slotProps.timeText
         }}</span>
+        {{ ' ' }}
         <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
       </template>
       <template v-else-if="variant === 'time' || variant === 'timeline'">
         <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
+        {{ ' ' }}
         <span class="orb-event__time" v-bind="ctx.part('eventTime')">{{ slotProps.timeText }}</span>
       </template>
       <template v-else>
@@ -324,6 +341,7 @@ function onKeydown(e: KeyboardEvent) {
           v-bind="ctx.part('eventTime')"
           >{{ slotProps.timeText }}</span
         >
+        {{ ' ' }}
         <span class="orb-event__title" v-bind="ctx.part('eventTitle')">{{ slotProps.title }}</span>
       </template>
     </RenderSlot>

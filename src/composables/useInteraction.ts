@@ -120,6 +120,8 @@ export interface SchedulerInteraction {
   prunePending(): void
   /** Ends a gesture in progress, e.g. when the scheduler goes away. */
   stopGesture(): void
+  /** Ends a gesture whose event was deleted, e.g. by someone else while dragging. */
+  stopIfDeleted(): void
   /** Whether a newly shown event should take the focus, after a keyboard change re-created it. */
   claimFocus(occurrence: EventOccurrence<unknown>): boolean
 
@@ -145,6 +147,16 @@ export interface SchedulerInteraction {
   groupOf(occurrence: EventOccurrence<unknown>): EventOccurrence<unknown>[]
   /** The rectangle being drawn around events, in viewport pixels. */
   marquee: Readonly<ShallowRef<{ left: number; top: number; width: number; height: number } | null>>
+
+  // --- moving without dragging ---
+  /** The next click on a slot or day moves or resizes this event. `null` cancels. */
+  armMove(occurrence: EventOccurrence<unknown> | null, kind?: EventChangeKind): void
+  /** The event waiting for that click. */
+  armed: Readonly<
+    ShallowRef<{ occurrence: EventOccurrence<unknown>; kind: EventChangeKind } | null>
+  >
+  /** Places the armed event at `hit`; false when none is armed. */
+  placeArmed(hit: Hit, nativeEvent: MouseEvent, snapMinutes?: number): boolean
 
   // --- clipboard ---
   copy(cut: boolean): boolean
@@ -428,6 +440,55 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+  }
+
+  // --- moving without dragging --------------------------------------------------------------------
+
+  const armed = shallowRef<{ occurrence: EventOccurrence<unknown>; kind: EventChangeKind } | null>(
+    null,
+  )
+
+  function armMove(occ: EventOccurrence<unknown> | null, kind: EventChangeKind = 'move') {
+    armed.value = occ ? { occurrence: occ, kind } : null
+    if (occ)
+      ctx.announce(ctx.options.value.messages.moveArmed(ctx.accessors.value.title(occ.event) ?? ''))
+  }
+
+  function placeArmed(at: Hit, nativeEvent: MouseEvent, snap = snapMinutes()): boolean {
+    const a = armed.value
+    if (!a) return false
+    armed.value = null
+    const { occurrence: occ, kind } = a
+    const { timeZone } = ctx.options.value
+    const opts = {
+      ...computeOptions(snap),
+      ...(timedLengths.has(occ.key) ? { defaultDurationMinutes: timedLengths.get(occ.key)! } : {}),
+    }
+    const edgeValue = kind === 'resize-end' ? occ.end : occ.start
+    const edge = edgeValue.withTimeZone(timeZone)
+    const last = occ.allDay && kind === 'resize-end' ? edge.subtract({ days: 1 }) : edge
+    const resourceId = at.resourceId === undefined ? undefined : occ.resourceIds[0]
+    const origin: Hit =
+      at.zone === 'time' || at.zone === 'timeline'
+        ? {
+            zone: at.zone,
+            date: edge.toPlainDate(),
+            minute: edge.hour * 60 + edge.minute,
+            resourceId,
+          }
+        : { zone: at.zone, date: last.toPlainDate(), resourceId }
+    // Resizing the end to a slot includes that slot.
+    const target: Hit =
+      kind === 'resize-end' && 'minute' in at ? { ...at, minute: at.minute + snap } : at
+    const times =
+      kind === 'move'
+        ? computeMove(occ, origin, target, opts)
+        : computeResize(occ, kind === 'resize-start' ? 'start' : 'end', origin, target, opts)
+    if (!times || sameTimes(times, occ)) return true
+    const reason = refusal(kind, occ, times)
+    if (reason) reportRefused(occ, kind, ctx.activeViewName.value ?? '', times, reason)
+    else commit(occ, kind, ctx.activeViewName.value ?? '', times, nativeEvent as PointerEvent)
+    return true
   }
 
   // --- clipboard ---------------------------------------------------------------------------------
@@ -1066,6 +1127,9 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
         return p && p.event === occ.event ? withTimes(occ, p.times) : occ
       })
     },
+    armMove,
+    armed,
+    placeArmed,
     selectEvent,
     groupOf,
     marquee,
@@ -1158,6 +1222,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     clearSelection,
     claimFocus,
     stopGesture: () => endGesture?.(),
+    stopIfDeleted() {
+      const s = state.value
+      if (!s?.occurrence || s.kind === 'receive') return
+      const id = s.occurrence.seriesId ?? s.occurrence.id
+      if (!ctx.store.has(id)) endGesture?.()
+    },
     prunePending() {
       const map = pending.value
       if (!map.size) return

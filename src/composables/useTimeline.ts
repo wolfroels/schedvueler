@@ -31,6 +31,8 @@ export interface TimelineConfig {
   rowMinHeight: number
   /** Minimum event width as a fraction of the axis, so short events stay visible. */
   minEventWidth?: number
+  /** Day headings are too narrow for a weekday. */
+  narrowDays?: boolean
   /** One row per event instead of per resource. */
   byEvent?: boolean
 }
@@ -101,9 +103,11 @@ export function useTimeline<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
   const days = computed<TimelineDay[]>(() => {
     const { locale } = ctx.options.value
     const today = ctx.today.value
-    const format: Intl.DateTimeFormatOptions = daySlots.value
-      ? { weekday: 'short', day: 'numeric' }
-      : { weekday: 'long', day: 'numeric', month: 'long' }
+    const format: Intl.DateTimeFormatOptions = cfg.value.narrowDays
+      ? { day: 'numeric' }
+      : daySlots.value
+        ? { weekday: 'short', day: 'numeric' }
+        : { weekday: 'long', day: 'numeric', month: 'long' }
     return cfg.value.days.map((date) => {
       const cmp = Temporal.PlainDate.compare(date, today)
       return {

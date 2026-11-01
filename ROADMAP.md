@@ -126,30 +126,30 @@ This is the free, differentiating feature, so it should be the strongest part.
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 13.1 | Grid semantics: `role=grid`, rows and cells, slot names with date and time | P1 | M |
-| [ ] | 13.2 | WCAG 2.2 AA audit with axe and screen readers; contrast checks for event colors; `forced-colors` | P1 | M |
-| [ ] | 13.3 | Pointer alternative for every drag (WCAG 2.5.7), such as a move/resize mode | P1 | M |
-| [ ] | 13.4 | RTL: check a real RTL locale and calendar text, and add browser tests (hit testing and logical CSS are done) | P1 | S |
-| [ ] | 13.5 | Translated `messages` packs, plus the toolbar and recurrence wording | P2 | M |
-| [ ] | 13.6 | Non-Gregorian calendars through Temporal | P3 | L |
+| [x] | 13.1 | Grid semantics: `role=grid`, rows and cells, slot names with date and time | P1 | M |
+| [ ] | 13.2 | WCAG 2.2 AA audit: axe on every view in both themes, contrast helpers and `forced-colors` are done; a review with real screen readers still has to happen | P1 | M |
+| [x] | 13.3 | Pointer alternative for every drag (WCAG 2.5.7), such as a move/resize mode | P1 | M |
+| [x] | 13.4 | RTL: check a real RTL locale and calendar text, and add browser tests (hit testing and logical CSS are done) | P1 | S |
+| [x] | 13.5 | Translated `messages` packs, plus the toolbar and recurrence wording | P2 | M |
+| [x] | 13.6 | Non-Gregorian calendars through Temporal | P3 | L |
 | [ ] | 13.7 | Test on real iOS and Android; tune long-press, handles and scroll conflicts | P1 | M |
-| [ ] | 13.8 | Performance budgets in CI; cut week navigation at 20 000 events (140–160 ms in the dev build); run recurrence expansion in a worker if needed | P2 | M |
-| [ ] | 13.9 | Pluggable `month-event-order` and memoized layouts per day and resource | P3 | M |
+| [x] | 13.8 | Performance budgets in CI; cut week navigation at 20 000 events (140–160 ms in the dev build); run recurrence expansion in a worker if needed | P2 | M |
+| [x] | 13.9 | Pluggable `month-event-order` and memoized layouts per day and resource | P3 | M |
 
 ## Phase 14: Data and output
 
 | Done | ID | Item | Priority | Effort |
 |---|---|---|---|---|
-| [ ] | 14.1 | `useEventSource`: fetch by range and visible resources, cache ranges, cancel stale requests, `refetch()` | P1 | M |
+| [x] | 14.1 | `useEventSource`: fetch by range and visible resources, cache ranges, cancel stale requests, `refetch()` | P1 | M |
 | [x] | 14.2 | `loading` and `error` states with slots | P1 | S |
-| [ ] | 14.3 | iCalendar import and export, including VTIMEZONE and exceptions | P1 | L |
-| [ ] | 14.4 | RRULE to readable text, localized | P2 | M |
-| [ ] | 14.5 | Headless recurrence form helper (rule ↔ form state) | P2 | M |
-| [ ] | 14.6 | Print stylesheet and print-friendly layouts | P2 | M |
-| [ ] | 14.7 | Export to CSV and JSON; PDF and image through a documented recipe | P3 | M |
-| [ ] | 14.8 | Change tracking: a list of created, updated and deleted events for batch saves | P2 | M |
-| [ ] | 14.9 | Sync recipes for Google Calendar, Microsoft Graph and CalDAV | P3 | M |
-| [ ] | 14.10 | Plugin API (`{ name, install(ctx) }`), as sketched in RESEARCH.md | P3 | L |
+| [x] | 14.3 | iCalendar import and export, including VTIMEZONE and exceptions | P1 | L |
+| [x] | 14.4 | RRULE to readable text, localized | P2 | M |
+| [x] | 14.5 | Headless recurrence form helper (rule ↔ form state) | P2 | M |
+| [x] | 14.6 | Print stylesheet and print-friendly layouts | P2 | M |
+| [x] | 14.7 | Export to CSV and JSON; PDF and image through a documented recipe | P3 | M |
+| [x] | 14.8 | Change tracking: a list of created, updated and deleted events for batch saves | P2 | M |
+| [x] | 14.9 | Sync recipes for Google Calendar, Microsoft Graph and CalDAV | P3 | M |
+| [x] | 14.10 | Plugin API (`{ name, install(ctx) }`), as sketched in RESEARCH.md | P3 | L |
 | [ ] | 14.11 | Real-time updates: incoming changes during a drag, and showing who is editing | P3 | L |
 
 ## Phase 15: Standout features

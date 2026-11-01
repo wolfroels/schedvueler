@@ -121,6 +121,7 @@ function onKeydown(e: KeyboardEvent) {
     }
   } else if (e.key === 'Escape') {
     ctx.interaction.clearSelection()
+    ctx.interaction.armMove(null)
     if (props.eventSelection) ctx.setSelectedEvents([])
   }
 }
@@ -146,6 +147,8 @@ defineExpose({
   setView: ctx.setView,
   refresh: ctx.refresh,
   clearSelection: ctx.interaction.clearSelection,
+  /** Opens the browser's print dialog; the styles lay the active view out for paper. */
+  print: () => window.print(),
   /** Scrolls the active view to a time of day, "HH:mm". */
   scrollToTime(time: string) {
     ctx.interaction.scrollToMinute(parseTimeOfDay(time, 0))
