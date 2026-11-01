@@ -1,6 +1,6 @@
 # orb-scheduler API reference
 
-Everything below is exported from `orb-scheduler`; the framework-free parts are also available
+See also [API stability](API_STABILITY.md). Everything below is exported from `orb-scheduler`; the framework-free parts are also available
 from `orb-scheduler/core`. Types are in [src/types.ts](../src/types.ts) and
 [src/core](../src/core); this page is the overview.
 
@@ -324,6 +324,10 @@ All slots are available on `<Scheduler>` and on each view. Specific event slots 
 Availability slots, each with `view`, `date`, `resourceId`, `title`, `color`, `occurrence`: `closed-time`, `blocked-time`, `background-event`. `hidden-events` marks events outside the visible hours, with `view`, `date`, `direction`, `count`, `occurrences`, `label`.
 
 `day-end-time` can go past midnight, up to 24 hours after `day-start-time`: `day-start-time="18:00" day-end-time="30:00"` runs each column until 06:00 the next morning, in time grids. `refusal(kind, occurrence, times)` on `context.interaction` runs every rule for your own checks.
+
+More slots: `event-buffer` (`occurrence`, `side`, `minutes`), `suggestion` and `time-zone-band` (like `blocked-time`), `week-number` (`view`, `week`, `date`), `timeline-tier` (`view`, `unit`, `date`, `label`), `resource-column` (`view`, `column`, `resource`, `value`), `resource-load` (`view`, `date`, `resource`, `minutes`, `capacity`, `ratio`, `occurrences`), `day-count` (`view`, `date`, `resourceId`, `count`, `occurrences`).
+
+More emits: `resource-area-resize` (`view`, `width`) and `zoom-change` (`view`, `level`).
 
 ## Passthrough (`pt`)
 

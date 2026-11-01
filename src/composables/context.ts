@@ -67,7 +67,10 @@ export interface SchedulerContext<T = unknown> {
   views: Readonly<ShallowRef<readonly ViewRegistration[]>>
   /** Views that fit the current width (see `minWidth` / `maxWidth`). */
   availableViews: ComputedRef<readonly ViewRegistration[]>
-  /** Rendered width of the scheduler in px; 0 until measured. Set by the root component. */
+  /**
+   * Rendered width of the scheduler in px; 0 until measured. Set by the root component.
+   * @internal
+   */
   width: Ref<number>
   activeView: ComputedRef<ViewRegistration | undefined>
   activeViewName: ComputedRef<string | undefined>
@@ -113,7 +116,10 @@ export interface SchedulerContext<T = unknown> {
 
   registerView(view: ViewRegistration): void
   unregisterView(view: ViewRegistration): void
-  /** Puts the views back in declaration order, after one was added later with `v-if`. */
+  /**
+   * Puts the views back in declaration order, after one was added later with `v-if`.
+   * @internal
+   */
   sortViews(): void
   prev(): void
   next(): void
@@ -139,7 +145,10 @@ export interface SchedulerContext<T = unknown> {
 
   /** Drag, resize, selection and optimistic updates. */
   interaction: SchedulerInteraction
-  /** Id of the hidden keyboard hint referenced by editable events. */
+  /**
+   * Id of the hidden keyboard hint referenced by editable events.
+   * @internal
+   */
   hintId: string
   /** Latest screen-reader announcement. */
   announcement: Readonly<Ref<string>>

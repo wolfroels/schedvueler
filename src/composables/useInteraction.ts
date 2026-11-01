@@ -88,7 +88,10 @@ export interface SchedulerInteraction {
   mirror: ComputedRef<(EventOccurrence<unknown> & { valid: boolean; sourceKey: string }) | null>
   /** Current selection, or the range being selected. */
   selection: ComputedRef<(Selection & { pending: boolean }) | null>
-  /** Applies optimistic changes to queried occurrences. */
+  /**
+   * Applies optimistic changes to queried occurrences.
+   * @internal
+   */
   applyPending<T>(occurrences: EventOccurrence<T>[]): EventOccurrence<T>[]
   canDrag(occurrence: EventOccurrence<unknown>): boolean
   canResize(occurrence: EventOccurrence<unknown>): boolean
@@ -116,13 +119,22 @@ export interface SchedulerInteraction {
   /** Sets the selection from the keyboard; `commit` emits `select`. */
   setSelection(view: string, times: EventTimes | null, commit?: KeyboardEvent): void
   clearSelection(): void
-  /** Drops optimistic changes whose events were replaced (called when events change). */
+  /**
+   * Drops optimistic changes whose events were replaced (called when events change).
+   * @internal
+   */
   prunePending(): void
   /** Ends a gesture in progress, e.g. when the scheduler goes away. */
   stopGesture(): void
-  /** Ends a gesture whose event was deleted, e.g. by someone else while dragging. */
+  /**
+   * Ends a gesture whose event was deleted, e.g. by someone else while dragging.
+   * @internal
+   */
   stopIfDeleted(): void
-  /** Whether a newly shown event should take the focus, after a keyboard change re-created it. */
+  /**
+   * Whether a newly shown event should take the focus, after a keyboard change re-created it.
+   * @internal
+   */
   claimFocus(occurrence: EventOccurrence<unknown>): boolean
 
   // --- events dragged in from outside (see `startExternalDrag`) ---

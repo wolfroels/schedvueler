@@ -22,6 +22,8 @@ jobs:
       - run: npm run build-only
       - run: npm run size
       - run: npx publint
+      - run: npm run docs:check
+      - run: npm run docs:build
 
   browser:
     runs-on: ubuntu-latest

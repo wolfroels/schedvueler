@@ -151,7 +151,11 @@ test('density changes the size', async ({ page }) => {
   expect(comfortable).toBeGreaterThan(compact * 1.5)
 })
 
-test('animates moves, unless reduced motion is asked for', async ({ page }) => {
+test('animates moves, unless reduced motion is asked for', async ({ page, browserName }) => {
+  test.skip(
+    browserName === 'firefox' && !!process.env.PW_FIREFOX_CHANNEL,
+    'The installed Firefox cannot emulate media features through Playwright',
+  )
   await open(page, {}, { animate: true })
   const transition = () =>
     event(page, 'Alpha').evaluate((el) => getComputedStyle(el).transitionDuration)

@@ -12,6 +12,8 @@ Written 2026-10-31 from the [full review in RESEARCH.md](RESEARCH.md#4-full-revi
 - Add it to `playground/anatomy.ts` so it appears on the [slots and parts page](playground/PartsPage.vue).
 - Behavior lives in core or a headless composable first; the component is a default on top. Nothing is only reachable through the built-in UI.
 
+**Status (2026-11-01):** everything is built except two items only people and devices can do: a review with real screen readers (13.2) and testing on real iOS and Android (13.7). Translations in `orb-scheduler/locales` were written without a native speaker's review. `private: true` stays in `package.json` until you decide to publish; the CI workflow has not run yet, because the repository has no remote.
+
 **Order:** phases 7 and 8 come first, because new features should land on correct edits and a browser test suite. Phases 9 to 14 can overlap once those are done.
 
 ## Phase 7: Fix the known bugs
@@ -51,9 +53,9 @@ B7 (RTL) is fixed for drag, keyboard and layout; the remaining work is item 13.4
 | [x] | 8.2 | Component tests for slots, emits and props; visual regression for each view in light and dark | P1 | M |
 | [x] | 8.3 | CI: lint, types, unit, browser, build, bundle-size budget | P0 | S |
 | [x] | 8.4 | Package: `LICENSE`, version, changelog, `publint`, size budget. `private` stays on until you choose to publish; removing it is the only release step left | P0 | S |
-| [ ] | 8.5 | SSR: rendering without `window` and hydrating without a mismatch are tested (`e2e/foundation.spec.ts`). Trying it in a real Nuxt app is still open | P1 | M |
-| [ ] | 8.6 | Docs site with live examples, migration notes and recipes (editor dialog, lazy loading, server sync) | P1 | L |
-| [ ] | 8.7 | Stabilize the public API: mark internals, freeze names before 1.0 | P1 | M |
+| [x] | 8.5 | SSR: rendering without `window` and hydrating without a mismatch are tested (`e2e/foundation.spec.ts`), and checked once by hand in a Nuxt 3 production build | P1 | M |
+| [x] | 8.6 | Docs site with live examples, migration notes and recipes (editor dialog, lazy loading, server sync) | P1 | L |
+| [x] | 8.7 | Stabilize the public API: mark internals, freeze names before 1.0 | P1 | M |
 | [x] | 8.9 | Passthrough: `pt` prop and `data-orb-part` on every element, plus the slots and parts page | P1 | M |
 | [x] | 8.8 | Fill the promised API gaps: anchor `element` / rect on `select`, `event-drop` and `event-delete`; `before-event-delete`; `scrollToTime()`, `scrollToEvent()`, `getEvents()` | P1 | M |
 
@@ -189,10 +191,10 @@ Things that would make people pick this scheduler over the others. Each follows 
 All of the following:
 - No open P0 or P1 bugs.
 - Every P0 and P1 item above is done.
-- Browser tests pass in Chromium, Firefox and WebKit, and on real iOS and Android.
-- A WCAG 2.2 AA audit has passed.
-- Timeline month with 20 000 events navigates in under 100 ms in a production build.
-- The docs site covers every prop, emit and slot, with a live example per view.
+- Browser tests pass in Chromium, Firefox and WebKit, and on real iOS and Android. (The desktop browsers pass; real devices are open.)
+- A WCAG 2.2 AA audit has passed. (The automated part passes; the review with screen readers is open.)
+- Timeline month with 20 000 events navigates in under 100 ms in a production build. (About 60 ms on the development machine.)
+- The docs site covers every prop, emit and slot, with a live example per view. (`npm run docs:check` enforces the first part.)
 
 ## Open decisions
 

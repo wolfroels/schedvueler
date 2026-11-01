@@ -13,9 +13,11 @@ export { default as MonthGrid } from './MonthGrid.vue'
 export { default as EventItem } from './EventItem.vue'
 export { RenderSlot } from './RenderSlot'
 export type {
+  ResponsiveViewProps,
   TimeGridViewProps,
   TimelineViewProps,
   TimelineSettings,
+  TimelineZoomLevel,
   ViewPeriod,
 } from './view-props'
 export { default as MultiMonthView } from './MultiMonthView.vue'

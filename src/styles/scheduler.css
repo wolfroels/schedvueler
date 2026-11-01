@@ -919,7 +919,7 @@
 }
 
 .orb-tl__tier {
-  overflow: hidden;
+  overflow: clip;
   padding: 0.25rem 0.5rem;
   border-inline-end: 1px solid var(--orb-color-border);
   border-bottom: 1px solid var(--orb-color-border-subtle);

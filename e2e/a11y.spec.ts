@@ -145,7 +145,11 @@ test('the event order in a month can be set', async ({ page }) => {
   expect(titles[0]).toContain('Busy 7')
 })
 
-test('forced colors keep events visible', async ({ page }) => {
+test('forced colors keep events visible', async ({ page, browserName }) => {
+  test.skip(
+    browserName === 'firefox' && !!process.env.PW_FIREFOX_CHANNEL,
+    'The installed Firefox cannot emulate media features through Playwright',
+  )
   await page.emulateMedia({ forcedColors: 'active' })
   await open(page)
   await expect(event(page, 'Alpha')).toHaveCSS('border-top-style', 'solid')

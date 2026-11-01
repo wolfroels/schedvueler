@@ -275,6 +275,8 @@ Compared with FullCalendar Premium, Bryntum, Mobiscroll, Syncfusion and DHTMLX. 
 
 # Known bugs
 
+Found and fixed while finishing the roadmap, for the record: production builds of the playground lost all scheduler styles (the `sideEffects` setting), swipe navigation was cancelled by browsers in views with their own scroll area (`touch-action` stops at the nearest scroller), and dragging from the month popover landed on the wrong day.
+
 None open. Add new ones here, and remove them once fixed.
 
 **Correction to the 2026-10-31 review:** B18 said lowercase RRULEs are rejected. They are accepted; that probe failed because it also contained an unknown part (`foo=bar`). Unknown parts are still rejected, except `X-` extensions, and the event is skipped with a warning. `FREQ=SECONDLY` is unsupported in the same way.
