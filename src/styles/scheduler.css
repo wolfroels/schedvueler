@@ -800,6 +800,10 @@
 
 .orb-tg__zone-label {
   display: block;
+  /* Two times, around a clock change, take two lines rather than run out of the gutter. */
+  width: calc(var(--orb-gutter-width) - 0.5rem);
+  text-align: end;
+  white-space: normal;
   color: var(--orb-color-text-muted);
   opacity: 0.8;
 }
@@ -1441,7 +1445,8 @@
 /* ---- mini calendar, legend, quick add ---- */
 .orb-mini {
   display: inline-block;
-  color: var(--orb-color-text, #0f172a);
+  /* Outside a scheduler it takes the colors of the page. */
+  color: var(--orb-color-text, inherit);
   font-size: var(--orb-font-size-sm, 0.75rem);
 }
 
@@ -1494,7 +1499,7 @@
 }
 
 .orb-mini__day:hover {
-  background: rgb(15 23 42 / 0.06);
+  background: color-mix(in srgb, currentcolor 10%, transparent);
 }
 
 .orb-mini__day.is-other-month {

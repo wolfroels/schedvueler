@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatDate, monthStrategy, type RangeStrategy } from '../core'
+import { Temporal, formatDate, monthStrategy, type RangeStrategy } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
 import type { SchedulerSlots } from '../types'
@@ -29,22 +29,33 @@ const slots = defineSlots<SchedulerSlots<any>>()
 
 const ctx = useSchedulerContext()
 
+const calendar = computed(() => ctx.options.value.raw.calendar)
+
 const single = computed(() =>
-  monthStrategy({ weekStart: props.weekStart ?? ctx.options.value.weekStart }),
+  monthStrategy({
+    weekStart: props.weekStart ?? ctx.options.value.weekStart,
+    calendar: calendar.value,
+  }),
 )
+
+/** The date a number of months from another, counted in the calendar. */
+function addMonths(date: Temporal.PlainDate, months: number) {
+  const inCalendar = calendar.value ? date.withCalendar(calendar.value) : date
+  return inCalendar.add({ months }).withCalendar('iso8601')
+}
 
 const strategy = computed<RangeStrategy>(() => ({
   range(anchor) {
     const first = single.value.range(anchor)
-    const last = single.value.range(anchor.add({ months: props.months - 1 }))
+    const last = single.value.range(addMonths(anchor, props.months - 1))
     return {
       start: first.start,
       end: last.end,
       active: { start: first.active.start, end: last.active.end },
     }
   },
-  step: (anchor, direction) => anchor.add({ months: props.months * direction }),
-  keepsDayOfMonth: true,
+  step: (anchor, direction) => addMonths(anchor, props.months * direction),
+  keepsDayOfMonth: !calendar.value,
 }))
 
 const { isActive } = useSchedulerView(() => ({
@@ -62,7 +73,7 @@ const hiddenDays = computed(() => props.hiddenDays ?? ctx.options.value.hiddenDa
 
 const months = computed(() =>
   Array.from({ length: props.months }, (_, i) => {
-    const anchor = ctx.date.value.with({ day: 1 }).add({ months: i })
+    const anchor = single.value.range(addMonths(ctx.date.value, i)).active.start
     return {
       key: anchor.toString(),
       range: single.value.range(anchor),

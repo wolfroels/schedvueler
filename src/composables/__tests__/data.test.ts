@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { effectScope, nextTick, shallowRef } from 'vue'
 import { Temporal, recurrenceToText } from '../../core'
+import { defaultMessages } from '../../types'
 import { de, es, fr, nl } from '../../locales'
 import type { RangeChangePayload } from '../../types'
 import { useChangeTracking, useEventSource, type EventSourceRequest } from '../useEventSource'
@@ -104,7 +105,7 @@ describe('locale packs', () => {
       'Elke 2 weken op maandag en vrijdag, 3 keer',
     )
     expect(recurrenceToText(rule, { locale: 'fr', strings: fr.recurrence })).toBe(
-      'Tous les 2 semaines le lundi et vendredi, 3 fois',
+      'Toutes les 2 semaines le lundi et vendredi, 3 fois',
     )
     expect(recurrenceToText('FREQ=DAILY', { locale: 'de', strings: de.recurrence })).toBe(
       'Jeden Tag',
@@ -112,5 +113,22 @@ describe('locale packs', () => {
     expect(recurrenceToText('FREQ=DAILY', { locale: 'es', strings: es.recurrence })).toBe(
       'Cada día',
     )
+  })
+})
+
+describe('translations', () => {
+  it('leave no message in English, except the arrows of hidden events', () => {
+    const expected = Object.keys(defaultMessages).filter((key) => key !== 'hiddenEvents')
+    for (const locale of [nl, fr, de, es]) {
+      expect(Object.keys(locale.messages).sort()).toEqual(expected.sort())
+    }
+  })
+
+  it('use the right gender in French', () => {
+    expect(fr.recurrence.every('YEARLY', 1)).toBe('Chaque année')
+    expect(fr.recurrence.every('YEARLY', 2)).toBe('Tous les 2 ans')
+    expect(fr.recurrence.every('WEEKLY', 2)).toBe('Toutes les 2 semaines')
+    expect(fr.recurrence.every('HOURLY', 3)).toBe('Toutes les 3 heures')
+    expect(fr.recurrence.every('DAILY', 3)).toBe('Tous les 3 jours')
   })
 })

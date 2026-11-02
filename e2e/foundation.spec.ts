@@ -86,6 +86,13 @@ test.describe('server rendering', () => {
     await expect(page.locator('[data-orb-part="root"]')).toBeVisible()
     await expect(page.locator('.ssr-html')).toContainText('data-orb-part')
     await expect(page.locator('.orb-event', { hasText: 'Alpha' })).toBeVisible()
+    // The toolbar is complete in the HTML, and stays so after hydrating.
+    await expect(page.locator('.ssr-html')).toContainText('21 Jun 2026')
+    await expect(page.locator('.ssr-html')).toContainText('viewButton')
+    await expect(page.locator('[data-orb-part="title"]')).toContainText('21 Jun 2026')
+    await expect(page.locator('[data-orb-part="viewButton"]')).toHaveCount(2)
+    await page.locator('[data-orb-part="viewButton"]', { hasText: 'Month' }).click()
+    await expect(page.locator('[data-orb-part="monthGrid"]')).toBeVisible()
   })
 })
 

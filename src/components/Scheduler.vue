@@ -14,7 +14,7 @@ import {
   type SchedulerEvent,
 } from '../core'
 import type { SchedulerDensity, SchedulerEmits, SchedulerOptions, SchedulerSlots } from '../types'
-import SchedulerToolbar from './SchedulerToolbar.vue'
+import { HydratingToolbar } from './HydratingToolbar'
 
 export interface SchedulerProps<T> extends SchedulerOptions<T> {
   /** Color scheme. "auto" follows the operating system. Default "light". */
@@ -278,7 +278,7 @@ defineExpose({
     @drop="ctx.interaction.nativeDrop"
   >
     <slot name="toolbar" v-bind="toolbarProps">
-      <SchedulerToolbar v-if="toolbar" />
+      <HydratingToolbar v-if="toolbar" />
     </slot>
     <div
       class="orb-scheduler__body"

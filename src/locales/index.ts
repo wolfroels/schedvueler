@@ -22,6 +22,13 @@ function pack(words: {
   dragHint: string
   changed: (title: string, when: string) => string
   cancelled: string
+  moveArmed: (title: string) => string
+  conflict: string
+  eventStack: (n: number) => string
+  timeFold: (start: string, end: string) => string
+  draftChanges: (n: number) => string
+  apply: string
+  discard: string
   selected: (when: string) => string
   resources: string
   moreViews: string
@@ -58,6 +65,13 @@ function pack(words: {
       loading: words.loading,
       error: words.error,
       searchResources: words.searchResources,
+      moveArmed: words.moveArmed,
+      conflict: words.conflict,
+      eventStack: words.eventStack,
+      timeFold: words.timeFold,
+      draftChanges: words.draftChanges,
+      apply: words.apply,
+      discard: words.discard,
     },
     recurrence: {
       every: (freq, n) =>
@@ -102,6 +116,13 @@ export const nl = pack({
   loading: 'Laden…',
   error: 'Er ging iets mis',
   searchResources: 'Middelen zoeken',
+  moveArmed: (title) => `${title} opgepakt. Kies waar het naartoe gaat, of druk op Escape.`,
+  conflict: 'Overlapt met een andere afspraak',
+  eventStack: (n) => (n === 1 ? '1 afspraak' : `${n} afspraken`),
+  timeFold: (start, end) => `${start} tot ${end}, geen afspraken`,
+  draftChanges: (n) => (n === 1 ? '1 wijziging' : `${n} wijzigingen`),
+  apply: 'Toepassen',
+  discard: 'Verwerpen',
   units: {
     YEARLY: ['jaar', 'jaar'],
     MONTHLY: ['maand', 'maanden'],
@@ -138,7 +159,7 @@ export const fr = pack({
   allDay: 'Toute la journée',
   close: 'Fermer',
   noEvents: 'Aucun événement',
-  more: (n) => `+${n} de plus`,
+  more: (n) => `+${n} en plus`,
   eventCount: (n) => (n === 1 ? '1 événement' : `${n} événements`),
   dragHint:
     'Appuyez sur Alt et les flèches pour déplacer, Alt Maj pour modifier la fin, Alt Ctrl pour modifier le début, Suppr pour supprimer.',
@@ -150,8 +171,15 @@ export const fr = pack({
   loading: 'Chargement…',
   error: "Une erreur s'est produite",
   searchResources: 'Rechercher des ressources',
+  moveArmed: (title) => `${title} sélectionné. Choisissez sa destination, ou appuyez sur Échap.`,
+  conflict: 'Chevauche un autre événement',
+  eventStack: (n) => (n === 1 ? '1 événement' : `${n} événements`),
+  timeFold: (start, end) => `${start} à ${end}, aucun événement`,
+  draftChanges: (n) => (n === 1 ? '1 modification' : `${n} modifications`),
+  apply: 'Appliquer',
+  discard: 'Annuler',
   units: {
-    YEARLY: ['an', 'ans'],
+    YEARLY: ['année', 'ans'],
     MONTHLY: ['mois', 'mois'],
     WEEKLY: ['semaine', 'semaines'],
     DAILY: ['jour', 'jours'],
@@ -159,7 +187,9 @@ export const fr = pack({
     MINUTELY: ['minute', 'minutes'],
   },
   every: (unit) => `Chaque ${unit}`,
-  everyN: (n, unit) => `Tous les ${n} ${unit}`,
+  // Weeks, hours and minutes are feminine in French.
+  everyN: (n, unit) =>
+    `${/^(semaines|heures|minutes)$/.test(unit) ? 'Toutes' : 'Tous'} les ${n} ${unit}`,
   onDays: 'le',
   onMonthDay: 'le',
   onNth: (nth, weekday) => `le ${FR_NTH[nth] ?? `${nth}e`} ${weekday}`,
@@ -198,6 +228,13 @@ export const de = pack({
   loading: 'Wird geladen…',
   error: 'Etwas ist schiefgegangen',
   searchResources: 'Ressourcen suchen',
+  moveArmed: (title) => `${title} aufgenommen. Wählen Sie das Ziel oder drücken Sie Esc.`,
+  conflict: 'Überschneidet sich mit einem anderen Termin',
+  eventStack: (n) => (n === 1 ? '1 Termin' : `${n} Termine`),
+  timeFold: (start, end) => `${start} bis ${end}, keine Termine`,
+  draftChanges: (n) => (n === 1 ? '1 Änderung' : `${n} Änderungen`),
+  apply: 'Übernehmen',
+  discard: 'Verwerfen',
   units: {
     YEARLY: ['Jahr', 'Jahre'],
     MONTHLY: ['Monat', 'Monate'],
@@ -254,6 +291,13 @@ export const es = pack({
   loading: 'Cargando…',
   error: 'Algo salió mal',
   searchResources: 'Buscar recursos',
+  moveArmed: (title) => `${title} seleccionado. Elige el destino o pulsa Esc.`,
+  conflict: 'Se solapa con otro evento',
+  eventStack: (n) => (n === 1 ? '1 evento' : `${n} eventos`),
+  timeFold: (start, end) => `${start} a ${end}, sin eventos`,
+  draftChanges: (n) => (n === 1 ? '1 cambio' : `${n} cambios`),
+  apply: 'Aplicar',
+  discard: 'Descartar',
   units: {
     YEARLY: ['año', 'años'],
     MONTHLY: ['mes', 'meses'],

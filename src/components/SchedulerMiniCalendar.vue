@@ -66,6 +66,8 @@ const strategy = computed(() =>
   monthStrategy({
     weekStart: props.weekStart ?? ctx?.options.value.weekStart ?? weekStartForLocale(locale.value),
     fixedWeeks: true,
+    // The calendar is part of the scheduler's locale; a locale of its own says its own calendar.
+    calendar: props.locale ? undefined : ctx?.options.value.raw.calendar,
   }),
 )
 const grid = computed(() => strategy.value.range(shown.value))

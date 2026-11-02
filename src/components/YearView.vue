@@ -37,7 +37,7 @@ const ctx = useSchedulerContext()
 const { isActive } = useSchedulerView(() => ({
   name: props.name,
   label: props.label ?? 'Year',
-  strategy: yearStrategy(),
+  strategy: yearStrategy({ calendar: ctx.options.value.raw.calendar }),
   title: (range, locale) => formatDate(range.start, locale, { year: 'numeric' }),
   minWidth: props.minWidth,
   maxWidth: props.maxWidth,
@@ -49,6 +49,7 @@ const { weekdays, months } = useYearGrid(ctx, () => ({
   start: ctx.range.value?.start ?? ctx.date.value.with({ month: 1, day: 1 }),
   weekStart: props.weekStart ?? ctx.options.value.weekStart,
   hiddenDays: props.hiddenDays ?? ctx.options.value.hiddenDays,
+  calendar: ctx.options.value.raw.calendar,
 }))
 
 const messages = computed(() => ctx.options.value.messages)
@@ -99,18 +100,20 @@ function onMonthClick(month: YearMonth<unknown>) {
 const root = ref<HTMLElement>()
 const focusDate = shallowRef<Temporal.PlainDate>()
 
-const activeDate = computed(() => {
+function inYear(date: Temporal.PlainDate) {
   const range = ctx.range.value
-  const f = focusDate.value
-  if (
-    f &&
-    range &&
-    Temporal.PlainDate.compare(f, range.start) >= 0 &&
-    Temporal.PlainDate.compare(f, range.end) < 0
+  return (
+    !!range &&
+    Temporal.PlainDate.compare(date, range.start) >= 0 &&
+    Temporal.PlainDate.compare(date, range.end) < 0
   )
-    return f
+}
+
+const activeDate = computed(() => {
+  const f = focusDate.value
+  if (f && inYear(f)) return f
   const today = ctx.today.value
-  return today.year === range?.start.year ? today : range?.start
+  return inYear(today) ? today : ctx.range.value?.start
 })
 
 const STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
@@ -123,7 +126,7 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
   const hidden = props.hiddenDays ?? ctx.options.value.hiddenDays
   while (hidden.includes(next.dayOfWeek)) next = next.add({ days: Math.sign(step) })
   focusDate.value = next
-  if (next.year !== cell.date.year) ctx.goTo(next)
+  if (!inYear(next)) ctx.goTo(next)
   nextTick(() => root.value?.querySelector<HTMLElement>(`[data-date="${next}"]`)?.focus())
 }
 </script>

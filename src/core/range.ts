@@ -126,16 +126,40 @@ export function monthStrategy(options: MonthRangeOptions = {}): RangeStrategy {
   }
 }
 
+export interface YearRangeOptions {
+  /** Calendar whose year is shown, such as "persian". Default Gregorian. */
+  calendar?: string
+}
+
 /** The calendar year containing the anchor. */
-export function yearStrategy(): RangeStrategy {
+export function yearStrategy(options: YearRangeOptions = {}): RangeStrategy {
+  const { calendar } = options
+  const toIso = (date: Temporal.PlainDate) => date.withCalendar('iso8601')
+  const inCalendar = (date: Temporal.PlainDate) => (calendar ? date.withCalendar(calendar) : date)
   return {
     range(anchor) {
-      const start = anchor.with({ month: 1, day: 1 })
-      return sameRange({ start, end: start.add({ years: 1 }) })
+      const start = inCalendar(anchor).with({ month: 1, day: 1 })
+      return sameRange({ start: toIso(start), end: toIso(start.add({ years: 1 })) })
     },
-    step: (anchor, direction) => anchor.add({ years: direction }),
-    keepsDayOfMonth: true,
+    step: (anchor, direction) => toIso(inCalendar(anchor).add({ years: direction })),
+    keepsDayOfMonth: !calendar,
   }
+}
+
+/**
+ * The months from a first day on, as ISO dates with their length in the calendar. Without a count,
+ * as many as that year has: a Hebrew leap year has 13.
+ */
+export function calendarMonths(
+  start: Temporal.PlainDate,
+  calendar?: string,
+  count?: number,
+): { date: Temporal.PlainDate; days: number }[] {
+  const first = calendar ? start.withCalendar(calendar) : start
+  return Array.from({ length: count ?? first.monthsInYear }, (_, m) => {
+    const month = first.add({ months: m })
+    return { date: month.withCalendar('iso8601'), days: month.daysInMonth }
+  })
 }
 
 /** Epoch-ms window covering a date range in the given zone. */

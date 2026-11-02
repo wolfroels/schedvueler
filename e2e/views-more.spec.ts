@@ -40,6 +40,12 @@ test.describe('more views', () => {
     // 09:00 in Brussels is 03:00 in New York in June.
     await expect(labels.nth(9)).toHaveText(/3|03/)
   })
+
+  test('both times show in a week with a clock change in that zone', async ({ page }) => {
+    // New York moves on 8 March 2026, Brussels only on the 29th: 09:00 is 03:00, then 04:00.
+    await open(page, { date: '2026-03-04' }, { extraTimeZones: ['America/New_York'] })
+    await expect(page.locator('[data-orb-part="zoneLabel"]').nth(9)).toHaveText(/3.*\/.*4/)
+  })
 })
 
 test.describe('toolbar', () => {

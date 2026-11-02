@@ -28,8 +28,9 @@ describe('on a server', () => {
     })
     const html = await renderToString(app)
     expect(html).toContain('data-orb-part="root"')
-    // Views register while rendering, after the toolbar: its title follows after hydrating.
     expect(html).toContain('data-orb-part="timeGrid"')
     expect(html).toContain('Alpha')
+    expect(html).toContain('21 Jun 2026')
+    expect(html).toContain('data-orb-part="viewButton"')
   })
 })

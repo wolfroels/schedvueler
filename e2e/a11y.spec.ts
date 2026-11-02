@@ -133,6 +133,23 @@ test.describe('non-Gregorian calendars', () => {
     await page.locator('[data-orb-part="nextButton"]').click()
     await expect(page.locator('[data-orb-part="title"]')).toContainText('Tir')
   })
+
+  test('the year follows the calendar', async ({ page }) => {
+    await open(page, { view: 'year' }, { calendar: 'persian', locale: 'en-GB' })
+    await expect(page.locator('[data-orb-part="title"]')).toContainText('1405')
+    const months = page.locator('[data-orb-part="yearMonthTitle"]')
+    await expect(months.first()).toHaveText('Farvardin')
+    await expect(months).toHaveCount(12)
+    // Nowruz: the year starts on 21 March 2026.
+    await expect(page.locator('[data-date="2026-03-21"]')).toHaveText('1')
+    await page.locator('[data-orb-part="nextButton"]').click()
+    await expect(page.locator('[data-orb-part="title"]')).toContainText('1406')
+  })
+
+  test('a Hebrew leap year has 13 months', async ({ page }) => {
+    await open(page, { view: 'year', date: '2024-01-15' }, { calendar: 'hebrew', locale: 'en-GB' })
+    await expect(page.locator('[data-orb-part="yearMonthTitle"]')).toHaveCount(13)
+  })
 })
 
 test('the event order in a month can be set', async ({ page }) => {

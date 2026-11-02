@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onServerPrefetch, ref } from 'vue'
 import { useSchedulerContext } from '../composables/context'
 import { useToolbar } from '../composables/useToolbar'
 import { RenderSlot } from './RenderSlot'
 
 const ctx = useSchedulerContext()
 const toolbar = useToolbar(ctx)
+// The views come after the toolbar and register while rendering. Waiting a tick on the server lets
+// them do so first, so the title and view buttons are in the HTML. `<Scheduler>` does the same when
+// hydrating.
+onServerPrefetch(() => Promise.resolve())
 // Reading slotsVersion re-renders the toolbar when the scheduler receives new slot functions.
 const slot = (name: string) => {
   void ctx.slotsVersion.value

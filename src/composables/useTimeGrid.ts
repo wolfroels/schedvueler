@@ -446,7 +446,8 @@ export function useTimeGrid<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
   /** Overlapping events in a column taken together, per column, with `stackThreshold`. */
   const expandedStacks = shallowRef<ReadonlySet<string>>(new Set())
   const stacked = computed(() => {
-    const threshold = cfg.value.stackThreshold
+    // One event is no stack, so 1 means the same as 2.
+    const threshold = cfg.value.stackThreshold && Math.max(2, cfg.value.stackThreshold)
     const empty = timed.value.map(() => ({
       items: [] as TimedEventLayout<T>[],
       stacks: [] as EventStack<T>[],

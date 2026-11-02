@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   Temporal,
+  calendarMonths,
   formatDate,
   layoutDayGridRow,
   spanRow,
@@ -23,9 +24,9 @@ const rows = computed(() => {
   const start = ctx.range.value?.start ?? ctx.date.value.with({ month: 1, day: 1 })
   const { timeZone, locale } = ctx.options.value
   const mirror = interaction.mirror.value as unknown as EventOccurrence<unknown> | null
-  return Array.from({ length: 12 }, (_, m) => {
-    const first = start.add({ months: m })
-    const days = Array.from({ length: first.daysInMonth }, (_, d) => first.add({ days: d }))
+  const months = calendarMonths(start, ctx.options.value.raw.calendar)
+  return months.map(({ date: first, days: length }) => {
+    const days = Array.from({ length }, (_, d) => first.add({ days: d }))
     const spans = spanRow(ctx.occurrences.value, days, timeZone)
     const layout = layoutDayGridRow(
       spans.map((s) => ({ start: s.startCol, end: s.endCol })),

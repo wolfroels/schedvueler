@@ -103,27 +103,42 @@ const availability = ctx.availability
 
 const extraZones = computed(() => ctx.options.value.raw.extraTimeZones ?? [])
 
-/** A short name per extra zone, for the corner above the times. */
+/** A short name per extra zone at the visible dates, for the corner above the times. */
 const zoneNames = computed(() =>
   extraZones.value.map((zone) => {
-    const parts = new Intl.DateTimeFormat(ctx.options.value.locale, {
-      timeZone: zone,
-      timeZoneName: 'short',
-    }).formatToParts(new Date())
-    return parts.find((p) => p.type === 'timeZoneName')?.value ?? zone
+    const { locale, timeZone } = ctx.options.value
+    const format = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: 'short' })
+    const names = props.days.map((day) => {
+      const moment = zonedAtMinute(day, 720, timeZone)
+      const parts = format.formatToParts(moment.epochMilliseconds)
+      return parts.find((p) => p.type === 'timeZoneName')?.value ?? zone
+    })
+    return [...new Set(names)].join(' / ')
   }),
 )
 
-/** The time in each extra zone at a minute of the first visible day. */
+/**
+ * The time in each extra zone at a minute of the visible days. A clock change between those days
+ * gives a minute two times, which are both shown.
+ */
 function zoneLabels(minute: number) {
-  const first = props.days[0]
-  if (!extraZones.value.length || !first) return []
+  if (!extraZones.value.length) return []
   const { timeZone, locale, hour12 } = ctx.options.value
-  const moment = zonedAtMinute(first, minute, timeZone)
-  return extraZones.value.map((zone) => ({
-    zone,
-    text: formatTime(moment.withTimeZone(zone), locale, { hour12, compact: true }),
-  }))
+  const moments = props.days.map((day) => zonedAtMinute(day, minute, timeZone))
+  return extraZones.value.map((zone) => {
+    const times = new Map(
+      moments.map((moment) => {
+        const there = moment.withTimeZone(zone)
+        return [there.toPlainTime().toString(), there]
+      }),
+    )
+    return {
+      zone,
+      text: [...times.values()]
+        .map((there) => formatTime(there, locale, { hour12, compact: true }))
+        .join(' / '),
+    }
+  })
 }
 
 /** Fractions of the column for a stretch of minutes. */
