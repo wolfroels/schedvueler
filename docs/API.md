@@ -116,9 +116,22 @@ The root component. Views are its children; the first one is the default.
 ### Exposed methods (template ref)
 
 `prev()`, `next()`, `today()`, `goTo(date)`, `setView(name)`, `refresh()` (re-read events
-mutated in place), `clearSelection()`, and `context` (the full headless context).
+mutated in place), `clearSelection()`, `clearStorage()`, and `context` (the full headless context).
 
 Also: `scrollToTime('HH:mm')`, `scrollToEvent(id)` (goes to the date and scrolls; resolves to `false` when not found within a year) and `getEvents(start?, end?)`.
+
+### Local storage
+
+Set `storage-key` (`string`, unset by default) to opt into localStorage preferences. The active
+view, anchor date, and per-view timeline resource width and zoom are restored after mount.
+Saved values update bound models; otherwise initial props and defaults are used. Keep keys
+unique per scheduler/account and view names stable. No event or resource data is stored.
+
+Call `schedulerRef.value.clearStorage()` or import `clearStorage` from `orb-scheduler` and call
+`clearStorage('your-storage-key')` to remove only that entry. The current UI stays unchanged;
+the next reload uses initial props and defaults, and later preference changes save again.
+The headless context also exposes `context.clearStorage()`. Storage access failures and
+malformed preferences are ignored. See the [tutorial](/guide#remember-the-view-and-timeline-settings).
 
 ### Event shape
 

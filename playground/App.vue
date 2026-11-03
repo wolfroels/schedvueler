@@ -421,6 +421,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
     <main class="pg__main" :class="{ 'pg__main--phone': phoneFrame }">
       <Scheduler
         ref="scheduler"
+        storage-key="orb-scheduler:playground"
         v-model:date="date"
         v-model:view="view"
         :events="events"

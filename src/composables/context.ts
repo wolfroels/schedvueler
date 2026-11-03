@@ -27,6 +27,7 @@ import type {
 } from '../types'
 import type { SchedulerAvailability } from './useAvailability'
 import type { SchedulerInteraction } from './useInteraction'
+import type { SchedulerStorage } from './useSchedulerStorage'
 
 export interface ViewRegistration {
   id: symbol
@@ -57,6 +58,8 @@ export interface ResolvedOptions<T> {
 
 /** Everything views and parts share. Created by `useScheduler`, read with `useSchedulerContext`. */
 export interface SchedulerContext<T = unknown> {
+  storage: SchedulerStorage
+  clearStorage(): void
   options: ComputedRef<ResolvedOptions<T>>
   accessors: ComputedRef<EventAccessors<T>>
   /** The event store. Not reactive itself; `version` changes when it does. */

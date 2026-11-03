@@ -229,6 +229,50 @@ Set the initial width with `resource-area-width`, or disable resizing explicitly
 <TimelineView resource-area-width="16rem" :resource-area-resizable="false" />
 ```
 
+## Remember the view and timeline settings
+
+Give each scheduler a stable, unique `storage-key` to remember its active view, anchor date,
+and each timeline view's resource-bar width and zoom level across reloads:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { Scheduler, TimelineView, WeekView, clearStorage } from 'orb-scheduler'
+
+const scheduler = ref<{ clearStorage(): void }>()
+const storageKey = 'my-app:team-scheduler'
+
+function clearSavedState() {
+  scheduler.value?.clearStorage()
+}
+
+function clearSavedStateWithoutARef() {
+  clearStorage(storageKey)
+}
+</script>
+
+<template>
+  <Scheduler ref="scheduler" :storage-key="storageKey" :events="events" :resources="resources">
+    <WeekView />
+    <TimelineView />
+  </Scheduler>
+</template>
+```
+
+Use either clearing function; both remove only this scheduler's storage entry, not other app
+data. Clearing leaves the current screen unchanged. Reload to return to the initial props and
+defaults; subsequent view, date, width, or zoom changes start saving again.
+
+Saved preferences are restored after mount, also updating any bound `v-model:view`,
+`v-model:date`, and `v-model:zoom` values. Without saved preferences, your initial props and
+models apply. Keep view `name` values stable because widths and zoom levels are stored per
+view name. Restored widths are limited to the available space, and invalid zoom levels are
+ignored. Browser storage errors or malformed data do not prevent the scheduler from working.
+
+Omit `storage-key` to disable persistence. Events, resources, selections, and scroll positions
+are not stored. Avoid putting private data in the key; use distinct keys for different
+schedulers or accounts. Persistence is local to this browser and origin.
+
 ## Customize and interact
 
 - Use slots to replace content, such as an event label or resource name.

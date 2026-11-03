@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { rangeDays } from '../core'
 import { useSchedulerContext } from '../composables/context'
 import { useSchedulerView, useSlotResolver } from '../composables/useSchedulerView'
@@ -38,6 +38,14 @@ const days = computed(() =>
 
 /** Index into `zoomLevels`. */
 const zoom = defineModel<number>('zoom', { default: 0 })
+watch(
+  () => ctx.storage.timelines.value[props.name]?.zoom,
+  (saved) => {
+    if (saved !== undefined && props.zoomLevels?.[saved]) zoom.value = saved
+  },
+  { immediate: true, flush: 'sync' },
+)
+watch(zoom, (value) => ctx.storage.updateTimeline(props.name, { zoom: value }), { flush: 'sync' })
 const level = computed(() => props.zoomLevels?.[zoom.value])
 
 const settings = computed<TimelineSettings>(() => {

@@ -220,6 +220,8 @@ export type EventLayoutOption = 'columns' | 'stack' | TimeGridLayoutAlgorithm
 /** Options shared by every view. Views can override most of them with their own props. */
 export interface SchedulerOptions<T> {
   events: readonly T[]
+  /** Opt-in localStorage key for the view, date, and per-view timeline width and zoom. */
+  storageKey?: string
   accessors?: Partial<EventAccessors<T>>
   dateAdapter?: Pick<DateAdapter<unknown>, 'parse'>
   /** Display zone (IANA). Defaults to the browser's zone. */

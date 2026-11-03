@@ -57,6 +57,132 @@ test.describe('PrimeUIX styling', () => {
   }
 })
 
+test.describe('saved preferences', () => {
+  test('restores zoom and keeps widths when switching views', async ({ page }) => {
+    await open(
+      page,
+      {
+        view: 'timeline',
+        tl: JSON.stringify({
+          zoomLevels: [
+            { slotDuration: 60, slotWidth: 40 },
+            { slotDuration: 30, slotWidth: 80 },
+          ],
+        }),
+      },
+      { storageKey: 'scheduler-zoom' },
+    )
+    await page.locator('[data-orb-part="resourceResizer"]').focus()
+    await page.keyboard.press('ArrowRight')
+    await page.getByRole('button', { name: 'Zoom in', exact: true }).click()
+    await page.getByRole('button', { name: 'Month', exact: true }).click()
+    await page.getByRole('button', { name: 'Timeline', exact: true }).click()
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', '202px')
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeDisabled()
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', '202px')
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('scheduler-zoom')!)
+      saved.timelines.timeline.zoom = 99
+      localStorage.setItem('scheduler-zoom', JSON.stringify(saved))
+    })
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Zoom out', exact: true })).toBeDisabled()
+  })
+
+  for (const saved of [
+    'invalid JSON',
+    JSON.stringify({
+      version: 1,
+      date: 'invalid',
+      timelines: { timeline: { resourceAreaWidth: -5, zoom: -2 } },
+    }),
+    JSON.stringify({ version: 99 }),
+  ]) {
+    test(`ignores invalid preferences: ${saved}`, async ({ page }) => {
+      await page.addInitScript((value) => localStorage.setItem('invalid-preferences', value), saved)
+      await open(page, { view: 'timeline' }, { storageKey: 'invalid-preferences' })
+      await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', '192px')
+      await page.getByRole('button', { name: 'Month', exact: true }).click()
+      await expect(page.locator('[data-orb-part="monthGrid"]')).toBeVisible()
+    })
+  }
+
+  test('clamps a restored width to the available viewport', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'wide-preferences',
+        JSON.stringify({
+          version: 1,
+          view: 'timeline',
+          timelines: { timeline: { resourceAreaWidth: 5000 } },
+        }),
+      ),
+    )
+    await open(page, {}, { storageKey: 'wide-preferences' })
+    const maximum = await page.locator('.orb-tl').evaluate((element) => element.clientWidth - 80)
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', `${maximum}px`)
+  })
+
+  test('works when localStorage is blocked', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'localStorage', {
+        get() {
+          throw new DOMException('Blocked', 'SecurityError')
+        },
+      })
+    })
+    await open(page, { view: 'timeline' }, { storageKey: 'blocked-preferences' })
+    await page.locator('[data-orb-part="resourceResizer"]').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', '202px')
+    await page.evaluate(() =>
+      (
+        window as unknown as { orbScheduler: { value: { clearStorage(): void } } }
+      ).orbScheduler.value.clearStorage(),
+    )
+  })
+
+  test('does not store preferences without a storage key', async ({ page }) => {
+    await open(page, { view: 'timeline' })
+    await page.locator('[data-orb-part="resourceResizer"]').focus()
+    await page.keyboard.press('ArrowRight')
+    await page.getByRole('button', { name: 'Month', exact: true }).click()
+    expect(await page.evaluate(() => localStorage.length)).toBe(0)
+  })
+
+  test('restores view, date, and timeline width, and clears only its own storage', async ({
+    page,
+  }) => {
+    await open(page, { view: 'timeline' }, { storageKey: 'scheduler-preferences' })
+    await page.evaluate(() => localStorage.setItem('unrelated', 'keep'))
+    const splitter = page.locator('[data-orb-part="resourceResizer"]')
+    await splitter.focus()
+    await page.keyboard.press('ArrowRight')
+    const width = await page
+      .locator('.orb-tl__corner')
+      .evaluate((element) => element.getBoundingClientRect().width)
+    await page.locator('[data-orb-part="nextButton"]').click()
+    const title = await page.locator('[data-orb-part="title"]').textContent()
+    await page.reload()
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', `${width}px`)
+    await expect(page.locator('[data-orb-part="title"]')).toHaveText(title!)
+    await page.getByRole('button', { name: 'Month', exact: true }).click()
+    await page.reload()
+    await expect(page.locator('[data-orb-part="monthGrid"]')).toBeVisible()
+    await page.evaluate(() => {
+      const scheduler = (window as unknown as { orbScheduler: { value: { clearStorage(): void } } })
+        .orbScheduler
+      scheduler.value.clearStorage()
+    })
+    expect(await page.evaluate(() => localStorage.getItem('scheduler-preferences'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('unrelated'))).toBe('keep')
+    await expect(page.locator('[data-orb-part="monthGrid"]')).toBeVisible()
+    await page.reload()
+    await expect(page.locator('.orb-tl__corner')).toHaveCSS('width', '192px')
+  })
+})
+
 test.describe('slots', () => {
   /** Which view shows a slot without any further setup. */
   const VISIBLE: Record<string, string[]> = {

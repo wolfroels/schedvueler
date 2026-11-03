@@ -235,6 +235,7 @@ defineExpose({
   goTo: ctx.goTo,
   setView: ctx.setView,
   refresh: ctx.refresh,
+  clearStorage: ctx.clearStorage,
   clearSelection: ctx.interaction.clearSelection,
   /** Opens the browser's print dialog; the styles lay the active view out for paper. */
   print: () => window.print(),

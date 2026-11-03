@@ -47,6 +47,7 @@ import { registerDropTarget } from './externalDrag'
 import { createAvailability, type SchedulerAvailability } from './useAvailability'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
 import { trackSlotNames } from './useSchedulerView'
+import { useSchedulerStorage } from './useSchedulerStorage'
 import {
   SchedulerContextKey,
   parseTimeOfDay,
@@ -271,6 +272,7 @@ export function useScheduler<T>(
     return list.find((v) => v.definition.value.name === state.view.value) ?? list[0]
   })
   const activeViewName = computed(() => activeView.value?.definition.value.name)
+  const storage = useSchedulerStorage(() => raw.value.storageKey, state, activeViewName, date)
   const range = computed<VisibleRange | undefined>((old) => {
     const value = activeView.value?.definition.value.strategy.range(date.value)
     if (old && value && old.start.equals(value.start) && old.end.equals(value.end)) return old
@@ -433,6 +435,8 @@ export function useScheduler<T>(
   }
 
   const ctx: SchedulerContext<T> = {
+    storage,
+    clearStorage: storage.clearStorage,
     options: resolved,
     accessors,
     store,

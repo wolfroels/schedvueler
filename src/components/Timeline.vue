@@ -111,6 +111,17 @@ const pct = (fraction: number) => `${fraction * 100}%`
 // --- resource columns ------------------------------------------------------------------------------
 
 const areaWidth = ref<number>()
+watch(
+  () => ctx.storage.timelines.value[props.view]?.resourceAreaWidth,
+  async (width) => {
+    areaWidth.value = width
+    if (width !== undefined) {
+      await nextTick()
+      if (root.value) setAreaWidth(width)
+    }
+  },
+  { immediate: true },
+)
 const resizingArea = ref(false)
 let stopAreaResize: (() => void) | undefined
 const resourceGrid = computed(() =>
@@ -148,6 +159,7 @@ function onResizerKeydown(event: KeyboardEvent) {
         : width + (event.key === 'ArrowRight' ? step : -step) * direction,
   )
   ctx.emit('resource-area-resize', { view: props.view, width: areaWidth.value! })
+  ctx.storage.updateTimeline(props.view, { resourceAreaWidth: areaWidth.value })
 }
 
 function onResizerDown(e: PointerEvent) {
@@ -174,6 +186,7 @@ function onResizerDown(e: PointerEvent) {
   const onUp = (event: PointerEvent) => {
     if (event.pointerId !== e.pointerId) return
     cleanup()
+    ctx.storage.updateTimeline(props.view, { resourceAreaWidth: areaWidth.value ?? startWidth })
     ctx.emit('resource-area-resize', { view: props.view, width: areaWidth.value ?? startWidth })
   }
   const onCancel = (event: PointerEvent) => {
