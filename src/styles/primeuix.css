@@ -1,0 +1,16 @@
+.orb-scheduler {
+  --orb-primeuix-bg: var(--p-content-background);
+  --orb-primeuix-surface: var(--p-content-hover-background);
+  --orb-primeuix-text: var(--p-text-color);
+  --orb-primeuix-text-muted: var(--p-text-muted-color);
+  --orb-primeuix-border: var(--p-content-border-color);
+  --orb-primeuix-accent: var(--p-primary-color);
+  --orb-primeuix-accent-contrast: var(--p-primary-contrast-color);
+  --orb-primeuix-hover: var(--p-content-hover-background);
+  --orb-primeuix-focus: var(--p-focus-ring-color);
+  --orb-primeuix-radius: var(--p-content-border-radius);
+  --orb-primeuix-shadow: var(--p-overlay-popover-shadow);
+  --orb-primeuix-weekend: color-mix(in srgb, var(--p-text-color) 1.5%, transparent);
+  --orb-primeuix-closed: color-mix(in srgb, var(--p-text-color) 4.5%, transparent);
+  --orb-primeuix-blocked: color-mix(in srgb, var(--p-text-color) 9%, transparent);
+}
