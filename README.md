@@ -12,8 +12,8 @@ part, typed emits, full RRULE recurrence and time-zone support, and a framework-
 
 The documentation and playground can be hosted together on GitHub Pages:
 
-- Documentation: https://wolfroels.github.io/orbid-scheduler/
-- Playground: https://wolfroels.github.io/orbid-scheduler/playground/
+- Documentation: https://wolfroels.github.io/schedvueler/
+- Playground: https://wolfroels.github.io/schedvueler/playground/
 
 In the repository's **Settings > Pages**, choose **GitHub Actions** as the build and deployment
 source. Push to `main`, or run **Deploy GitHub Pages** manually from the Actions tab. The
@@ -27,9 +27,9 @@ the deployed builds in PowerShell:
 ```powershell
 npm ci
 npm run build-only
-$env:PAGES_BASE_PATH = '/orbid-scheduler/'
+$env:PAGES_BASE_PATH = '/schedvueler/'
 npm run docs:build
-$env:PAGES_BASE_PATH = '/orbid-scheduler/playground/'
+$env:PAGES_BASE_PATH = '/schedvueler/playground/'
 npm run playground:build
 Remove-Item Env:PAGES_BASE_PATH
 ```
