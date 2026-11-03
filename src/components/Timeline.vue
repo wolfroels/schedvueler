@@ -111,6 +111,8 @@ const pct = (fraction: number) => `${fraction * 100}%`
 // --- resource columns ------------------------------------------------------------------------------
 
 const areaWidth = ref<number>()
+const resizingArea = ref(false)
+let stopAreaResize: (() => void) | undefined
 const resourceGrid = computed(() =>
   [
     'minmax(0, 1fr)',
@@ -124,24 +126,68 @@ function columnValue(column: ResourceColumn, resource: ResourceNode<unknown>) {
     : (resource.resource as Record<string, unknown> | undefined)?.[column.key]
 }
 
+function setAreaWidth(width: number) {
+  areaWidth.value = Math.max(
+    80,
+    Math.min(width, Math.max(80, (root.value?.clientWidth ?? 160) - 80)),
+  )
+}
+
+function onResizerKeydown(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  event.stopPropagation()
+  const width = corner.value?.offsetWidth ?? 0
+  const direction = isRtl(root.value!) ? -1 : 1
+  const step = event.shiftKey ? 40 : 10
+  setAreaWidth(
+    event.key === 'Home'
+      ? 80
+      : event.key === 'End'
+        ? root.value!.clientWidth - 80
+        : width + (event.key === 'ArrowRight' ? step : -step) * direction,
+  )
+  ctx.emit('resource-area-resize', { view: props.view, width: areaWidth.value! })
+}
+
 function onResizerDown(e: PointerEvent) {
+  if (e.button !== 0) return
   e.preventDefault()
   e.stopPropagation()
+  stopAreaResize?.()
+  resizingArea.value = true
   const startX = e.clientX
   const startWidth = corner.value?.offsetWidth ?? 0
   const rtl = isRtl(root.value!)
   const onMove = (ev: PointerEvent) => {
+    if (ev.pointerId !== e.pointerId) return
     const delta = rtl ? startX - ev.clientX : ev.clientX - startX
-    areaWidth.value = Math.max(80, startWidth + delta)
+    setAreaWidth(startWidth + delta)
   }
-  const onUp = () => {
+  const cleanup = () => {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onCancel)
+    resizingArea.value = false
+    stopAreaResize = undefined
+  }
+  const onUp = (event: PointerEvent) => {
+    if (event.pointerId !== e.pointerId) return
+    cleanup()
     ctx.emit('resource-area-resize', { view: props.view, width: areaWidth.value ?? startWidth })
   }
+  const onCancel = (event: PointerEvent) => {
+    if (event.pointerId !== e.pointerId) return
+    areaWidth.value = startWidth
+    cleanup()
+  }
+  stopAreaResize = cleanup
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onCancel)
 }
+
+onBeforeUnmount(() => stopAreaResize?.())
 
 // --- reordering rows -------------------------------------------------------------------------------
 
@@ -717,9 +763,26 @@ function eventTop(lane: number) {
     v-bind="ctx.part('timeline')"
     role="group"
     :aria-label="ctx.title.value"
-    :class="{ 'orb-tl--minimap': settings.minimap, 'orb-tl--zoom': settings.zoomLevels?.length }"
+    :class="{
+      'orb-tl--minimap': settings.minimap,
+      'orb-tl--zoom': settings.zoomLevels?.length,
+      'orb-tl--resizing': resizingArea,
+    }"
     :style="rootStyle"
   >
+    <span
+      v-if="settings.resourceAreaResizable"
+      class="orb-tl__resizer"
+      v-bind="ctx.part('resourceResizer')"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      :aria-label="messages.resources"
+      :aria-valuenow="Math.round(areaWidth ?? corner?.offsetWidth ?? 192)"
+      :aria-valuemin="80"
+      @pointerdown="onResizerDown"
+      @keydown="onResizerKeydown"
+    />
     <div v-if="settings.zoomLevels?.length" class="orb-tl__zoom" v-bind="ctx.part('zoomControl')">
       <RenderSlot
         :fn="resolve('zoom-control')"
@@ -775,13 +838,6 @@ function eventTop(lane: number) {
               </div>
               <template v-else>{{ messages.resources }}</template>
             </RenderSlot>
-            <span
-              v-if="settings.resourceAreaResizable"
-              class="orb-tl__resizer"
-              v-bind="ctx.part('resourceResizer')"
-              aria-hidden="true"
-              @pointerdown="onResizerDown"
-            />
           </div>
           <div ref="timeHead" class="orb-tl__time-head">
             <div

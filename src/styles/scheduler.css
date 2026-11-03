@@ -979,11 +979,32 @@
 .orb-tl__resizer {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -3px;
-  z-index: 2;
-  width: 6px;
+  inset-inline-start: calc(var(--orb-tl-resource-width) - 4px);
+  z-index: 61;
+  width: 8px;
   cursor: col-resize;
   touch-action: none;
+}
+
+.orb-tl__resizer::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 3px;
+  width: 2px;
+  background: var(--orb-color-border);
+}
+
+.orb-tl__resizer:hover::after,
+.orb-tl__resizer:focus-visible::after,
+.orb-tl--resizing > .orb-tl__resizer::after {
+  background: var(--orb-color-accent);
+}
+
+.orb-tl--resizing,
+.orb-tl--resizing * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 .orb-tl__row--reorder-before {
@@ -2215,6 +2236,7 @@
 /* ---------------------------------------------------------------- timeline -------------------- */
 
 .orb-tl {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   min-height: 0;

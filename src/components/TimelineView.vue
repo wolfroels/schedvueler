@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<TimelineViewProps>(), {
   eventHeight: 28,
   rowMinHeight: 44,
   virtual: true,
+  resourceAreaResizable: true,
 })
 // View components are not generic, so view-level slot props carry an untyped event.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -221,6 +221,14 @@ const resources = [
 Use `parentId` to group resources. Events without an explicit color inherit the resource color.
 See [timeline options](/api#timeline-props) for scale, row, and resource settings.
 
+Drag the vertical divider beside the resource list to resize it. You can also focus the
+divider and use Left/Right arrows, Shift + arrows for larger steps, or Home/End for its limits.
+Set the initial width with `resource-area-width`, or disable resizing explicitly:
+
+```vue
+<TimelineView resource-area-width="16rem" :resource-area-resizable="false" />
+```
+
 ## Customize and interact
 
 - Use slots to replace content, such as an event label or resource name.

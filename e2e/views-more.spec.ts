@@ -145,6 +145,49 @@ test.describe('timeline', () => {
     await expect(page.locator('[data-orb-part="resourceLabel"]')).toContainText('Room two')
   })
 
+  test('resource area resizes from its full-height divider by default', async ({ page }) => {
+    await open(page, { view: 'timeline' })
+    const splitter = page.getByRole('separator', { name: 'Resources' })
+    const timeline = page.locator('.orb-tl')
+    const corner = page.locator('[data-orb-part="timelineCorner"]')
+    const before = (await corner.boundingBox())!.width
+    expect((await splitter.boundingBox())!.height).toBeGreaterThan(
+      (await timeline.boundingBox())!.height - 4,
+    )
+    const start = await center(splitter)
+    await drag(page, splitter, { x: start.x + 60, y: start.y })
+    await expect(corner).toHaveCSS('width', `${before + 60}px`)
+    await expect(page.locator('.orb-tl__label').first()).toHaveCSS('width', `${before + 60}px`)
+    await splitter.focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(corner).toHaveCSS('width', `${before + 70}px`)
+    await page.keyboard.press('Home')
+    await expect(corner).toHaveCSS('width', '80px')
+  })
+
+  test('resource area resizing can be disabled', async ({ page }) => {
+    await open(page, { view: 'timeline', tl: JSON.stringify({ resourceAreaResizable: false }) })
+    await expect(page.locator('[data-orb-part="resourceResizer"]')).toHaveCount(0)
+  })
+
+  test('resource area resizing supports RTL and width limits', async ({ page }) => {
+    await open(page, { view: 'timeline', rtl: '1' })
+    const splitter = page.locator('[data-orb-part="resourceResizer"]')
+    const corner = page.locator('[data-orb-part="timelineCorner"]')
+    const before = (await corner.boundingBox())!.width
+    const start = await center(splitter)
+    await drag(page, splitter, { x: start.x - 60, y: start.y })
+    await expect(corner).toHaveCSS('width', `${before + 60}px`)
+    await splitter.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(corner).toHaveCSS('width', `${before + 70}px`)
+    await page.keyboard.press('End')
+    const maximum = await page.locator('.orb-tl').evaluate((element) => element.clientWidth - 80)
+    await expect(corner).toHaveCSS('width', `${maximum}px`)
+    await page.keyboard.press('ArrowLeft')
+    await expect(corner).toHaveCSS('width', `${maximum}px`)
+  })
+
   test('more resource columns, and resizing the area', async ({ page }) => {
     const resources = [{ id: 'r1', title: 'Room one', seats: 12 }]
     await open(

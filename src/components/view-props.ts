@@ -93,7 +93,7 @@ export interface TimelineViewProps extends ResponsiveViewProps {
   resourceSearch?: boolean
   /** More columns in the resource area. */
   resourceColumns?: readonly ResourceColumn[]
-  /** The resource area can be resized by dragging its edge. */
+  /** The resource area can be resized by dragging its edge or using arrow keys. Default true. */
   resourceAreaResizable?: boolean
   /** Rows can be dragged to another place; emits `resource-reorder`. */
   resourceReorder?: boolean

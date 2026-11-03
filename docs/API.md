@@ -225,6 +225,13 @@ One row per month with event bars, which can be moved.
 
 `header-tiers` (`['month', 'week']`), `day-events` (`'compact'` or `'count'` with day columns), `zoom-levels` with `v-model:zoom` and Ctrl + scroll, `resource-search`, `resource-columns` (`{ key, label, width?, value? }`), `resource-area-resizable`, `resource-reorder` (emits `resource-reorder`; apply it with `reorderResources`), `load` (`true` or `{ capacity }`, in minutes or per resource), and `dependencies` (arrows from an event's `dependsOn`).
 
+In `TimelineView`, `resource-area-resizable` defaults to `true`. Drag the full-height divider
+between the resource list and the timeline to change its width. The focused divider also
+supports Left/Right arrows (Shift for larger steps), Home for the minimum width, and End for
+the maximum. Resizing keeps at least 80px for the resource list and 80px for the timeline
+when the container permits, and emits `resource-area-resize` on completion.
+Set `:resource-area-resizable="false"` to disable it; `resource-area-width` sets the initial width.
+
 Resources with `lazy: true` show a toggle that emits `resource-expand`; call `waitUntil` with your request to show it as loading.
 
 ### `<GanttView>`
