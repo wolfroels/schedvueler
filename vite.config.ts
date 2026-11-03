@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -10,7 +11,22 @@ export default defineConfig({
   server: {
     port: 6173,
   },
-  plugins: [vue(), vueDevTools(), dts({ tsconfigPath: './tsconfig.lib.json' })],
+  plugins: [
+    vue(),
+    vueDevTools(),
+    dts({ tsconfigPath: './tsconfig.lib.json' }),
+    {
+      name: 'primeuix-styles',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'primeuix.css',
+          source: readFileSync(new URL('./src/styles/primeuix.css', import.meta.url), 'utf8'),
+        })
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

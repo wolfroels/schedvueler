@@ -23,7 +23,8 @@
       "types": "./dist/locales/index.d.ts",
       "import": "./dist/locales.js"
     },
-    "./style.css": "./dist/orb-scheduler.css"
+    "./style.css": "./dist/orb-scheduler.css",
+    "./primeuix.css": "./dist/primeuix.css"
   },
   "sideEffects": [
     "**/*.css",

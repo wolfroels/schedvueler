@@ -11,6 +11,52 @@ const SLOTS = [
 
 const WITH_ALL_SLOTS = (view: string) => ({ view, allSlots: '1' })
 
+test.describe('PrimeUIX styling', () => {
+  for (const theme of ['light', 'dark', 'auto']) {
+    test(`optional tokens and fallbacks in ${theme} mode`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'dark' })
+      await open(page, { view: 'timeline' }, { theme })
+      const root = page.locator('.orb-scheduler')
+      const original = await root.evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { background: style.backgroundColor, color: style.color }
+      })
+      const tokens = await page.addStyleTag({
+        content: `
+        :root {
+          --p-content-background: #f0fdf4;
+          --p-text-color: #14532d;
+          --p-primary-color: #16a34a;
+          --p-content-border-color: #86efac;
+          --p-content-border-radius: 4px;
+        }
+      `,
+      })
+      await expect(root).toHaveCSS('background-color', original.background)
+      const bridge = await page.addStyleTag({ path: 'src/styles/primeuix.css' })
+      await expect(root).toHaveCSS('background-color', 'rgb(240, 253, 244)')
+      await expect(root).toHaveCSS('color', 'rgb(20, 83, 45)')
+      await expect(page.locator('.orb-tl')).toHaveCSS('border-top-color', 'rgb(134, 239, 172)')
+      await expect(page.locator('.orb-tl')).toHaveCSS('border-top-left-radius', '4px')
+      await tokens.evaluate((element) => {
+        element.textContent = ':root { --p-content-background: #052e16; --p-text-color: #dcfce7; }'
+      })
+      await expect(root).toHaveCSS('background-color', 'rgb(5, 46, 22)')
+      await expect(root).toHaveCSS('color', 'rgb(220, 252, 231)')
+      await root.evaluate((element: HTMLElement) =>
+        element.style.setProperty('--orb-color-bg', '#ff0000'),
+      )
+      await expect(root).toHaveCSS('background-color', 'rgb(255, 0, 0)')
+      await root.evaluate((element: HTMLElement) => element.style.removeProperty('--orb-color-bg'))
+      await tokens.evaluate((element) => element.parentNode?.removeChild(element))
+      await expect(root).toHaveCSS('background-color', original.background)
+      await expect(root).toHaveCSS('color', original.color)
+      await bridge.evaluate((element) => element.parentNode?.removeChild(element))
+      await expect(root).toHaveCSS('background-color', original.background)
+    })
+  }
+})
+
 test.describe('slots', () => {
   /** Which view shows a slot without any further setup. */
   const VISIBLE: Record<string, string[]> = {

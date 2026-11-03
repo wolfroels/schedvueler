@@ -62,6 +62,63 @@ save them for you.
 
 <SchedulerDemo view="week" :height="480" />
 
+## Use PrimeUIX styling instead of the default palette
+
+If your app uses a PrimeUIX preset (for example through PrimeVue styled mode), add the optional
+bridge stylesheet after the scheduler's base stylesheet:
+
+```ts
+import 'orb-scheduler/style.css'
+import 'orb-scheduler/primeuix.css'
+```
+
+Keep the base stylesheet: it supplies layout, interactions, and fallback styling. The bridge
+replaces the mapped visual tokens with your app's PrimeUIX colors, borders, focus color,
+border radii, and popover shadow. No scheduler prop or PrimeUIX dependency is required by the
+scheduler itself. Without the bridge import, PrimeUIX tokens do not affect the scheduler.
+
+If PrimeVue styled mode is not already configured in your app, install its theme packages:
+
+```sh
+npm install primevue @primeuix/themes
+```
+
+Then configure a preset in your app entry point:
+
+```ts
+import { createApp } from 'vue'
+import PrimeVue from 'primevue/config'
+import Aura from '@primeuix/themes/aura'
+import App from './App.vue'
+import 'orb-scheduler/style.css'
+import 'orb-scheduler/primeuix.css'
+
+createApp(App)
+  .use(PrimeVue, { theme: { preset: Aura } })
+  .mount('#app')
+```
+
+The bridge reads the standard `--p-*` CSS variables, so keep PrimeUIX's default `p` prefix and
+make sure those variables are available on the scheduler or an ancestor. Installing a preset
+alone does not emit CSS variables; your theme integration must load them. Other PrimeUIX
+integrations can use the same bridge without PrimeVue.
+
+Preset changes update the scheduler automatically. With PrimeVue's default system-based dark
+mode, set `theme="auto"` on the scheduler (its default is `light`). If your app uses a custom
+`darkModeSelector`, bind the scheduler to the same app state:
+
+```vue
+<Scheduler :theme="darkMode ? 'dark' : 'light'" :events="events">
+  <WeekView />
+</Scheduler>
+```
+
+Your app still applies its dark-mode selector to an ancestor. Keeping `theme` in sync also
+updates scheduler-specific event shading and native controls. Missing PrimeUIX tokens fall
+back to the scheduler's original light/dark styling. Event-category colors and the current-time
+indicator stay independently configurable, and explicit `--orb-*` overrides still take priority.
+See [Customizing](/customizing#primeuix-token-bridge) for the token mapping.
+
 ## Choose a view
 
 - `DayView` and `WeekView` show time slots and work well for appointments.

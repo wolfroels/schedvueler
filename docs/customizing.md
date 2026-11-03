@@ -21,6 +21,38 @@ The playground's slots and parts page (`npm run dev`, then `#/parts`) shows on a
 
 <SchedulerDemo view="week" :height="440" :options="{ density: 'compact', style: { '--orb-color-accent': '#0f766e' } }" />
 
+### PrimeUIX token bridge
+
+To inherit an existing PrimeUIX styled-mode preset, import both stylesheets:
+
+```ts
+import 'orb-scheduler/style.css'
+import 'orb-scheduler/primeuix.css'
+```
+
+The bridge is optional and has no runtime dependency. It maps the standard `--p-*` variables
+onto the scheduler's visual tokens; missing values retain the original light/dark defaults.
+The [setup tutorial](/guide#use-primeuix-styling-instead-of-the-default-palette) includes preset
+configuration and dark-mode guidance.
+
+| Scheduler token                                   | PrimeUIX token                 |
+| ------------------------------------------------- | ------------------------------ |
+| `--orb-color-bg`                                  | `--p-content-background`       |
+| `--orb-color-surface`, `--orb-color-hover`        | `--p-content-hover-background` |
+| `--orb-color-text`                                | `--p-text-color`               |
+| `--orb-color-text-muted`                          | `--p-text-muted-color`         |
+| `--orb-color-border`, `--orb-color-border-subtle` | `--p-content-border-color`     |
+| `--orb-color-accent`                              | `--p-primary-color`            |
+| `--orb-color-accent-contrast`                     | `--p-primary-contrast-color`   |
+| `--orb-color-focus`                               | `--p-focus-ring-color`         |
+| `--orb-radius`, `--orb-event-radius`              | `--p-content-border-radius`    |
+| `--orb-shadow-popover`                            | `--p-overlay-popover-shadow`   |
+
+Weekend, closed-time, and blocked-time shading are derived from `--p-text-color`. Event colors
+and the current-time indicator remain scheduler-specific. You can still override public
+`--orb-*` variables on `.orb-scheduler` or through the scheduler's `style` prop. Removing only
+the bridge import restores the default palette.
+
 ## Passthrough
 
 ```vue
