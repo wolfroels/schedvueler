@@ -13,7 +13,14 @@ part, typed emits, full RRULE recurrence and time-zone support, and a framework-
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Scheduler, DayView, WeekView, MonthView, AgendaView, type SchedulerEvent } from 'orb-scheduler'
+import {
+  Scheduler,
+  DayView,
+  WeekView,
+  MonthView,
+  AgendaView,
+  type SchedulerEvent,
+} from 'orb-scheduler'
 import 'orb-scheduler/style.css'
 
 const events = ref<SchedulerEvent[]>([
@@ -104,12 +111,12 @@ const events = [{ id: 1, start: '...', end: '...', resourceId: 'crane-1' }] // o
 
 ## Dates
 
-| Value | Meaning |
-| --- | --- |
-| `'2026-10-29'` | a date (all-day) |
-| `'2026-10-29T09:00'` | wall-clock time in the event's `timezone` (or the scheduler's) |
-| `'2026-10-29T08:00Z'`, `'...+01:00'`, `'...[Europe/Brussels]'` | an exact moment |
-| `Date`, epoch ms, `Temporal.*` | also accepted |
+| Value                                                          | Meaning                                                        |
+| -------------------------------------------------------------- | -------------------------------------------------------------- |
+| `'2026-10-29'`                                                 | a date (all-day)                                               |
+| `'2026-10-29T09:00'`                                           | wall-clock time in the event's `timezone` (or the scheduler's) |
+| `'2026-10-29T08:00Z'`, `'...+01:00'`, `'...[Europe/Brussels]'` | an exact moment                                                |
+| `Date`, epoch ms, `Temporal.*`                                 | also accepted                                                  |
 
 All-day `end` dates are exclusive. Emit payloads carry `Temporal` values (`PlainDate`,
 `ZonedDateTime`).
@@ -129,8 +136,15 @@ are not re-read, so adding one event to 10 000 is cheap.
 ## Editing
 
 ```vue
-<Scheduler :events="events" editable selectable @event-drop="onChange" @event-resize="onChange"
-  @event-delete="onDelete" @select="onSelect" />
+<Scheduler
+  :events="events"
+  editable
+  selectable
+  @event-drop="onChange"
+  @event-resize="onChange"
+  @event-delete="onDelete"
+  @select="onSelect"
+/>
 ```
 
 ```ts
@@ -169,7 +183,10 @@ import { useHistory } from 'orb-scheduler'
 const history = useHistory(events, { keyboard: true }) // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y
 
 function onChange(p: EventChangedPayload<SchedulerEvent>) {
-  history.commit(applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone }), 'Move')
+  history.commit(
+    applyEventEdit(events.value, p.occurrence, p, { scope: p.scope, timeZone }),
+    'Move',
+  )
 }
 // history.undo(), history.redo(), history.canUndo.value, history.undoLabel.value, history.reset()
 ```
@@ -178,17 +195,17 @@ Snapshots share unchanged event objects, so keeping 100 steps of a 10 000-event 
 
 ### Keyboard
 
-| Keys | Action |
-| --- | --- |
-| Arrows | Move focus over slots / day cells (past the edge goes to the previous/next period) |
-| Shift + arrows, then Enter | Select a range |
-| Enter / Space | Click the focused slot or event |
-| Alt + arrows | Move the focused event by a snap step / a day (timeline: left/right in time, up/down to another resource). Focus stays on the event, and the view follows it out of the visible range |
-| Alt + Shift + arrows | Resize the focused event |
-| Delete / Backspace | `event-delete` for the focused event |
-| PageUp / PageDown, T | Previous / next period, today |
-| Alt + 1…9 | Switch view |
-| Escape | Cancel a drag, clear the selection |
+| Keys                       | Action                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arrows                     | Move focus over slots / day cells (past the edge goes to the previous/next period)                                                                                                    |
+| Shift + arrows, then Enter | Select a range                                                                                                                                                                        |
+| Enter / Space              | Click the focused slot or event                                                                                                                                                       |
+| Alt + arrows               | Move the focused event by a snap step / a day (timeline: left/right in time, up/down to another resource). Focus stays on the event, and the view follows it out of the visible range |
+| Alt + Shift + arrows       | Resize the focused event                                                                                                                                                              |
+| Delete / Backspace         | `event-delete` for the focused event                                                                                                                                                  |
+| PageUp / PageDown, T       | Previous / next period, today                                                                                                                                                         |
+| Alt + 1…9                  | Switch view                                                                                                                                                                           |
+| Escape                     | Cancel a drag, clear the selection                                                                                                                                                    |
 
 Changes are announced to screen readers through a live region; texts are in `messages`.
 
@@ -217,7 +234,13 @@ See [docs/API.md](docs/API.md#slots) for the props each one receives.
 
 ## More
 
-Availability rules, multi-select and group edits, clipboard, Gantt and dependency arrows, iCalendar import and export, free-time search, drafts, a mini calendar and more are described in [docs/API.md](docs/API.md). [docs/RECIPES.md](docs/RECIPES.md) has short answers for editor dialogs, loading and saving, and syncing with calendars; [docs/CUSTOM_VIEWS.md](docs/CUSTOM_VIEWS.md) shows how to write your own view.
+The [human guide](docs/guide.md) covers setup and common workflows. The
+[AI implementation guide](docs/ai-implementation.md) gives coding assistants a focused integration
+workflow. Availability rules, multi-select and group edits, clipboard, Gantt and dependency
+arrows, iCalendar import and export, free-time search, drafts, a mini calendar and more are
+described in [docs/API.md](docs/API.md). [docs/RECIPES.md](docs/RECIPES.md) has short answers for
+editor dialogs, loading and saving, and syncing with calendars; [docs/CUSTOM_VIEWS.md](docs/CUSTOM_VIEWS.md)
+shows how to write your own view.
 
 ## Passthrough
 

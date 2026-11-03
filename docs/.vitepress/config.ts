@@ -17,6 +17,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide' },
+      { text: 'AI guide', link: '/ai-implementation' },
       { text: 'Views', link: '/views' },
       { text: 'API', link: '/api' },
       { text: 'Recipes', link: '/recipes' },
@@ -26,6 +27,7 @@ export default defineConfig({
         text: 'Start',
         items: [
           { text: 'Getting started', link: '/guide' },
+          { text: 'AI implementation', link: '/ai-implementation' },
           { text: 'Views', link: '/views' },
           { text: 'Customizing', link: '/customizing' },
           { text: 'Migrating', link: '/migration' },

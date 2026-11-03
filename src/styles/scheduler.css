@@ -2103,6 +2103,19 @@
   background: var(--orb-event-color, var(--orb-color-accent));
 }
 
+.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='1'] {
+  border-radius: 0;
+}
+
+.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='2'] {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='3'] {
+  border-radius: 0;
+  transform: rotate(45deg) scale(0.8);
+}
+
 .orb-month__dot-more {
   color: var(--orb-color-text-muted);
   font-size: 0.625rem;
@@ -2249,7 +2262,7 @@
 .orb-tl__slots-row {
   display: grid;
   grid-template-columns: repeat(var(--orb-tl-slots), minmax(0, 1fr));
-  border-top: 1px solid var(--orb-color-border-subtle);
+  border-top: 1px solid var(--orb-color-border);
 }
 
 .orb-tl__day-heading {
@@ -2297,7 +2310,7 @@
 }
 
 .orb-tl__slot-heading.is-labelled {
-  border-inline-start-color: var(--orb-color-border-subtle);
+  border-inline-start-color: var(--orb-color-border);
 }
 
 .orb-tl__body {
@@ -2316,7 +2329,7 @@
 
 .orb-tl__day-column {
   border-inline-end: 1px solid var(--orb-color-border);
-  background-image: linear-gradient(to right, var(--orb-color-border-subtle) 1px, transparent 1px);
+  background-image: linear-gradient(to right, var(--orb-color-border) 1px, transparent 1px);
   background-size: calc(100% * var(--orb-tl-days) / var(--orb-tl-slots)) 100%;
 }
 
@@ -2347,7 +2360,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: var(--orb-tl-resource-width) minmax(0, 1fr);
-  border-bottom: 1px solid var(--orb-color-border-subtle);
+  border-bottom: 1px solid var(--orb-color-border);
 }
 
 .orb-tl__label {

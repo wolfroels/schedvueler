@@ -256,6 +256,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
   <div class="pg" :data-theme="theme">
     <aside class="pg__sidebar">
       <h1>orb-scheduler</h1>
+      <a class="pg__link" href="#/examples">Simple view examples →</a>
       <a class="pg__link" href="#/parts">Slots and parts →</a>
 
       <section>

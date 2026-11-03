@@ -84,6 +84,27 @@ test.describe('toolbar', () => {
 test.describe('timeline', () => {
   const MONTH = { period: 'month' }
 
+  test('uses visible borders for row and slot separators', async ({ page }) => {
+    await open(page, { view: 'timeline' })
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme })
+      const border = await page
+        .locator('.orb-tl__corner')
+        .evaluate((element) => getComputedStyle(element).borderInlineEndColor)
+      await expect(page.locator('.orb-tl__row').first()).toHaveCSS('border-bottom-color', border)
+      await expect(page.locator('.orb-tl__slots-row')).toHaveCSS('border-top-color', border)
+      await expect(page.locator('.orb-tl__slot-heading.is-labelled').first()).toHaveCSS(
+        'border-inline-start-color',
+        border,
+      )
+      const grid = await page
+        .locator('.orb-tl__day-column')
+        .first()
+        .evaluate((element) => getComputedStyle(element).backgroundImage)
+      expect(grid).toContain(`${border} 1px`)
+    }
+  })
+
   test('renders only what is in view on a long axis', async ({ page }) => {
     await open(page, {
       view: 'timeline',

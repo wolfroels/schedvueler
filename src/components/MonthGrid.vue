@@ -298,8 +298,17 @@ const compact = computed(() => ctx.width.value > 0 && ctx.width.value < props.co
 function dots(cell: MonthCell) {
   const list = occurrencesOn(cell.date)
   const accessors = ctx.accessors.value
+  const visible = list.slice(0, 3).map((occurrence) => ({
+    color:
+      accessors.color(occurrence.event) ??
+      ctx.resourceMap.value.get(occurrence.resourceIds[0]!)?.color,
+  }))
+  const patterns = new Map<string | undefined, number>()
+  for (const { color } of visible) {
+    if (!patterns.has(color)) patterns.set(color, patterns.size)
+  }
   return {
-    colors: list.slice(0, 3).map((o) => accessors.color(o.event)),
+    markers: visible.map(({ color }) => ({ color, pattern: patterns.get(color) ?? 0 })),
     extra: Math.max(0, list.length - 3),
   }
 }
@@ -500,10 +509,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPoin
             </button>
             <span v-if="compact" class="orb-month__dots" aria-hidden="true">
               <span
-                v-for="(color, di) in dots(cell).colors"
+                v-for="(marker, di) in dots(cell).markers"
                 :key="di"
                 class="orb-month__dot"
-                :style="color ? { '--orb-event-color': color } : undefined"
+                :data-orb-color-pattern="marker.pattern"
+                :style="marker.color ? { '--orb-event-color': marker.color } : undefined"
               />
               <span v-if="dots(cell).extra" class="orb-month__dot-more"
                 >+{{ dots(cell).extra }}</span

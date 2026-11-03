@@ -19,6 +19,8 @@ import { HydratingToolbar } from './HydratingToolbar'
 export interface SchedulerProps<T> extends SchedulerOptions<T> {
   /** Color scheme. "auto" follows the operating system. Default "light". */
   theme?: 'light' | 'dark' | 'auto'
+  /** Use color-independent event markers in compact month view. Default false. */
+  colorBlindMode?: boolean
   /** Show the built-in toolbar. Default true. */
   toolbar?: boolean
   /** How much room everything takes. Default "normal". */
@@ -27,6 +29,7 @@ export interface SchedulerProps<T> extends SchedulerOptions<T> {
 
 const props = withDefaults(defineProps<SchedulerProps<T>>(), {
   theme: 'light',
+  colorBlindMode: false,
   toolbar: true,
   nowIndicator: true,
   // Absent boolean props would otherwise become false and override `editable`.
@@ -271,7 +274,10 @@ defineExpose({
     v-bind="ctx.part('root')"
     :data-theme="theme"
     :data-density="density"
-    :class="{ 'orb-scheduler--animate': animate }"
+    :class="{
+      'orb-scheduler--animate': animate,
+      'orb-scheduler--color-blind': colorBlindMode,
+    }"
     @keydown="onKeydown"
     @dragover="ctx.interaction.nativeDragOver"
     @dragleave="ctx.interaction.nativeDragLeave"

@@ -229,6 +229,7 @@ function scopeKeys(scope: object | undefined) {
 
     <header class="pp__top">
       <a href="#/" class="pp__back">← Playground</a>
+      <a href="#/examples" class="pp__back">Simple view examples</a>
       <h1>Slots and parts</h1>
       <p>
         Move over the scheduler to see what each element is called. Pick a part or slot on the right

@@ -171,3 +171,43 @@ test('forced colors keep events visible', async ({ page, browserName }) => {
   await open(page)
   await expect(event(page, 'Alpha')).toHaveCSS('border-top-style', 'solid')
 })
+
+test('compact month markers use shapes as well as color when enabled', async ({ page }) => {
+  await open(
+    page,
+    { view: 'month' },
+    {
+      colorBlindMode: true,
+      compactWidth: 800,
+      resources: [{ id: 'r2', title: 'Room two', color: '#16a34a' }],
+    },
+    [
+      {
+        id: 'red',
+        title: 'Red event',
+        start: '2026-06-15T11:00:00',
+        end: '2026-06-15T12:00:00',
+        color: '#e11d48',
+      },
+      {
+        id: 'resource',
+        title: 'Resource event',
+        start: '2026-06-15T13:00:00',
+        end: '2026-06-15T14:00:00',
+        resourceId: 'r2',
+      },
+    ],
+  )
+  await page.locator('.orb-scheduler').evaluate((element) => {
+    ;(element as HTMLElement).style.width = '360px'
+  })
+
+  const markers = page.locator('[data-date="2026-06-15"] .orb-month__dot')
+  await expect(page.locator('.orb-scheduler')).toHaveClass(/orb-scheduler--color-blind/)
+  await expect(markers).toHaveCount(3)
+  const patterns = await markers.evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute('data-orb-color-pattern')),
+  )
+  expect(new Set(patterns).size).toBe(3)
+  await expect(markers.nth(2)).toHaveAttribute('style', /--orb-event-color: #16a34a/)
+})
