@@ -8,6 +8,36 @@ part, typed emits, full RRULE recurrence and time-zone support, and a framework-
 > responsive and touch, resources, undo/redo and a performance pass. The full reference is in
 > [docs/API.md](docs/API.md). What comes next is in [ROADMAP.md](ROADMAP.md).
 
+## GitHub Pages
+
+The documentation and playground can be hosted together on GitHub Pages:
+
+- Documentation: https://wolfroels.github.io/orbid-scheduler/
+- Playground: https://wolfroels.github.io/orbid-scheduler/playground/
+
+In the repository's **Settings > Pages**, choose **GitHub Actions** as the build and deployment
+source. Push to `main`, or run **Deploy GitHub Pages** manually from the Actions tab. The
+workflow builds the library, documentation, and playground, then publishes one Pages artifact.
+The URLs become available after the first successful deployment.
+
+The workflow reads the repository base path from GitHub Pages, so asset URLs work under the
+repository subdirectory and on custom domains. Local builds still default to `/`. To reproduce
+the deployed builds in PowerShell:
+
+```powershell
+npm ci
+npm run build-only
+$env:PAGES_BASE_PATH = '/orbid-scheduler/'
+npm run docs:build
+$env:PAGES_BASE_PATH = '/orbid-scheduler/playground/'
+npm run playground:build
+Remove-Item Env:PAGES_BASE_PATH
+```
+
+The playground uses hash routing, so its views do not need server-side rewrite rules. Saved
+preferences stay local to each browser and origin; local development preferences do not carry
+over to the deployed site. The scheduler library itself is not published to npm by this workflow.
+
 ## Quick start
 
 ```vue

@@ -6,6 +6,7 @@ import vue from '@vitejs/plugin-vue'
 // Production build of the playground, for measuring real (non-dev) rendering performance:
 // `npm run playground:build` then `npm run playground:preview`.
 export default defineConfig({
+  base: process.env.PAGES_BASE_PATH ?? '/',
   plugins: [vue()],
   resolve: {
     alias: {

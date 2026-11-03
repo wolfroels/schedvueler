@@ -2,11 +2,12 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
+  base: process.env.PAGES_BASE_PATH ?? '/',
   title: 'orb-scheduler',
   description: 'Modular, slot-driven scheduler and calendar components for Vue 3',
   cleanUrls: true,
   // The reference links to source files that are not part of the site.
-  ignoreDeadLinks: [/\.\.\/src/, /ROADMAP/],
+  ignoreDeadLinks: [/\.\.\/src/, /ROADMAP/, /^\/playground\/$/],
   rewrites: {
     'API.md': 'api.md',
     'RECIPES.md': 'recipes.md',
@@ -21,6 +22,7 @@ export default defineConfig({
       { text: 'Views', link: '/views' },
       { text: 'API', link: '/api' },
       { text: 'Recipes', link: '/recipes' },
+      { text: 'Playground', link: '/playground/', target: '_blank' },
     ],
     sidebar: [
       {
