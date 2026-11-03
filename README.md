@@ -6,7 +6,7 @@ part, typed emits, full RRULE recurrence and time-zone support, and a framework-
 > Status: in development. All six phases of [RESEARCH.md](RESEARCH.md) are done: core, root
 > component, day/week/N-day/month/year/agenda/timeline views, drag/resize/select, keyboard,
 > responsive and touch, resources, undo/redo and a performance pass. The full reference is in
-> [docs/API.md](docs/API.md). What comes next is in [ROADMAP.md](ROADMAP.md).
+> [docs/API.md](docs/API.md).
 
 ## GitHub Pages
 

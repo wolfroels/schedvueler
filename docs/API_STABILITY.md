@@ -1,6 +1,6 @@
 # API stability
 
-Until 1.0, a minor version can change anything; the [changelog](https://github.com/) lists it. From 1.0 on, the following follows semver.
+Until 1.0, a minor version can change anything; the [changelog](https://github.com/wolfroels/schedvueler/blob/main/CHANGELOG.md) lists it. From 1.0 on, the following follows semver.
 
 ## Public
 

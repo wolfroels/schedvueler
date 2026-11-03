@@ -7,7 +7,7 @@ export default defineConfig({
   description: 'Modular, slot-driven scheduler and calendar components for Vue 3',
   cleanUrls: true,
   // The reference links to source files that are not part of the site.
-  ignoreDeadLinks: [/\.\.\/src/, /ROADMAP/, /^\/playground\/$/],
+  ignoreDeadLinks: [/^\/playground\/$/],
   rewrites: {
     'API.md': 'api.md',
     'RECIPES.md': 'recipes.md',

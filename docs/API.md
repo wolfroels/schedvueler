@@ -1,8 +1,8 @@
 # orb-scheduler API reference
 
-See also [API stability](API_STABILITY.md). Everything below is exported from `orb-scheduler`; the framework-free parts are also available
-from `orb-scheduler/core`. Types are in [src/types.ts](../src/types.ts) and
-[src/core](../src/core); this page is the overview.
+See also [API stability](/api-stability). Everything below is exported from `orb-scheduler`; the framework-free parts are also available
+from `orb-scheduler/core`. Types are in [src/types.ts](https://github.com/wolfroels/schedvueler/blob/main/src/types.ts) and
+[src/core](https://github.com/wolfroels/schedvueler/tree/main/src/core); this page is the overview.
 
 - [`<Scheduler>`](#scheduler)
 - [Views](#views)
@@ -267,7 +267,7 @@ Composables without any markup:
 | `useDraft(events)`                            | Try changes, then `apply()` or `discard()` them all. `attrs` marks changes as tentative.                                                       |
 | `useCalendars(events, calendars, calendarOf)` | Layers to show and hide.                                                                                                                       |
 | `useCommands(ctx)`                            | Actions for a command palette: `search(query)` finds views, dates and events.                                                                  |
-| `useRecurrenceScope()`                        | Asks which occurrences a change is for; see [RECIPES.md](RECIPES.md).                                                                          |
+| `useRecurrenceScope()`                        | Asks which occurrences a change is for; see [Recipes](/recipes).                                                                               |
 | `useNextEvent(ctx)`                           | What is running, what is next, and the minutes until it.                                                                                       |
 | `useEventPopover()`                           | Popovers and tooltips.                                                                                                                         |
 
@@ -279,7 +279,7 @@ Time grid views take `fold-empty-hours` (`true`, or the shortest stretch in minu
 
 ## Custom views
 
-See [CUSTOM_VIEWS.md](CUSTOM_VIEWS.md).
+See [Custom views](/custom-views).
 
 ## Emits
 
@@ -530,7 +530,7 @@ const popover = useEventPopover<SchedulerEvent>()
 
 `recurrenceToText` puts a rule in words. `recurrenceToForm` and `formToRecurrence` go between a rule and the fields of a form. Translated wording for the scheduler and for rules is in `orb-scheduler/locales` (`nl`, `fr`, `de`, `es`): `:messages="nl.messages"`.
 
-See [RECIPES.md](RECIPES.md).
+See [Recipes](/recipes).
 
 ## Server rendering
 

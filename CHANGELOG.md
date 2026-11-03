@@ -4,7 +4,7 @@ Notable changes per version. Versions follow [semver](https://semver.org); befor
 
 ## Unreleased
 
-Everything so far. See [ROADMAP.md](ROADMAP.md) for what is done.
+This file records notable changes so far.
 
 Things that behave differently from before this list started:
 
