@@ -10,6 +10,7 @@ import {
   WeekView,
   YearView,
   applyEventEdits,
+  createTheme,
   formatTimeRange,
   removeEventOccurrences,
   useHistory,
@@ -23,6 +24,7 @@ import {
   type SelectPayload,
   type RangeChangePayload,
   type SchedulerEvent,
+  type SchedulerPreset,
   type SlotPointerPayload,
 } from '../src'
 import { generateEvents, generateResources } from './data'
@@ -34,6 +36,7 @@ const resourceCount = ref(9)
 const timeZone = ref('Europe/Brussels')
 const locale = ref('en-GB')
 const theme = ref<'light' | 'dark'>('light')
+const preset = ref<SchedulerPreset>('default')
 const eventLayout = ref<'columns' | 'stack'>('columns')
 const hideWeekends = ref(false)
 const slotDuration = ref(30)
@@ -49,6 +52,20 @@ const accent = ref('#2563eb')
 const slotHeight = ref(36)
 const eventRadius = ref(6)
 const monthEventHeight = ref(22)
+const presetAccents: Record<SchedulerPreset, Record<'light' | 'dark', string>> = {
+  default: { light: '#2563eb', dark: '#60a5fa' },
+  modern: { light: '#1769aa', dark: '#5ab1e5' },
+  glass: { light: '#0e7490', dark: '#67d2d0' },
+  glassmorphism: { light: '#0e7490', dark: '#67d2d0' },
+  neumorphic: { light: '#167c72', dark: '#65c9b8' },
+  clean: { light: '#28715f', dark: '#76c6aa' },
+  bento: { light: '#0f766e', dark: '#5eead4' },
+  'neo-brutalism': { light: '#ffca3a', dark: '#ffdf4f' },
+  'cyber-y2k': { light: '#df3295', dark: '#ff53c8' },
+}
+watch([preset, theme], () => {
+  accent.value = presetAccents[preset.value][theme.value]
+})
 
 const scheduler = ref<{ clearSelection(): void }>()
 const date = ref<string>()
@@ -75,8 +92,9 @@ const history = useHistory(events, { keyboard: true })
 
 const cssVars = computed(() => ({
   '--orb-color-accent': accent.value,
+  '--orb-color-accent-contrast': createTheme(accent.value)['--orb-color-accent-contrast']!,
   '--orb-slot-height': `${slotHeight.value}px`,
-  '--orb-event-radius': `${eventRadius.value}px`,
+  ...(preset.value === 'default' ? { '--orb-event-radius': `${eventRadius.value}px` } : {}),
   '--orb-month-event-height': `${monthEventHeight.value}px`,
 }))
 
@@ -381,6 +399,23 @@ function onSlotDblClick(p: SlotPointerPayload) {
         <label class="pg__check">
           <input v-model="confirmRecurring" type="checkbox" /> Ask for scope (prompt)
         </label>
+      </section>
+
+      <section>
+        <h2>Appearance</h2>
+        <label>
+          Visual preset
+          <select v-model="preset">
+            <option value="default">Default</option>
+            <option value="modern">Modern</option>
+            <option value="glassmorphism">Glassmorphism</option>
+            <option value="neumorphic">Neumorphic</option>
+            <option value="clean">Clean</option>
+            <option value="bento">Bento grids</option>
+            <option value="neo-brutalism">Neo-brutalism</option>
+            <option value="cyber-y2k">Retro futurism / Cyber-Y2K</option>
+          </select>
+        </label>
         <label class="pg__check">
           <input
             type="checkbox"
@@ -400,12 +435,22 @@ function onSlotDblClick(p: SlotPointerPayload) {
         </label>
         <label>
           Event radius <span>{{ eventRadius }}px</span>
-          <input v-model.number="eventRadius" type="range" min="0" max="12" />
+          <input
+            v-model.number="eventRadius"
+            type="range"
+            min="0"
+            max="12"
+            :disabled="preset !== 'default'"
+          />
         </label>
         <label>
           Month event height <span>{{ monthEventHeight }}px</span>
           <input v-model.number="monthEventHeight" type="range" min="16" max="32" />
         </label>
+        <p v-if="preset !== 'default'" class="pg__hint">
+          Starts with the preset accent; choose any color to override it. Event radius follows the
+          preset.
+        </p>
       </section>
 
       <section class="pg__log">
@@ -429,6 +474,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         :time-zone="timeZone"
         :locale="locale"
         :theme="theme"
+        :preset="preset"
         :slot-duration="slotDuration"
         :event-layout="eventLayout"
         :hidden-days="hideWeekends ? [6, 7] : []"

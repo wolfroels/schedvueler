@@ -11,6 +11,7 @@ import {
   YearView,
   type SchedulerPart,
   type SchedulerPt,
+  type SchedulerPreset,
 } from '../src'
 import { PARTS, SLOTS, VIEWS, type AnatomyView, type PartInfo, type SlotInfo } from './anatomy'
 import { generateEvents, generateResources } from './data'
@@ -27,6 +28,7 @@ const view = ref<AnatomyView>('week')
 const tab = ref<'parts' | 'slots'>('parts')
 const search = ref('')
 const theme = ref<'light' | 'dark'>('light')
+const preset = ref<SchedulerPreset>('default')
 
 /** Under the mouse in the list, or under the mouse in the scheduler. */
 const hovered = shallowRef<SchedulerPart>()
@@ -256,6 +258,19 @@ function scopeKeys(scope: object | undefined) {
         />
         Dark
       </label>
+      <label class="pp__check">
+        Preset
+        <select v-model="preset" aria-label="Scheduler visual preset">
+          <option value="default">Default</option>
+          <option value="modern">Modern</option>
+          <option value="glassmorphism">Glassmorphism</option>
+          <option value="neumorphic">Neumorphic</option>
+          <option value="clean">Clean</option>
+          <option value="bento">Bento grids</option>
+          <option value="neo-brutalism">Neo-brutalism</option>
+          <option value="cyber-y2k">Retro futurism / Cyber-Y2K</option>
+        </select>
+      </label>
     </header>
 
     <div class="pp__layout">
@@ -272,6 +287,7 @@ function scopeKeys(scope: object | undefined) {
           :resources="resources"
           :pt="pt"
           :theme="theme"
+          :preset="preset"
           locale="en-GB"
           time-zone="Europe/Brussels"
           editable

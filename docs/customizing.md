@@ -19,6 +19,19 @@ The playground's slots and parts page (`npm run dev`, then `#/parts`) shows on a
 
 `createTheme(color)` gives the variables of a whole theme from one color, and `density` sets how much room everything takes.
 
+Choose a built-in visual preset independently from the light/dark color mode:
+
+```vue
+<Scheduler theme="auto" preset="glass" :events="events">
+  <WeekView />
+</Scheduler>
+```
+
+Available presets are `default`, `modern`, `glassmorphism`, `neumorphic`, `clean`, `bento`,
+`neo-brutalism`, and `cyber-y2k`. The older `glass` value remains an alias for `glassmorphism`.
+The default keeps the original appearance. Presets are opt-in, work with `theme="light"`,
+`"dark"`, or `"auto"`, and still accept explicit `--orb-*` overrides.
+
 <SchedulerDemo view="week" :height="440" :options="{ density: 'compact', style: { '--orb-color-accent': '#0f766e' } }" />
 
 ### PrimeUIX token bridge

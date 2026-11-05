@@ -226,6 +226,17 @@ export type SchedulerPt = Partial<
 
 export type SchedulerDensity = 'compact' | 'normal' | 'comfortable'
 
+export type SchedulerPreset =
+  | 'default'
+  | 'modern'
+  | 'glass'
+  | 'glassmorphism'
+  | 'neumorphic'
+  | 'clean'
+  | 'bento'
+  | 'neo-brutalism'
+  | 'cyber-y2k'
+
 export type EventLayoutOption = 'columns' | 'stack' | TimeGridLayoutAlgorithm
 
 /** Options shared by every view. Views can override most of them with their own props. */

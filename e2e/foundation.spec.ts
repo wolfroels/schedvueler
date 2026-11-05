@@ -57,6 +57,52 @@ test.describe('PrimeUIX styling', () => {
   }
 })
 
+test.describe('visual presets', () => {
+  const presets = [
+    ['default', '8px'],
+    ['modern', '6px'],
+    ['glass', '16px'],
+    ['glassmorphism', '16px'],
+    ['neumorphic', '14px'],
+    ['clean', '4px'],
+    ['bento', '16px'],
+    ['neo-brutalism', '0'],
+    ['cyber-y2k', '4px'],
+  ] as const
+
+  for (const [preset, radius] of presets) {
+    test(`${preset} preset keeps dark color mode independent`, async ({ page }) => {
+      await open(page, { view: 'week' }, { preset, theme: 'dark' })
+      const root = page.locator('.schedvueler')
+      await expect(root).toHaveAttribute('data-preset', preset)
+      await expect(root).toHaveAttribute('data-theme', 'dark')
+      await expect(root).toHaveCSS('color-scheme', 'dark')
+      expect(
+        await root.evaluate((element) =>
+          getComputedStyle(element).getPropertyValue('--orb-radius').trim(),
+        ),
+      ).toBe(radius)
+    })
+  }
+
+  test('auto mode keeps a light palette when the system is light', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await open(page, { view: 'week' }, { preset: 'modern', theme: 'auto' })
+    await expect(page.locator('.schedvueler')).toHaveCSS('background-color', 'rgb(244, 247, 251)')
+  })
+
+  test('presets continue to consume optional PrimeUIX tokens', async ({ page }) => {
+    await open(page, { view: 'week' }, { preset: 'modern' })
+    const root = page.locator('.schedvueler')
+    await page.addStyleTag({
+      content: ':root { --p-content-background: #f0fdf4; --p-text-color: #14532d; }',
+    })
+    await page.addStyleTag({ path: 'src/styles/primeuix.css' })
+    await expect(root).toHaveCSS('background-color', 'rgb(240, 253, 244)')
+    await expect(root).toHaveCSS('color', 'rgb(20, 83, 45)')
+  })
+})
+
 test.describe('saved preferences', () => {
   test('restores zoom and keeps widths when switching views', async ({ page }) => {
     await open(

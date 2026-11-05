@@ -13,13 +13,21 @@ import {
   type EventOccurrence,
   type SchedulerEvent,
 } from '../core'
-import type { SchedulerDensity, SchedulerEmits, SchedulerOptions, SchedulerSlots } from '../types'
+import type {
+  SchedulerDensity,
+  SchedulerEmits,
+  SchedulerOptions,
+  SchedulerPreset,
+  SchedulerSlots,
+} from '../types'
 import { HydratingToolbar } from './HydratingToolbar'
 import { ownerWindow } from '../composables/usePictureInPicture'
 
 export interface SchedulerProps<T> extends SchedulerOptions<T> {
   /** Color scheme. "auto" follows the operating system. Default "light". */
   theme?: 'light' | 'dark' | 'auto'
+  /** Visual treatment, independent of the color scheme. Default "default". */
+  preset?: SchedulerPreset
   /** Use color-independent event markers in compact month view. Default false. */
   colorBlindMode?: boolean
   /** Show the built-in toolbar. Default true. */
@@ -32,6 +40,7 @@ defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<SchedulerProps<T>>(), {
   theme: 'light',
+  preset: 'default',
   colorBlindMode: false,
   toolbar: true,
   nowIndicator: true,
@@ -305,6 +314,7 @@ defineExpose({
     :class="$attrs.class"
     :style="$attrs.style as StyleValue"
     :data-theme="theme"
+    :data-preset="preset"
     :data-density="density"
   >
     <p>{{ ctx.options.value.messages.poppedOut }}</p>
@@ -318,6 +328,7 @@ defineExpose({
       class="schedvueler"
       v-bind="{ ...ctx.part('root'), ...$attrs }"
       :data-theme="theme"
+      :data-preset="preset"
       :data-density="density"
       :class="{
         'schedvueler--animate': animate,
