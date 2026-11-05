@@ -30,6 +30,11 @@ export interface InteractionOptions {
   timeZone: string
   /** Minutes that moves, resizes and selections snap to. */
   snapMinutes: number
+  /**
+   * Wall-clock minute that snap steps count from, such as a timeline's day start. Defaults to 0
+   * (midnight). It matters when a step does not divide the day, as with 420-minute half days.
+   */
+  snapOrigin?: number
   /** Length given to an all-day event dropped into the time grid, in minutes. */
   defaultDurationMinutes: number
 }
@@ -37,7 +42,8 @@ export interface InteractionOptions {
 export type ResizeEdge = 'start' | 'end'
 
 const snapDelta = (minutes: number, snap: number) => Math.round(minutes / snap) * snap
-const snapDown = (minute: number, snap: number) => Math.floor(minute / snap) * snap
+const snapDown = (minute: number, snap: number, origin = 0) =>
+  origin + Math.floor((minute - origin) / snap) * snap
 const isTimeAxis = (hit: Hit) => hit.zone === 'time' || hit.zone === 'timeline'
 
 function shiftWallClock(
@@ -229,8 +235,8 @@ export function computeSelection(
     }
     const o = origin as { date: Temporal.PlainDate; minute: number }
     const c = current as { date: Temporal.PlainDate; minute: number }
-    let a = zonedAtMinute(o.date, snapDown(o.minute, snapMinutes), timeZone)
-    let b = zonedAtMinute(c.date, snapDown(c.minute, snapMinutes), timeZone)
+    let a = zonedAtMinute(o.date, snapDown(o.minute, snapMinutes, options.snapOrigin), timeZone)
+    let b = zonedAtMinute(c.date, snapDown(c.minute, snapMinutes, options.snapOrigin), timeZone)
     if (Temporal.ZonedDateTime.compare(a, b) > 0) [a, b] = [b, a]
     return { start: a, end: b.add({ minutes: snapMinutes }), allDay: false, resourceIds }
   }

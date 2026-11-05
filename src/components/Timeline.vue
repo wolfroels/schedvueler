@@ -646,6 +646,8 @@ onMounted(() => {
       }
     },
     snapMinutes,
+    // Steps count from the day start, so 420-minute half days begin at 06:00 and 13:00.
+    snapOrigin: () => (daySlots.value ? 0 : axis.value.dayStartMinute),
     scrollToMinute: (minute) => scrollToTime(minute),
   })
 })

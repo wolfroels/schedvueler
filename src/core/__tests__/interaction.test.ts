@@ -150,6 +150,22 @@ describe('computeSelection', () => {
     ).toBe('2026-10-27..2026-10-31 all-day')
     expect(computeSelection(day('2026-10-27'), time('2026-10-27', 600), opts)).toBeNull()
   })
+
+  it('snaps from the snap origin, for steps that do not divide the day start', () => {
+    // Half days of 420 minutes from 06:00: 06:00-13:00 and 13:00-20:00.
+    const halfDays = { ...opts, snapMinutes: 420, snapOrigin: 360 }
+    const at = (minute: number): Hit => ({ zone: 'timeline', date: d('2026-10-27'), minute })
+    expect(fmt(computeSelection(at(400), at(400), halfDays))).toBe(
+      '2026-10-27T06:00..2026-10-27T13:00',
+    )
+    expect(fmt(computeSelection(at(800), at(800), halfDays))).toBe(
+      '2026-10-27T13:00..2026-10-27T20:00',
+    )
+    // Without an origin the steps count from midnight, as before.
+    expect(fmt(computeSelection(at(800), at(800), { ...halfDays, snapOrigin: undefined }))).toBe(
+      '2026-10-27T07:00..2026-10-27T14:00',
+    )
+  })
 })
 
 describe('applyEventEdit', () => {

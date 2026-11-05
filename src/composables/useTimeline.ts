@@ -236,8 +236,11 @@ export function useTimeline<T>(ctx: SchedulerContext<T>, config: MaybeRefOrGette
         allDay: true,
       }
     }
+    // Slots count from the day start (as in `slots`), not from midnight.
     const { slotDuration } = cfg.value
-    const startMinute = Math.floor(minute / slotDuration) * slotDuration
+    const { dayStartMinute } = axis.value
+    const startMinute =
+      dayStartMinute + Math.floor((minute - dayStartMinute) / slotDuration) * slotDuration
     return {
       date,
       start: zonedAtMinute(date, startMinute, tz),

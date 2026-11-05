@@ -41,6 +41,8 @@ export interface DragSurface {
   scrollArea?: () => { left: number; top: number; right: number; bottom: number } | undefined
   /** Minutes to snap gestures that start on this surface to. Defaults to the scheduler's. */
   snapMinutes?: () => number
+  /** Wall-clock minute that snap steps on this surface count from. Defaults to midnight. */
+  snapOrigin?: () => number
   /** Scrolls to a wall-clock minute. */
   scrollToMinute?: (minute: number) => void
 }
@@ -899,6 +901,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     const origin = originDate ? { ...found.hit, date: originDate } : found.hit
     const opts = {
       ...computeOptions(found.surface.snapMinutes?.() ?? snapMinutes()),
+      snapOrigin: found.surface.snapOrigin?.() ?? 0,
       ...(occ && timedLengths.has(occ.key)
         ? { defaultDurationMinutes: timedLengths.get(occ.key)! }
         : {}),
