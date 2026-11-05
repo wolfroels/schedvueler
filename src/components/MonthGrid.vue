@@ -390,12 +390,21 @@ function onDocumentPointerDown(e: PointerEvent) {
   if (popover.value && !popoverEl.value?.contains(e.target as Node)) closePopover()
 }
 
+// The document the scheduler is in, which is the picture-in-picture one while popped out.
+let listening: Document | undefined
+function stopListening() {
+  listening?.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  listening = undefined
+}
 watch(popover, (open) => {
-  if (open) document.addEventListener('pointerdown', onDocumentPointerDown, true)
-  else document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  stopListening()
+  if (!open) return
+  listening = ctx.rootEl.value?.ownerDocument ?? document
+  listening.addEventListener('pointerdown', onDocumentPointerDown, true)
 })
 watch(() => props.range, closePopover)
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPointerDown, true))
+watch(ctx.pictureInPicture.window, closePopover)
+onBeforeUnmount(stopListening)
 </script>
 
 <template>

@@ -236,6 +236,23 @@
   gap: 0.25rem;
 }
 
+/* Stand-in left in the page while the scheduler is in a picture-in-picture window. */
+.schedvueler--pip-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 10rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--orb-color-text-muted);
+}
+
+.schedvueler--pip-placeholder p {
+  margin: 0;
+}
+
 .orb-toolbar__title {
   margin: 0;
   overflow: hidden;
@@ -609,6 +626,18 @@
 .orb-tg__body {
   display: grid;
   grid-template-columns: var(--orb-tg-columns);
+}
+
+/*
+ * The grids are pointer surfaces, not text. A text selection inside them (a triple-click, or a
+ * drag-select across the page) would make the next drag a native one: the browser drags a ghost
+ * image of the selected slots over the grid and cancels the scheduler's own gesture.
+ */
+.orb-tg__body,
+.orb-tg__allday,
+.orb-month__body,
+.orb-tl__lane {
+  user-select: none;
 }
 
 .orb-tg__gutter {
@@ -1090,6 +1119,7 @@
   }
 
   .orb-toolbar__nav,
+  .orb-toolbar__pip,
   .orb-segmented,
   .orb-toolbar [data-orb-part='todayButton'],
   .orb-event__resizer,

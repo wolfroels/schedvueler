@@ -16,6 +16,7 @@ import { parseTimeOfDay, useSchedulerContext } from '../composables/context'
 import type { AvailabilityShade } from '../composables/useAvailability'
 import type { SlotResolver } from '../composables/useSchedulerView'
 import { visibleHours } from '../composables/validate'
+import { ownerWindow } from '../composables/usePictureInPicture'
 import { useTimeline, type TimelineDay, type TimelineRow } from '../composables/useTimeline'
 import type { ResourceColumn, ResourceLabelSlotProps } from '../types'
 import EventItem from './EventItem.vue'
@@ -171,15 +172,16 @@ function onResizerDown(e: PointerEvent) {
   const startX = e.clientX
   const startWidth = corner.value?.offsetWidth ?? 0
   const rtl = isRtl(root.value!)
+  const win = ownerWindow(root.value)
   const onMove = (ev: PointerEvent) => {
     if (ev.pointerId !== e.pointerId) return
     const delta = rtl ? startX - ev.clientX : ev.clientX - startX
     setAreaWidth(startWidth + delta)
   }
   const cleanup = () => {
-    window.removeEventListener('pointermove', onMove)
-    window.removeEventListener('pointerup', onUp)
-    window.removeEventListener('pointercancel', onCancel)
+    win.removeEventListener('pointermove', onMove)
+    win.removeEventListener('pointerup', onUp)
+    win.removeEventListener('pointercancel', onCancel)
     resizingArea.value = false
     stopAreaResize = undefined
   }
@@ -195,9 +197,9 @@ function onResizerDown(e: PointerEvent) {
     cleanup()
   }
   stopAreaResize = cleanup
-  window.addEventListener('pointermove', onMove)
-  window.addEventListener('pointerup', onUp)
-  window.addEventListener('pointercancel', onCancel)
+  win.addEventListener('pointermove', onMove)
+  win.addEventListener('pointerup', onUp)
+  win.addEventListener('pointercancel', onCancel)
 }
 
 onBeforeUnmount(() => stopAreaResize?.())
@@ -209,6 +211,7 @@ const reorder = shallowRef<{ id: ResourceId; target: ResourceId; position: 'befo
 function onLabelPointerDown(e: PointerEvent, resource: ResourceNode<unknown>) {
   if (!props.settings.resourceReorder || (e.target as HTMLElement).closest('button')) return
   const startY = e.clientY
+  const win = ownerWindow(e.target as Node)
   let moved = false
   const onMove = (ev: PointerEvent) => {
     if (!moved && Math.abs(ev.clientY - startY) < 4) return
@@ -220,9 +223,9 @@ function onLabelPointerDown(e: PointerEvent, resource: ResourceNode<unknown>) {
     reorder.value = { id: resource.id, target: row.resource.id, position }
   }
   const finish = (commit: boolean) => {
-    window.removeEventListener('pointermove', onMove)
-    window.removeEventListener('pointerup', onUp)
-    window.removeEventListener('keydown', onKey, true)
+    win.removeEventListener('pointermove', onMove)
+    win.removeEventListener('pointerup', onUp)
+    win.removeEventListener('keydown', onKey, true)
     const r = reorder.value
     reorder.value = undefined
     if (!commit || !r || r.target === r.id) return
@@ -237,9 +240,9 @@ function onLabelPointerDown(e: PointerEvent, resource: ResourceNode<unknown>) {
   const onKey = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape') finish(false)
   }
-  window.addEventListener('pointermove', onMove)
-  window.addEventListener('pointerup', onUp)
-  window.addEventListener('keydown', onKey, true)
+  win.addEventListener('pointermove', onMove)
+  win.addEventListener('pointerup', onUp)
+  win.addEventListener('keydown', onKey, true)
 }
 
 // --- load per day -----------------------------------------------------------------------------------

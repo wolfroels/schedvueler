@@ -6,6 +6,8 @@ Notable changes per version. Versions follow [semver](https://semver.org); befor
 
 This file records notable changes so far.
 
+- New `picture-in-picture` option (default on where supported): a toolbar button pops the scheduler out into a Document Picture-in-Picture window. Set it to `false` to hide the button.
+
 Things that behave differently from before this list started:
 
 - All-day and month event bars are 1.5rem high, up from 1.375rem, so that they are large enough to tap.

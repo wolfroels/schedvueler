@@ -1,3 +1,4 @@
+import type { SchedulerPictureInPicture } from './usePictureInPicture'
 import {
   inject,
   type ComputedRef,
@@ -148,6 +149,8 @@ export interface SchedulerContext<T = unknown> {
 
   /** Drag, resize, selection and optimistic updates. */
   interaction: SchedulerInteraction
+  /** Popping the scheduler out into a picture-in-picture window. */
+  pictureInPicture: SchedulerPictureInPicture
   /**
    * Id of the hidden keyboard hint referenced by editable events.
    * @internal

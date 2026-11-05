@@ -65,6 +65,12 @@ export interface SchedulerMessages {
   discard: string
   /** Label of the resource search. */
   searchResources: string
+  /** Label of the button that opens the scheduler in a picture-in-picture window. */
+  popOut: string
+  /** Label of the button that brings it back into the page. */
+  popIn: string
+  /** Shown in the page while the scheduler is in a picture-in-picture window. */
+  poppedOut: string
 }
 
 export const defaultMessages: SchedulerMessages = {
@@ -94,6 +100,9 @@ export const defaultMessages: SchedulerMessages = {
   apply: 'Apply',
   discard: 'Discard',
   searchResources: 'Search resources',
+  popOut: 'Open in picture-in-picture',
+  popIn: 'Back to page',
+  poppedOut: 'The scheduler is open in a picture-in-picture window.',
 }
 
 /** Extra attributes for an event or a cell; merged onto the element the scheduler renders. */
@@ -117,6 +126,8 @@ export type SchedulerPart =
   | 'title'
   | 'viewSwitcher'
   | 'viewButton'
+  | 'pipButton'
+  | 'pipPlaceholder'
   | 'event'
   | 'eventTitle'
   | 'eventTime'
@@ -380,6 +391,11 @@ export interface SchedulerOptions<T> {
   maxViewButtons?: number
   /** The title opens a date picker. */
   titleDatePicker?: boolean
+  /**
+   * Offer a toolbar button that pops the scheduler out into an always-on-top window (Document
+   * Picture-in-Picture; Chromium browsers). Set to false to hide it. Default true.
+   */
+  pictureInPicture?: boolean
   /** Shows the `loading` slot (or a built-in message) over the view. */
   loading?: boolean
   /** Shows the `error` slot (or this message) over the view. */
@@ -899,6 +915,12 @@ export interface ToolbarSlotProps {
   next(): void
   today(): void
   setView(name: string): void
+  /** Whether picture-in-picture can be used here. */
+  pictureInPicture: boolean
+  /** Whether the scheduler is in a picture-in-picture window now. */
+  poppedOut: boolean
+  /** Pops the scheduler out, or brings it back. */
+  togglePictureInPicture(): void
 }
 
 export interface DayHeaderSlotProps {

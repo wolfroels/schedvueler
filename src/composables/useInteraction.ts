@@ -1,3 +1,4 @@
+import { ownerWindow } from './usePictureInPicture'
 import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue'
 import {
   Temporal,
@@ -195,6 +196,8 @@ const DRAG_THRESHOLD = 4
 const EDGE = 48
 
 export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInteraction {
+  /** The window the scheduler is in, which is the picture-in-picture one while popped out. */
+  const host = () => ownerWindow(ctx.rootEl.value)
   const state = shallowRef<DragState | null>(null)
   const committedSelection = shallowRef<Selection | null>(null)
   const pending = shallowRef(new Map<string, PendingChange>())
@@ -434,6 +437,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
   }
 
   function startMarquee(e: PointerEvent) {
+    const win = host()
     const x0 = e.clientX
     const y0 = e.clientY
     const before = e.ctrlKey || e.metaKey ? ctx.selectedEvents.value : []
@@ -453,16 +457,16 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       setSelected([...new Set([...before, ...inside])])
     }
     const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
+      win.removeEventListener('pointermove', onMove)
+      win.removeEventListener('pointerup', onUp)
       if (!marquee.value) return
       marquee.value = null
       const swallow = (click: Event) => click.stopPropagation()
-      window.addEventListener('click', swallow, { capture: true, once: true })
-      setTimeout(() => window.removeEventListener('click', swallow, true), 0)
+      win.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => win.removeEventListener('click', swallow, true), 0)
     }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    win.addEventListener('pointermove', onMove)
+    win.addEventListener('pointerup', onUp)
   }
 
   // --- moving without dragging --------------------------------------------------------------------
@@ -522,7 +526,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
   function clipboardTargets(): EventOccurrence<unknown>[] {
     const selected = ctx.selectedEvents.value
     if (selected.length) return ctx.occurrences.value.filter((o) => selected.includes(o.key))
-    const key = (document.activeElement as HTMLElement | null)?.dataset?.orbKey
+    const key = (host().document.activeElement as HTMLElement | null)?.dataset?.orbKey
     return ctx.occurrences.value.filter((o) => o.key === key)
   }
 
@@ -878,6 +882,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     originDate?: Temporal.PlainDate,
   ) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    const win = host()
     const others = occ && kind !== 'select' ? groupOf(occ) : []
     let leaveTarget: SchedulerInteraction | null = null
     const leaveTemplate = (): ExternalEventTemplate => ({
@@ -914,12 +919,12 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       endGesture = undefined
       clearTimeout(longPress)
       cancelAnimationFrame(frame)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onCancel)
-      window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('touchmove', blockScroll)
-      document.documentElement.classList.remove('orb-dragging')
+      win.removeEventListener('pointermove', onMove)
+      win.removeEventListener('pointerup', onUp)
+      win.removeEventListener('pointercancel', onCancel)
+      win.removeEventListener('keydown', onKey, true)
+      win.removeEventListener('touchmove', blockScroll)
+      win.document.documentElement.classList.remove('orb-dragging')
     }
 
     const activate = (nativeEvent: PointerEvent) => {
@@ -938,7 +943,7 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
         valid: true,
         reason: null,
       }
-      document.documentElement.classList.add('orb-dragging')
+      win.document.documentElement.classList.add('orb-dragging')
       if (touch) navigator.vibrate?.(10)
       update(lastX, lastY)
       autoScroll()
@@ -1039,8 +1044,8 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
         click.stopPropagation()
         click.preventDefault()
       }
-      window.addEventListener('click', swallow, { capture: true, once: true })
-      setTimeout(() => window.removeEventListener('click', swallow, true), 0)
+      win.addEventListener('click', swallow, { capture: true, once: true })
+      setTimeout(() => win.removeEventListener('click', swallow, true), 0)
       finish(ev)
     }
 
@@ -1120,11 +1125,11 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
       cleanup()
       if (active) abort('escape')
     }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onCancel)
-    window.addEventListener('keydown', onKey, true)
-    window.addEventListener('touchmove', blockScroll, { passive: false })
+    win.addEventListener('pointermove', onMove)
+    win.addEventListener('pointerup', onUp)
+    win.addEventListener('pointercancel', onCancel)
+    win.addEventListener('keydown', onKey, true)
+    win.addEventListener('touchmove', blockScroll, { passive: false })
     if (touch) longPress = setTimeout(() => activate(e), raw().longPressDelay ?? 400)
   }
 

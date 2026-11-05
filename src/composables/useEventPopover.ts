@@ -1,3 +1,4 @@
+import { ownerWindow } from './usePictureInPicture'
 import {
   computed,
   getCurrentScope,
@@ -30,7 +31,7 @@ export function useEventPopover<D = unknown>(options: AnchorOptions = {}) {
     position.value = anchorPosition(
       anchor.value.getBoundingClientRect(),
       { width: element.value.offsetWidth, height: element.value.offsetHeight },
-      { width: window.innerWidth, height: window.innerHeight },
+      { width: (win ?? window).innerWidth, height: (win ?? window).innerHeight },
       options,
     )
   }
@@ -52,19 +53,24 @@ export function useEventPopover<D = unknown>(options: AnchorOptions = {}) {
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') close()
   }
+  // The window the anchor is in, which is the picture-in-picture one while popped out.
+  let win: (Window & typeof globalThis) | undefined
   function removeListeners() {
-    document.removeEventListener('pointerdown', onDocumentPointerDown, true)
-    document.removeEventListener('keydown', onKey)
-    window.removeEventListener('resize', update)
-    window.removeEventListener('scroll', update, true)
+    if (!win) return
+    win.document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+    win.document.removeEventListener('keydown', onKey)
+    win.removeEventListener('resize', update)
+    win.removeEventListener('scroll', update, true)
+    win = undefined
   }
 
   function open(target: HTMLElement, value?: D) {
     if (!anchor.value) {
-      document.addEventListener('pointerdown', onDocumentPointerDown, true)
-      document.addEventListener('keydown', onKey)
-      window.addEventListener('resize', update)
-      window.addEventListener('scroll', update, true)
+      win = ownerWindow(target)
+      win.document.addEventListener('pointerdown', onDocumentPointerDown, true)
+      win.document.addEventListener('keydown', onKey)
+      win.addEventListener('resize', update)
+      win.addEventListener('scroll', update, true)
     }
     anchor.value = target
     data.value = value

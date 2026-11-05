@@ -46,6 +46,7 @@ import {
 import { registerDropTarget } from './externalDrag'
 import { createAvailability, type SchedulerAvailability } from './useAvailability'
 import { createInteraction, type SchedulerInteraction } from './useInteraction'
+import { usePictureInPicture, type SchedulerPictureInPicture } from './usePictureInPicture'
 import { trackSlotNames } from './useSchedulerView'
 import { useSchedulerStorage } from './useSchedulerStorage'
 import {
@@ -560,6 +561,7 @@ export function useScheduler<T>(
     slots,
     slotsVersion,
     interaction: undefined as unknown as SchedulerInteraction,
+    pictureInPicture: undefined as unknown as SchedulerPictureInPicture,
     hintId: `${useId() ?? 'orb'}-hint`,
     announcement,
     announce(message) {
@@ -571,6 +573,11 @@ export function useScheduler<T>(
   // Created after the context object because they read options and emit through it.
   ctx.availability = createAvailability(ctx)
   ctx.interaction = createInteraction(ctx as SchedulerContext<unknown>)
+  ctx.pictureInPicture = usePictureInPicture(
+    () => raw.value.pictureInPicture !== false,
+    () => ctx.rootEl.value,
+    () => title.value,
+  )
   // Lets events dragged in from outside (v-orb-draggable) find this scheduler.
   const unregisterDropTarget = registerDropTarget(ctx.interaction)
   if (getCurrentScope()) {

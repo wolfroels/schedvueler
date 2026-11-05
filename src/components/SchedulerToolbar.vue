@@ -20,6 +20,10 @@ const limit = computed(() => ctx.options.value.raw.maxViewButtons ?? Infinity)
 const buttons = computed(() => toolbar.value.views.slice(0, limit.value))
 const overflow = computed(() => toolbar.value.views.slice(limit.value))
 
+const pipLabel = computed(() =>
+  toolbar.value.poppedOut ? ctx.options.value.messages.popIn : ctx.options.value.messages.popOut,
+)
+
 const picker = ref<HTMLInputElement>()
 function openPicker() {
   const input = picker.value
@@ -160,6 +164,25 @@ function onPick(e: Event) {
             </select>
           </div>
         </RenderSlot>
+        <button
+          v-if="toolbar.pictureInPicture"
+          type="button"
+          class="orb-button orb-button--icon orb-toolbar__pip"
+          v-bind="ctx.part('pipButton')"
+          :aria-label="pipLabel"
+          :title="pipLabel"
+          :aria-pressed="toolbar.poppedOut"
+          @click="toolbar.togglePictureInPicture"
+        >
+          <svg v-if="toolbar.poppedOut" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M15 9l-5 5M10 10v4h4" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <rect x="12" y="12" width="6" height="5" rx="1" />
+          </svg>
+        </button>
       </RenderSlot>
     </div>
   </div>

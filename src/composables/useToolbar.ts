@@ -16,5 +16,8 @@ export function useToolbar(ctx: SchedulerContext<unknown>): ComputedRef<ToolbarS
     next: ctx.next,
     today: ctx.goToday,
     setView: ctx.setView,
+    pictureInPicture: ctx.pictureInPicture.available.value,
+    poppedOut: !!ctx.pictureInPicture.window.value,
+    togglePictureInPicture: () => void ctx.pictureInPicture.toggle(),
   }))
 }

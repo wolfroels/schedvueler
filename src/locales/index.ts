@@ -35,6 +35,9 @@ function pack(words: {
   loading: string
   error: string
   searchResources: string
+  popOut: string
+  popIn: string
+  poppedOut: string
   units: Units
   every: (unit: string) => string
   everyN: (n: number, unit: string) => string
@@ -65,6 +68,9 @@ function pack(words: {
       loading: words.loading,
       error: words.error,
       searchResources: words.searchResources,
+      popOut: words.popOut,
+      popIn: words.popIn,
+      poppedOut: words.poppedOut,
       moveArmed: words.moveArmed,
       conflict: words.conflict,
       eventStack: words.eventStack,
@@ -116,6 +122,9 @@ export const nl = pack({
   loading: 'Laden…',
   error: 'Er ging iets mis',
   searchResources: 'Middelen zoeken',
+  popOut: 'Openen in zwevend venster',
+  popIn: 'Terug naar pagina',
+  poppedOut: 'De planner is geopend in een zwevend venster.',
   moveArmed: (title) => `${title} opgepakt. Kies waar het naartoe gaat, of druk op Escape.`,
   conflict: 'Overlapt met een andere afspraak',
   eventStack: (n) => (n === 1 ? '1 afspraak' : `${n} afspraken`),
@@ -171,6 +180,9 @@ export const fr = pack({
   loading: 'Chargement…',
   error: "Une erreur s'est produite",
   searchResources: 'Rechercher des ressources',
+  popOut: 'Ouvrir en mode incrustation',
+  popIn: 'Revenir à la page',
+  poppedOut: 'Le planificateur est ouvert dans une fenêtre en incrustation.',
   moveArmed: (title) => `${title} sélectionné. Choisissez sa destination, ou appuyez sur Échap.`,
   conflict: 'Chevauche un autre événement',
   eventStack: (n) => (n === 1 ? '1 événement' : `${n} événements`),
@@ -228,6 +240,9 @@ export const de = pack({
   loading: 'Wird geladen…',
   error: 'Etwas ist schiefgegangen',
   searchResources: 'Ressourcen suchen',
+  popOut: 'Im Bild-im-Bild-Fenster öffnen',
+  popIn: 'Zurück zur Seite',
+  poppedOut: 'Der Planer ist in einem Bild-im-Bild-Fenster geöffnet.',
   moveArmed: (title) => `${title} aufgenommen. Wählen Sie das Ziel oder drücken Sie Esc.`,
   conflict: 'Überschneidet sich mit einem anderen Termin',
   eventStack: (n) => (n === 1 ? '1 Termin' : `${n} Termine`),
@@ -291,6 +306,9 @@ export const es = pack({
   loading: 'Cargando…',
   error: 'Algo salió mal',
   searchResources: 'Buscar recursos',
+  popOut: 'Abrir en imagen en imagen',
+  popIn: 'Volver a la página',
+  poppedOut: 'El calendario está abierto en una ventana flotante.',
   moveArmed: (title) => `${title} seleccionado. Elige el destino o pulsa Esc.`,
   conflict: 'Se solapa con otro evento',
   eventStack: (n) => (n === 1 ? '1 evento' : `${n} eventos`),
