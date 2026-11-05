@@ -7,6 +7,7 @@ Notable changes per version. Versions follow [semver](https://semver.org); befor
 This file records notable changes so far.
 
 - New `picture-in-picture` option (default on where supported): a toolbar button pops the scheduler out into a Document Picture-in-Picture window. Set it to `false` to hide the button.
+- Fixed: on a timeline, clicking a slot or drag-selecting now snaps from `dayStartTime` instead of midnight. With a slot size that does not divide the day start (420-minute half days from 06:00), a click used to give 06:00-07:00 or 07:00-14:00 instead of 06:00-13:00 or 13:00-20:00.
 
 Things that behave differently from before this list started:
 
