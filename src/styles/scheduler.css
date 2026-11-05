@@ -2827,10 +2827,20 @@
   font-weight: 500;
 }
 
+.orb-tl__time-head {
+  display: flex;
+  flex-direction: column;
+}
+
 .orb-tl__days-row {
-  height: 100%;
   display: grid;
   grid-template-columns: repeat(var(--orb-tl-days), minmax(0, 1fr));
+}
+
+/* With no slot row under them, the day headings fill the head down to its border. A fixed
+   height: 100% here would push the slot row out of the sticky head, over the first lane. */
+.orb-tl__days-row:last-child {
+  flex: 1 0 auto;
 }
 
 .orb-tl__slots-row {

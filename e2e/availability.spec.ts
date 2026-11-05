@@ -168,6 +168,8 @@ test('days can run past midnight', async ({ page }) => {
   await expect(night).toBeVisible()
   const column = night.locator('xpath=ancestor::*[@data-orb-part="column"]')
   await expect(column.locator('[data-cell="1-0"]')).toHaveCount(1)
+  // Away from the scroller's bottom edge, where dragging would scroll the grid along.
+  await cell(page, 1, 15).evaluate((el) => el.scrollIntoView({ block: 'center' }))
   await drag(page, cell(page, 1, 14), cell(page, 1, 16))
   expect((await logged(page)).join()).toContain('event-drop Night 2026-06-17T02:00:00')
 })
