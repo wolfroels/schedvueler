@@ -32,6 +32,12 @@ Available presets are `default`, `modern`, `glassmorphism`, `neumorphic`, `clean
 The default keeps the original appearance. Presets are opt-in, work with `theme="light"`,
 `"dark"`, or `"auto"`, and still accept explicit `--orb-*` overrides.
 
+Presets keep the reading surface (`--orb-color-bg`: grid cells, headers, popovers, and the base
+event fills are mixed into) near white or a neutral dark, and put their tint in the frame around
+it, `--orb-color-canvas` (the toolbar area and root background). `--orb-color-canvas` defaults to
+`--orb-color-bg`, so the default appearance is unchanged; set it to tint the frame without
+muddying event colors.
+
 <SchedulerDemo view="week" :height="440" :options="{ density: 'compact', style: { '--orb-color-accent': '#0f766e' } }" />
 
 ### PrimeUIX token bridge

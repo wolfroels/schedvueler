@@ -15,7 +15,10 @@
   --orb-font-weight-strong: 600;
 
   /* colors */
+  /* --orb-color-bg is the reading surface (grid, headers, popovers, event fill base);
+     --orb-color-canvas is the frame around it (toolbar area, root background). */
   --orb-color-bg: var(--orb-primeuix-bg, #ffffff);
+  --orb-color-canvas: var(--orb-color-bg);
   --orb-color-surface: var(--orb-primeuix-surface, #f8fafc);
   --orb-color-text: var(--orb-primeuix-text, #0f172a);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #64748b);
@@ -50,6 +53,8 @@
   --orb-event-past-bg-strength: 9%;
   --orb-event-text-strength: 40%;
   --orb-event-text-base: var(--orb-color-text);
+  /* what each event colour is mixed into; defaults to the reading surface */
+  --orb-event-bg-base: var(--orb-color-bg);
   --orb-event-border-width: 3px;
   --orb-event-radius: var(--orb-primeuix-radius, 6px);
   --orb-event-padding: 2px 6px;
@@ -91,7 +96,7 @@
   height: 100%;
   min-height: 0;
   color: var(--orb-color-text);
-  background: var(--orb-color-bg);
+  background: var(--orb-color-canvas);
   font-family: var(--orb-font-family);
   font-size: var(--orb-font-size);
   line-height: 1.35;
@@ -144,13 +149,22 @@
   }
 }
 
+/*
+ * Presets. Each one keeps the reading surface (--orb-color-bg: grid cells, sticky headers, popovers,
+ * and the base every event fill is mixed into) close to white or a neutral dark, and puts the
+ * preset's tint in the frame around it (--orb-color-canvas) and in secondary surfaces
+ * (--orb-color-surface). A tinted bg muddies every event color and stacks with today, weekend and
+ * closed shading, so the tint stays out of the grid.
+ */
+
 .schedvueler[data-preset='modern'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #f4f7fb);
-  --orb-color-surface: var(--orb-primeuix-surface, #ffffff);
+  --orb-color-canvas: var(--orb-primeuix-bg, #f4f7fb);
+  --orb-color-bg: var(--orb-primeuix-bg, #ffffff);
+  --orb-color-surface: var(--orb-primeuix-surface, #eef2f7);
   --orb-color-text: var(--orb-primeuix-text, #172b4d);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #607087);
-  --orb-color-border: var(--orb-primeuix-border, #dce5f0);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #e8eef5);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #5a6a80);
+  --orb-color-border: var(--orb-primeuix-border, #dfe6ee);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #edf1f6);
   --orb-color-accent: var(--orb-primeuix-accent, #1769aa);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: var(--orb-primeuix-radius, 6px);
@@ -160,44 +174,61 @@
 
 .schedvueler[data-preset='glass'],
 .schedvueler[data-preset='glassmorphism'] {
-  --orb-color-bg: var(--orb-primeuix-bg, rgb(238 246 249 / 0.68));
-  --orb-color-surface: var(--orb-primeuix-surface, rgb(255 255 255 / 0.62));
-  --orb-color-text: var(--orb-primeuix-text, #183044);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #5b7182);
-  --orb-color-border: var(--orb-primeuix-border, rgb(255 255 255 / 0.76));
-  --orb-color-border-subtle: var(--orb-primeuix-border, rgb(112 144 160 / 0.2));
+  /* A calm, neutral surface; the glass is on the items: events, controls, sticky headers and
+     popovers are frosted, translucent layers with a specular top edge and soft depth. */
+  --orb-color-canvas: var(--orb-primeuix-bg, #f3f6f9);
+  --orb-color-bg: var(--orb-primeuix-bg, #fbfcfd);
+  --orb-color-surface: var(--orb-primeuix-surface, rgb(255 255 255 / 0.32));
+  --orb-color-text: var(--orb-primeuix-text, #102434);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #52677a);
+  --orb-color-border: var(--orb-primeuix-border, #e3e9ef);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #eef2f6);
   --orb-color-accent: var(--orb-primeuix-accent, #0e7490);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: var(--orb-primeuix-radius, 16px);
   --orb-event-radius: var(--orb-primeuix-radius, 10px);
-  --orb-shadow-popover: var(--orb-primeuix-shadow, 0 18px 48px -16px rgb(15 45 63 / 0.32));
+  --orb-event-bg-base: rgb(255 255 255 / 0.12);
+  --orb-event-bg-strength: 20%;
+  --orb-event-bg-hover-strength: 28%;
+  --orb-event-past-bg-strength: 10%;
+  --orb-shadow-popover: var(--orb-primeuix-shadow, 0 24px 56px -20px rgb(15 35 55 / 0.3));
+  --orb-glass-frost: rgb(255 255 255 / 0.4);
+  --orb-glass-edge: rgb(255 255 255 / 0.85);
+  --orb-glass-shine: rgb(255 255 255 / 0.95);
+  --orb-glass-depth: rgb(15 35 55 / 0.12);
+  --orb-glass-blur: blur(20px) saturate(1.8);
 }
 
 .schedvueler[data-preset='neumorphic'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #e8edf3);
-  --orb-color-surface: var(--orb-primeuix-surface, #e8edf3);
-  --orb-color-text: var(--orb-primeuix-text, #354357);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #68788c);
-  --orb-color-border: var(--orb-primeuix-border, #d7dfe9);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #d7dfe9);
+  /* Soft UI needs one plane colour for the extruded controls; the grid is a slightly lighter
+     raised panel on it. */
+  --orb-color-canvas: var(--orb-primeuix-bg, #e7ecf2);
+  --orb-color-bg: var(--orb-primeuix-bg, #f6f8fb);
+  --orb-color-surface: var(--orb-primeuix-surface, #e7ecf2);
+  --orb-color-text: var(--orb-primeuix-text, #334155);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #5f6f83);
+  --orb-color-border: var(--orb-primeuix-border, #dce3eb);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #e6ebf1);
   --orb-color-accent: var(--orb-primeuix-accent, #167c72);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: var(--orb-primeuix-radius, 14px);
   --orb-event-radius: var(--orb-primeuix-radius, 9px);
+  --orb-neu-dark: #c8d0da;
+  --orb-neu-light: #ffffff;
   --orb-shadow-popover: var(
     --orb-primeuix-shadow,
-    14px 14px 28px #c5ccd5,
-    -14px -14px 28px #ffffff
+    14px 14px 28px var(--orb-neu-dark),
+    -14px -14px 28px var(--orb-neu-light)
   );
 }
 
 .schedvueler[data-preset='clean'] {
   --orb-color-bg: var(--orb-primeuix-bg, #ffffff);
-  --orb-color-surface: var(--orb-primeuix-surface, #f7f9fa);
+  --orb-color-surface: var(--orb-primeuix-surface, #f6f8f9);
   --orb-color-text: var(--orb-primeuix-text, #263746);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #61717d);
-  --orb-color-border: var(--orb-primeuix-border, #dbe3e7);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #e8edef);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #5d6d79);
+  --orb-color-border: var(--orb-primeuix-border, #e1e7ea);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #eef1f3);
   --orb-color-accent: var(--orb-primeuix-accent, #28715f);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: var(--orb-primeuix-radius, 4px);
@@ -206,304 +237,421 @@
 }
 
 .schedvueler[data-preset='bento'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #f1f5f9);
-  --orb-color-surface: var(--orb-primeuix-surface, #ffffff);
+  /* Tiles: white cards (toolbar, grid) on a soft grey page. */
+  --orb-color-canvas: var(--orb-primeuix-bg, #f1f4f8);
+  --orb-color-bg: var(--orb-primeuix-bg, #ffffff);
+  --orb-color-surface: var(--orb-primeuix-surface, #f1f4f8);
   --orb-color-text: var(--orb-primeuix-text, #1e293b);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #64748b);
-  --orb-color-border: var(--orb-primeuix-border, #dbe4ee);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #e8eef5);
+  --orb-color-border: var(--orb-primeuix-border, #e2e8f0);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #eef2f6);
   --orb-color-accent: var(--orb-primeuix-accent, #0f766e);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: var(--orb-primeuix-radius, 16px);
   --orb-event-radius: var(--orb-primeuix-radius, 10px);
   --orb-toolbar-gap: 1rem;
   --orb-shadow-popover: var(--orb-primeuix-shadow, 0 16px 36px -18px rgb(15 23 42 / 0.3));
+  --orb-bento-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -16px rgb(15 23 42 / 0.18);
 }
 
 .schedvueler[data-preset='neo-brutalism'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #fffbea);
-  --orb-color-surface: var(--orb-primeuix-surface, #fffdf5);
+  /* Heavy ink frames, light inner grid lines: the frames carry the style, the grid stays
+     readable. */
+  --orb-color-canvas: var(--orb-primeuix-bg, #fff6d9);
+  --orb-color-bg: var(--orb-primeuix-bg, #ffffff);
+  --orb-color-surface: var(--orb-primeuix-surface, #fff1c2);
   --orb-color-text: var(--orb-primeuix-text, #171717);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #424242);
-  --orb-color-border: var(--orb-primeuix-border, #171717);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #171717);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #404040);
+  --orb-color-border: var(--orb-primeuix-border, #b5b5b5);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #e3e3e3);
   --orb-color-accent: var(--orb-primeuix-accent, #ffca3a);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #171717);
+  --orb-color-today: color-mix(in srgb, var(--orb-color-accent) 14%, transparent);
+  --orb-color-other-month: #f7f5ef;
+  --orb-brutal-ink: #171717;
   --orb-radius: 0;
   --orb-event-radius: 0;
-  --orb-shadow-popover: var(--orb-primeuix-shadow, 5px 5px 0 #171717);
+  --orb-shadow-popover: var(--orb-primeuix-shadow, 5px 5px 0 var(--orb-brutal-ink));
 }
 
 .schedvueler[data-preset='cyber-y2k'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #eefaff);
-  --orb-color-surface: var(--orb-primeuix-surface, #f9fdff);
+  --orb-color-canvas: var(--orb-primeuix-bg, #ebf8fd);
+  --orb-color-bg: var(--orb-primeuix-bg, #fdfeff);
+  --orb-color-surface: var(--orb-primeuix-surface, #eaf8fc);
   --orb-color-text: var(--orb-primeuix-text, #13243b);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #49627c);
-  --orb-color-border: var(--orb-primeuix-border, #72dff0);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #b5eef6);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #46607a);
+  --orb-color-border: var(--orb-primeuix-border, #a9e8f3);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #daf4f9);
   --orb-color-accent: var(--orb-primeuix-accent, #df3295);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #ffffff);
   --orb-radius: 4px;
   --orb-event-radius: 4px;
   --orb-font-family: 'Trebuchet MS', 'Lucida Sans Unicode', sans-serif;
   --orb-shadow-popover: var(--orb-primeuix-shadow, 0 0 24px rgb(14 165 233 / 0.22));
+  --orb-cyber-ring: #5fd6ea;
 }
 
 .schedvueler[data-theme='dark'][data-preset='modern'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #101923);
-  --orb-color-surface: var(--orb-primeuix-surface, #182431);
+  --orb-color-canvas: var(--orb-primeuix-bg, #0f1821);
+  --orb-color-bg: var(--orb-primeuix-bg, #131e29);
+  --orb-color-surface: var(--orb-primeuix-surface, #1a2735);
   --orb-color-text: var(--orb-primeuix-text, #e7eef5);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #a5b4c4);
-  --orb-color-border: var(--orb-primeuix-border, #2b3b4a);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #22313e);
+  --orb-color-border: var(--orb-primeuix-border, #273746);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #1d2b38);
   --orb-color-accent: var(--orb-primeuix-accent, #5ab1e5);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #10212b);
 }
 
 .schedvueler[data-theme='dark'][data-preset='glass'],
 .schedvueler[data-theme='dark'][data-preset='glassmorphism'] {
-  --orb-color-bg: var(--orb-primeuix-bg, rgb(12 27 39 / 0.72));
-  --orb-color-surface: var(--orb-primeuix-surface, rgb(26 48 63 / 0.68));
-  --orb-color-text: var(--orb-primeuix-text, #e3f0f5);
-  --orb-color-text-muted: var(--orb-primeuix-text-muted, #a1bac7);
-  --orb-color-border: var(--orb-primeuix-border, rgb(177 218 233 / 0.22));
-  --orb-color-border-subtle: var(--orb-primeuix-border, rgb(177 218 233 / 0.13));
+  --orb-color-canvas: var(--orb-primeuix-bg, #0e1620);
+  --orb-color-bg: var(--orb-primeuix-bg, #121c27);
+  --orb-color-surface: var(--orb-primeuix-surface, rgb(255 255 255 / 0.045));
+  --orb-color-text: var(--orb-primeuix-text, #e6f0f5);
+  --orb-color-text-muted: var(--orb-primeuix-text-muted, #a6b8c6);
+  --orb-color-border: var(--orb-primeuix-border, #213040);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #1a2634);
   --orb-color-accent: var(--orb-primeuix-accent, #67d2d0);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #092b31);
+  --orb-event-bg-base: rgb(18 28 39 / 0.12);
+  --orb-glass-frost: rgb(22 32 44 / 0.4);
+  --orb-glass-edge: rgb(255 255 255 / 0.1);
+  --orb-glass-shine: rgb(255 255 255 / 0.16);
+  --orb-glass-depth: rgb(0 0 0 / 0.4);
 }
 
 .schedvueler[data-theme='dark'][data-preset='neumorphic'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #202a36);
-  --orb-color-surface: var(--orb-primeuix-surface, #202a36);
+  --orb-color-canvas: var(--orb-primeuix-bg, #1f2833);
+  --orb-color-bg: var(--orb-primeuix-bg, #232d39);
+  --orb-color-surface: var(--orb-primeuix-surface, #1f2833);
   --orb-color-text: var(--orb-primeuix-text, #e1e8f0);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #a2b0c0);
-  --orb-color-border: var(--orb-primeuix-border, #293644);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #293644);
+  --orb-color-border: var(--orb-primeuix-border, #2c3846);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #28333f);
   --orb-color-accent: var(--orb-primeuix-accent, #65c9b8);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #102622);
-  --orb-shadow-popover: var(
-    --orb-primeuix-shadow,
-    14px 14px 28px #18212b,
-    -14px -14px 28px #283542
-  );
+  --orb-neu-dark: #161d26;
+  --orb-neu-light: #2a3542;
 }
 
 .schedvueler[data-theme='dark'][data-preset='clean'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #17232c);
-  --orb-color-surface: var(--orb-primeuix-surface, #1d2b35);
+  --orb-color-bg: var(--orb-primeuix-bg, #16212a);
+  --orb-color-surface: var(--orb-primeuix-surface, #1c2932);
   --orb-color-text: var(--orb-primeuix-text, #e5edf1);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #a1b0b9);
-  --orb-color-border: var(--orb-primeuix-border, #33434d);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #293943);
+  --orb-color-border: var(--orb-primeuix-border, #2d3c46);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #22303a);
   --orb-color-accent: var(--orb-primeuix-accent, #76c6aa);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #14251f);
 }
 
 .schedvueler[data-theme='dark'][data-preset='bento'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #111b27);
-  --orb-color-surface: var(--orb-primeuix-surface, #1a2836);
+  --orb-color-canvas: var(--orb-primeuix-bg, #0d1520);
+  --orb-color-bg: var(--orb-primeuix-bg, #152130);
+  --orb-color-surface: var(--orb-primeuix-surface, #1c2a3a);
   --orb-color-text: var(--orb-primeuix-text, #e8f0f7);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #a5b4c3);
-  --orb-color-border: var(--orb-primeuix-border, #304152);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #253646);
+  --orb-color-border: var(--orb-primeuix-border, #263647);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #1e2d3c);
   --orb-color-accent: var(--orb-primeuix-accent, #5eead4);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #102522);
+  --orb-bento-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -16px rgb(0 0 0 / 0.6);
 }
 
 .schedvueler[data-theme='dark'][data-preset='neo-brutalism'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #171717);
-  --orb-color-surface: var(--orb-primeuix-surface, #242424);
+  --orb-color-canvas: var(--orb-primeuix-bg, #121212);
+  --orb-color-bg: var(--orb-primeuix-bg, #1c1c1c);
+  --orb-color-surface: var(--orb-primeuix-surface, #2a2a2a);
   --orb-color-text: var(--orb-primeuix-text, #ffffff);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #d4d4d4);
-  --orb-color-border: var(--orb-primeuix-border, #ffffff);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #ffffff);
+  --orb-color-border: var(--orb-primeuix-border, #575757);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #2f2f2f);
   --orb-color-accent: var(--orb-primeuix-accent, #ffdf4f);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #171717);
+  --orb-brutal-ink: #f5f5f5;
+  --orb-color-other-month: #232323;
   --orb-shadow-popover: var(--orb-primeuix-shadow, 5px 5px 0 #f43f9e);
 }
 
 .schedvueler[data-theme='dark'][data-preset='cyber-y2k'] {
-  --orb-color-bg: var(--orb-primeuix-bg, #071324);
-  --orb-color-surface: var(--orb-primeuix-surface, #0c1e35);
+  --orb-color-canvas: var(--orb-primeuix-bg, #06101f);
+  --orb-color-bg: var(--orb-primeuix-bg, #081628);
+  --orb-color-surface: var(--orb-primeuix-surface, #0d2038);
   --orb-color-text: var(--orb-primeuix-text, #d8f6ff);
   --orb-color-text-muted: var(--orb-primeuix-text-muted, #9ac5d8);
-  --orb-color-border: var(--orb-primeuix-border, #17618a);
-  --orb-color-border-subtle: var(--orb-primeuix-border, #123f61);
+  --orb-color-border: var(--orb-primeuix-border, #144b6c);
+  --orb-color-border-subtle: var(--orb-primeuix-border, #0f2d48);
   --orb-color-accent: var(--orb-primeuix-accent, #ff53c8);
   --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #240723);
   --orb-shadow-popover: var(--orb-primeuix-shadow, 0 0 28px rgb(34 211 238 / 0.24));
+  --orb-cyber-ring: #1a6f9c;
 }
 
 @media (prefers-color-scheme: dark) {
   .schedvueler[data-theme='auto'][data-preset='modern'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #101923);
-    --orb-color-surface: var(--orb-primeuix-surface, #182431);
+    --orb-color-canvas: var(--orb-primeuix-bg, #0f1821);
+    --orb-color-bg: var(--orb-primeuix-bg, #131e29);
+    --orb-color-surface: var(--orb-primeuix-surface, #1a2735);
     --orb-color-text: var(--orb-primeuix-text, #e7eef5);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #a5b4c4);
-    --orb-color-border: var(--orb-primeuix-border, #2b3b4a);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #22313e);
+    --orb-color-border: var(--orb-primeuix-border, #273746);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #1d2b38);
     --orb-color-accent: var(--orb-primeuix-accent, #5ab1e5);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #10212b);
   }
 
   .schedvueler[data-theme='auto'][data-preset='glass'],
   .schedvueler[data-theme='auto'][data-preset='glassmorphism'] {
-    --orb-color-bg: var(--orb-primeuix-bg, rgb(12 27 39 / 0.72));
-    --orb-color-surface: var(--orb-primeuix-surface, rgb(26 48 63 / 0.68));
-    --orb-color-text: var(--orb-primeuix-text, #e3f0f5);
-    --orb-color-text-muted: var(--orb-primeuix-text-muted, #a1bac7);
-    --orb-color-border: var(--orb-primeuix-border, rgb(177 218 233 / 0.22));
-    --orb-color-border-subtle: var(--orb-primeuix-border, rgb(177 218 233 / 0.13));
+    --orb-color-canvas: var(--orb-primeuix-bg, #0e1620);
+    --orb-color-bg: var(--orb-primeuix-bg, #121c27);
+    --orb-color-surface: var(--orb-primeuix-surface, rgb(255 255 255 / 0.045));
+    --orb-color-text: var(--orb-primeuix-text, #e6f0f5);
+    --orb-color-text-muted: var(--orb-primeuix-text-muted, #a6b8c6);
+    --orb-color-border: var(--orb-primeuix-border, #213040);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #1a2634);
     --orb-color-accent: var(--orb-primeuix-accent, #67d2d0);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #092b31);
+    --orb-event-bg-base: rgb(18 28 39 / 0.12);
+    --orb-glass-frost: rgb(22 32 44 / 0.4);
+    --orb-glass-edge: rgb(255 255 255 / 0.1);
+    --orb-glass-shine: rgb(255 255 255 / 0.16);
+    --orb-glass-depth: rgb(0 0 0 / 0.4);
   }
 
   .schedvueler[data-theme='auto'][data-preset='neumorphic'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #202a36);
-    --orb-color-surface: var(--orb-primeuix-surface, #202a36);
+    --orb-color-canvas: var(--orb-primeuix-bg, #1f2833);
+    --orb-color-bg: var(--orb-primeuix-bg, #232d39);
+    --orb-color-surface: var(--orb-primeuix-surface, #1f2833);
     --orb-color-text: var(--orb-primeuix-text, #e1e8f0);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #a2b0c0);
-    --orb-color-border: var(--orb-primeuix-border, #293644);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #293644);
+    --orb-color-border: var(--orb-primeuix-border, #2c3846);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #28333f);
     --orb-color-accent: var(--orb-primeuix-accent, #65c9b8);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #102622);
-    --orb-shadow-popover: var(
-      --orb-primeuix-shadow,
-      14px 14px 28px #18212b,
-      -14px -14px 28px #283542
-    );
+    --orb-neu-dark: #161d26;
+    --orb-neu-light: #2a3542;
   }
 
   .schedvueler[data-theme='auto'][data-preset='clean'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #17232c);
-    --orb-color-surface: var(--orb-primeuix-surface, #1d2b35);
+    --orb-color-bg: var(--orb-primeuix-bg, #16212a);
+    --orb-color-surface: var(--orb-primeuix-surface, #1c2932);
     --orb-color-text: var(--orb-primeuix-text, #e5edf1);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #a1b0b9);
-    --orb-color-border: var(--orb-primeuix-border, #33434d);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #293943);
+    --orb-color-border: var(--orb-primeuix-border, #2d3c46);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #22303a);
     --orb-color-accent: var(--orb-primeuix-accent, #76c6aa);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #14251f);
   }
 
   .schedvueler[data-theme='auto'][data-preset='bento'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #111b27);
-    --orb-color-surface: var(--orb-primeuix-surface, #1a2836);
+    --orb-color-canvas: var(--orb-primeuix-bg, #0d1520);
+    --orb-color-bg: var(--orb-primeuix-bg, #152130);
+    --orb-color-surface: var(--orb-primeuix-surface, #1c2a3a);
     --orb-color-text: var(--orb-primeuix-text, #e8f0f7);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #a5b4c3);
-    --orb-color-border: var(--orb-primeuix-border, #304152);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #253646);
+    --orb-color-border: var(--orb-primeuix-border, #263647);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #1e2d3c);
     --orb-color-accent: var(--orb-primeuix-accent, #5eead4);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #102522);
+    --orb-bento-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -16px rgb(0 0 0 / 0.6);
   }
 
   .schedvueler[data-theme='auto'][data-preset='neo-brutalism'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #171717);
-    --orb-color-surface: var(--orb-primeuix-surface, #242424);
+    --orb-color-canvas: var(--orb-primeuix-bg, #121212);
+    --orb-color-bg: var(--orb-primeuix-bg, #1c1c1c);
+    --orb-color-surface: var(--orb-primeuix-surface, #2a2a2a);
     --orb-color-text: var(--orb-primeuix-text, #ffffff);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #d4d4d4);
-    --orb-color-border: var(--orb-primeuix-border, #ffffff);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #ffffff);
+    --orb-color-border: var(--orb-primeuix-border, #575757);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #2f2f2f);
     --orb-color-accent: var(--orb-primeuix-accent, #ffdf4f);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #171717);
+    --orb-brutal-ink: #f5f5f5;
+    --orb-color-other-month: #232323;
     --orb-shadow-popover: var(--orb-primeuix-shadow, 5px 5px 0 #f43f9e);
   }
 
   .schedvueler[data-theme='auto'][data-preset='cyber-y2k'] {
-    --orb-color-bg: var(--orb-primeuix-bg, #071324);
-    --orb-color-surface: var(--orb-primeuix-surface, #0c1e35);
+    --orb-color-canvas: var(--orb-primeuix-bg, #06101f);
+    --orb-color-bg: var(--orb-primeuix-bg, #081628);
+    --orb-color-surface: var(--orb-primeuix-surface, #0d2038);
     --orb-color-text: var(--orb-primeuix-text, #d8f6ff);
     --orb-color-text-muted: var(--orb-primeuix-text-muted, #9ac5d8);
-    --orb-color-border: var(--orb-primeuix-border, #17618a);
-    --orb-color-border-subtle: var(--orb-primeuix-border, #123f61);
+    --orb-color-border: var(--orb-primeuix-border, #144b6c);
+    --orb-color-border-subtle: var(--orb-primeuix-border, #0f2d48);
     --orb-color-accent: var(--orb-primeuix-accent, #ff53c8);
     --orb-color-accent-contrast: var(--orb-primeuix-accent-contrast, #240723);
     --orb-shadow-popover: var(--orb-primeuix-shadow, 0 0 28px rgb(34 211 238 / 0.24));
-  }
-
-  .schedvueler[data-theme='auto'][data-preset='modern'],
-  .schedvueler[data-theme='auto'][data-preset='glass'],
-  .schedvueler[data-theme='auto'][data-preset='glassmorphism'],
-  .schedvueler[data-theme='auto'][data-preset='neumorphic'],
-  .schedvueler[data-theme='auto'][data-preset='clean'] {
-    color-scheme: dark;
+    --orb-cyber-ring: #1a6f9c;
   }
 }
 
-.schedvueler[data-preset='glass'],
-.schedvueler[data-preset='glassmorphism'] {
-  background-color: color-mix(in srgb, var(--orb-color-bg) 82%, transparent);
-  border: 1px solid var(--orb-color-border);
-  backdrop-filter: blur(16px) saturate(1.25);
-  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+/* Every view frame paints the reading surface on top of the preset canvas. */
+.orb-tg,
+.orb-month,
+.orb-agenda,
+.orb-tl {
+  background: var(--orb-color-bg);
 }
 
-.schedvueler[data-preset='glass'] .orb-button,
-.schedvueler[data-preset='glassmorphism'] .orb-button,
-.schedvueler[data-preset='glass'] .orb-segmented,
-.schedvueler[data-preset='glassmorphism'] .orb-segmented,
-.schedvueler[data-preset='glass'] .orb-draft-bar,
-.schedvueler[data-preset='glassmorphism'] .orb-draft-bar,
-.schedvueler[data-preset='glass'] .orb-undo-toast,
-.schedvueler[data-preset='glassmorphism'] .orb-undo-toast {
-  background-color: color-mix(in srgb, var(--orb-color-surface) 82%, transparent);
-  border-color: var(--orb-color-border);
-  backdrop-filter: blur(14px) saturate(1.25);
-  -webkit-backdrop-filter: blur(14px) saturate(1.25);
-}
-
-.schedvueler[data-preset='neumorphic'] .orb-button,
-.schedvueler[data-preset='neumorphic'] .orb-segmented,
-.schedvueler[data-preset='neumorphic'] .orb-draft-bar,
-.schedvueler[data-preset='neumorphic'] .orb-undo-toast {
-  border-color: transparent;
+/* ---- glass: frosted items on a calm surface ---- */
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  :is(.orb-button, .orb-segmented, .orb-draft-bar, .orb-undo-toast) {
+  border-color: var(--orb-glass-edge);
+  background-color: var(--orb-color-surface);
   box-shadow:
-    5px 5px 10px color-mix(in srgb, var(--orb-color-text) 14%, transparent),
-    -5px -5px 10px color-mix(in srgb, var(--orb-color-bg) 92%, white);
+    inset 0 1px 0 var(--orb-glass-shine),
+    0 1px 2px var(--orb-glass-depth),
+    0 8px 20px -12px var(--orb-glass-depth);
+  backdrop-filter: var(--orb-glass-blur);
+  -webkit-backdrop-filter: var(--orb-glass-blur);
+}
+
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  .orb-button:hover {
+  background-color: var(--orb-glass-frost);
+}
+
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  .orb-segmented__item.is-active {
+  background: var(--orb-glass-frost);
+  box-shadow:
+    inset 0 1px 0 var(--orb-glass-shine),
+    0 2px 8px -2px var(--orb-glass-depth);
+}
+
+/* Sticky headers and rails frost the rows scrolling beneath them. */
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  :is(.orb-tg__head, .orb-tg__gutter, .orb-tl__head, .orb-tl__label) {
+  background: var(--orb-glass-frost);
+  backdrop-filter: var(--orb-glass-blur);
+  -webkit-backdrop-filter: var(--orb-glass-blur);
+}
+
+/* These sit inside the frosted head, which already blurs for them. */
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  :is(.orb-tg__corner, .orb-tg__allday-label, .orb-tl__corner) {
+  background: transparent;
+}
+
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  .orb-tg__time-label
+  span {
+  background: transparent;
+}
+
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism']) .orb-popover {
+  border-color: var(--orb-glass-edge);
+  background: var(--orb-glass-frost);
+  box-shadow:
+    inset 0 1px 0 var(--orb-glass-shine),
+    var(--orb-shadow-popover);
+  backdrop-filter: var(--orb-glass-blur);
+  -webkit-backdrop-filter: var(--orb-glass-blur);
+}
+
+/* Events are tinted glass chips: they frost the grid lines behind them, catch a highlight on
+   the top edge and float on a soft shadow in their own colour. */
+:is(.schedvueler[data-preset='glass'], .schedvueler[data-preset='glassmorphism'])
+  :is(.orb-event--time, .orb-event--all-day, .orb-event--month, .orb-event--timeline) {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--orb-glass-shine) 70%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--orb-event-color) 18%, transparent),
+    0 6px 14px -10px color-mix(in srgb, var(--orb-event-color) 70%, transparent);
+  backdrop-filter: blur(1px) saturate(1.5);
+  -webkit-backdrop-filter: blur(1px) saturate(1.5);
+}
+
+.schedvueler[data-preset='neumorphic']
+  :is(.orb-button, .orb-segmented, .orb-draft-bar, .orb-undo-toast) {
+  border-color: transparent;
+  background: var(--orb-color-canvas);
+  box-shadow:
+    4px 4px 9px var(--orb-neu-dark),
+    -4px -4px 9px var(--orb-neu-light);
 }
 
 .schedvueler[data-preset='neumorphic'] .orb-segmented__item.is-active {
+  background: var(--orb-color-canvas);
   box-shadow:
-    inset 2px 2px 4px color-mix(in srgb, var(--orb-color-text) 14%, transparent),
-    inset -2px -2px 4px color-mix(in srgb, var(--orb-color-bg) 92%, white);
+    inset 2px 2px 4px var(--orb-neu-dark),
+    inset -2px -2px 4px var(--orb-neu-light);
+}
+
+.schedvueler[data-preset='neumorphic'] :is(.orb-tg, .orb-month, .orb-agenda, .orb-tl) {
+  border-color: transparent;
+  box-shadow:
+    6px 6px 14px var(--orb-neu-dark),
+    -6px -6px 14px var(--orb-neu-light);
 }
 
 .schedvueler[data-preset='bento'] .orb-toolbar {
   padding: 0.75rem;
   border: 1px solid var(--orb-color-border);
   border-radius: var(--orb-radius);
-  background: var(--orb-color-surface);
+  background: var(--orb-color-bg);
+  box-shadow: var(--orb-bento-shadow);
 }
 
-.schedvueler[data-preset='bento'] .orb-tg,
-.schedvueler[data-preset='bento'] .orb-multi-month,
-.schedvueler[data-preset='bento'] .orb-planner {
-  box-shadow: var(--orb-shadow-popover);
+.schedvueler[data-preset='bento'] :is(.orb-tg, .orb-month, .orb-agenda, .orb-tl) {
+  box-shadow: var(--orb-bento-shadow);
 }
 
-.schedvueler[data-preset='neo-brutalism'] .orb-button,
-.schedvueler[data-preset='neo-brutalism'] .orb-segmented,
-.schedvueler[data-preset='neo-brutalism'] .orb-draft-bar,
-.schedvueler[data-preset='neo-brutalism'] .orb-undo-toast,
-.schedvueler[data-preset='neo-brutalism'] .orb-tg {
-  border: 2px solid var(--orb-color-text);
+.schedvueler[data-preset='bento'] :is(.orb-multi-month, .orb-planner, .orb-year) {
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  background: var(--orb-color-bg);
+  box-shadow: var(--orb-bento-shadow);
+}
+
+.schedvueler[data-preset='bento'] .orb-year {
+  padding: 1rem;
+}
+
+.schedvueler[data-preset='neo-brutalism']
+  :is(
+    .orb-button,
+    .orb-segmented,
+    .orb-draft-bar,
+    .orb-undo-toast,
+    .orb-tg,
+    .orb-month,
+    .orb-agenda,
+    .orb-tl,
+    .orb-popover
+  ) {
+  border: 2px solid var(--orb-brutal-ink);
   border-radius: 0;
-  box-shadow: 4px 4px 0 var(--orb-color-text);
+  box-shadow: 4px 4px 0 var(--orb-brutal-ink);
+}
+
+.schedvueler[data-preset='neo-brutalism'] .orb-segmented__item.is-active {
+  background: var(--orb-color-accent);
+  color: var(--orb-color-accent-contrast);
+}
+
+/* A yellow accent is unreadable as text on white; today's weekday label uses ink instead. */
+.schedvueler[data-preset='neo-brutalism'] .orb-tg__day-header.is-today .orb-tg__weekday {
+  color: var(--orb-color-text);
 }
 
 .schedvueler[data-preset='neo-brutalism'] .orb-event--time,
 .schedvueler[data-preset='neo-brutalism'] .orb-event--all-day,
 .schedvueler[data-preset='neo-brutalism'] .orb-event--month,
 .schedvueler[data-preset='neo-brutalism'] .orb-event--timeline {
-  outline: 1px solid var(--orb-color-text);
+  outline: 1px solid var(--orb-brutal-ink);
   outline-offset: -1px;
 }
 
-.schedvueler[data-preset='cyber-y2k'] .orb-button,
-.schedvueler[data-preset='cyber-y2k'] .orb-segmented,
-.schedvueler[data-preset='cyber-y2k'] .orb-tg {
-  box-shadow:
-    0 0 0 1px var(--orb-color-border),
-    0 0 16px color-mix(in srgb, var(--orb-color-accent) 24%, transparent);
+.schedvueler[data-preset='cyber-y2k'] :is(.orb-button, .orb-segmented) {
+  border-color: var(--orb-cyber-ring);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--orb-color-accent) 16%, transparent);
+}
+
+.schedvueler[data-preset='cyber-y2k'] :is(.orb-tg, .orb-month, .orb-agenda, .orb-tl) {
+  border-color: var(--orb-cyber-ring);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--orb-cyber-ring) 30%, transparent);
 }
 
 .schedvueler[data-preset='cyber-y2k'] .orb-toolbar__title {
@@ -702,12 +850,12 @@
   --orb-event-bg: color-mix(
     in srgb,
     var(--orb-event-color) var(--orb-event-bg-strength),
-    var(--orb-color-bg)
+    var(--orb-event-bg-base)
   );
   --orb-event-bg-hover: color-mix(
     in srgb,
     var(--orb-event-color) var(--orb-event-bg-hover-strength),
-    var(--orb-color-bg)
+    var(--orb-event-bg-base)
   );
   --orb-event-text: color-mix(
     in srgb,
@@ -753,7 +901,7 @@
   --orb-event-bg: color-mix(
     in srgb,
     var(--orb-event-color) var(--orb-event-past-bg-strength),
-    var(--orb-color-bg)
+    var(--orb-event-bg-base)
   );
   opacity: var(--orb-event-past-opacity);
 }
