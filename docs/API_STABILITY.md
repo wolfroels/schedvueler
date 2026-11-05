@@ -9,7 +9,7 @@ Until 1.0, a minor version can change anything; the [changelog](https://github.c
 - `SchedulerToolbar`, `SchedulerMiniCalendar`, `SchedulerLegend`, `SchedulerUndoToast`, `SchedulerQuickAdd`.
 - `SchedulerPart` names and `data-orb-part`, and CSS variables named `--orb-*` in the docs.
 - Composables whose name starts with `use`, and `vOrbDraggable`, `startExternalDrag`.
-- Everything in `orb-scheduler/core` and `orb-scheduler/locales`, except what is marked below.
+- Everything in `schedvueler/core` and `schedvueler/locales`, except what is marked below.
 
 ## For building your own views
 

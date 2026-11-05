@@ -11,7 +11,7 @@ The playground's slots and parts page (`npm run dev`, then `#/parts`) shows on a
 ## Themes
 
 ```css
-.orb-scheduler {
+.schedvueler {
   --orb-color-accent: #0f766e;
   --orb-slot-height: 3rem;
 }
@@ -26,8 +26,8 @@ The playground's slots and parts page (`npm run dev`, then `#/parts`) shows on a
 To inherit an existing PrimeUIX styled-mode preset, import both stylesheets:
 
 ```ts
-import 'orb-scheduler/style.css'
-import 'orb-scheduler/primeuix.css'
+import 'schedvueler/style.css'
+import 'schedvueler/primeuix.css'
 ```
 
 The bridge is optional and has no runtime dependency. It maps the standard `--p-*` variables
@@ -50,7 +50,7 @@ configuration and dark-mode guidance.
 
 Weekend, closed-time, and blocked-time shading are derived from `--p-text-color`. Event colors
 and the current-time indicator remain scheduler-specific. You can still override public
-`--orb-*` variables on `.orb-scheduler` or through the scheduler's `style` prop. Removing only
+`--orb-*` variables on `.schedvueler` or through the scheduler's `style` prop. Removing only
 the bridge import restores the default palette.
 
 ## Passthrough
@@ -96,7 +96,7 @@ Slots on a view win over those on the scheduler, and view-specific event slots (
 ## Translations
 
 ```ts
-import { nl } from 'orb-scheduler/locales'
+import { nl } from 'schedvueler/locales'
 ```
 
 ```vue

@@ -1,7 +1,7 @@
-# orb-scheduler API reference
+# schedvueler API reference
 
-See also [API stability](/api-stability). Everything below is exported from `orb-scheduler`; the framework-free parts are also available
-from `orb-scheduler/core`. Types are in [src/types.ts](https://github.com/wolfroels/schedvueler/blob/main/src/types.ts) and
+See also [API stability](/api-stability). Everything below is exported from `schedvueler`; the framework-free parts are also available
+from `schedvueler/core`. Types are in [src/types.ts](https://github.com/wolfroels/schedvueler/blob/main/src/types.ts) and
 [src/core](https://github.com/wolfroels/schedvueler/tree/main/src/core); this page is the overview.
 
 - [`<Scheduler>`](#scheduler)
@@ -127,7 +127,7 @@ view, anchor date, and per-view timeline resource width and zoom are restored af
 Saved values update bound models; otherwise initial props and defaults are used. Keep keys
 unique per scheduler/account and view names stable. No event or resource data is stored.
 
-Call `schedulerRef.value.clearStorage()` or import `clearStorage` from `orb-scheduler` and call
+Call `schedulerRef.value.clearStorage()` or import `clearStorage` from `schedvueler` and call
 `clearStorage('your-storage-key')` to remove only that entry. The current UI stays unchanged;
 the next reload uses initial props and defaults, and later preference changes save again.
 The headless context also exposes `context.clearStorage()`. Storage access failures and
@@ -356,7 +356,7 @@ Every element of the scheduler has a part name, in the attribute `data-orb-part`
 
 ```vue
 <script setup lang="ts">
-import type { SchedulerPt } from 'orb-scheduler'
+import type { SchedulerPt } from 'schedvueler'
 
 // Define it outside the template: a new object on every render re-renders every part.
 const pt: SchedulerPt = {
@@ -375,7 +375,7 @@ To see every part and slot on a live scheduler, what connects to what, and what 
 
 ## Theming
 
-Set CSS custom properties on `.orb-scheduler` (or any ancestor). `theme="dark"` / `"auto"` swap
+Set CSS custom properties on `.schedvueler` (or any ancestor). `theme="dark"` / `"auto"` swap
 the color set; per-event colors come from the event's `color`. Each event's fill and text are mixed from its
 own color (or its resource's); the `*-strength` variables set how much. To replace the mix, set
 `--orb-event-bg`, `--orb-event-bg-hover` or `--orb-event-text` on `.orb-event`.
@@ -391,12 +391,12 @@ own color (or its resource's); the `*-strength` variables set how much. To repla
 | Interaction            | `--orb-selection-bg`, `--orb-selection-border`, `--orb-mirror-shadow`, `--orb-invalid-color`, `--orb-resizer-size`                                                                                                                                                                                                                                                                    |
 
 Compact layouts react to the scheduler's own width through container queries (container name
-`orb-scheduler`), so you can add your own `@container orb-scheduler (max-width: ...)` rules.
+`schedvueler`), so you can add your own `@container schedvueler (max-width: ...)` rules.
 
 ## Editing helpers
 
 ```ts
-import { applyEventEdit, removeEventOccurrence, useHistory } from 'orb-scheduler'
+import { applyEventEdit, removeEventOccurrence, useHistory } from 'schedvueler'
 
 const events = shallowRef<SchedulerEvent[]>(initial)
 const history = useHistory(events, { keyboard: true, limit: 100 })
@@ -425,7 +425,7 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
 - `useHistory(ref, { keyboard?, limit? })` returns `commit(next, label?)`, `undo()`, `redo()`,
   `reset(present?)`, and the computed `canUndo`, `canRedo`, `undoLabel`, `redoLabel`. With
   `keyboard: true`, Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z or Ctrl+Y redoes (not while typing).
-  `createHistory(initial)` is the framework-free version in `orb-scheduler/core`.
+  `createHistory(initial)` is the framework-free version in `schedvueler/core`.
 
 Both edit helpers work on the default `SchedulerEvent` shape; with your own shape, follow the same
 logic with your fields.
@@ -437,7 +437,7 @@ scheduler. It works in every view and with several schedulers on the page.
 
 ```vue
 <script setup lang="ts">
-import { vOrbDraggable, type EventReceivePayload, type ExternalEventTemplate } from 'orb-scheduler'
+import { vOrbDraggable, type EventReceivePayload, type ExternalEventTemplate } from 'schedvueler'
 
 const jobs: ExternalEventTemplate[] = [
   { title: 'Inspection', color: '#0891b2', duration: 90, data: { jobId: 17 } },
@@ -528,7 +528,7 @@ const popover = useEventPopover<SchedulerEvent>()
 
 `parseICal` and `stringifyICal` read and write iCalendar, including rules, exceptions and `VTIMEZONE`. Time zones are read by their IANA name; others are reported in `warnings`. `occurrencesToCsv` and `occurrencesToJson` export occurrences. `print()` on the template ref opens the print dialog, with print styles.
 
-`recurrenceToText` puts a rule in words. `recurrenceToForm` and `formToRecurrence` go between a rule and the fields of a form. Translated wording for the scheduler and for rules is in `orb-scheduler/locales` (`nl`, `fr`, `de`, `es`): `:messages="nl.messages"`.
+`recurrenceToText` puts a rule in words. `recurrenceToForm` and `formToRecurrence` go between a rule and the fields of a form. Translated wording for the scheduler and for rules is in `schedvueler/locales` (`nl`, `fr`, `de`, `es`): `:messages="nl.messages"`.
 
 See [Recipes](/recipes).
 
@@ -555,7 +555,7 @@ everything a view needs without markup:
 | `useToolbar(ctx)`           | toolbar state and actions                                                                                                           |
 | `useHistory(ref, options)`  | undo/redo                                                                                                                           |
 
-`orb-scheduler/core` has no Vue dependency: `EventStore` (indexing, range queries, recurrence
+`schedvueler/core` has no Vue dependency: `EventStore` (indexing, range queries, recurrence
 expansion), RRULE parsing/expansion/editing (`parseRRule`, `expandSeries`, `truncateRuleBefore`),
 date helpers, range strategies (`dayStrategy`, `weekStrategy`, `monthStrategy`, `yearStrategy`),
 layout (`columnsLayout`, `stackLayout`, `packLanes`, `layoutDayGridRow`, `createTimelineAxis`,

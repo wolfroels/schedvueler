@@ -255,7 +255,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
 <template>
   <div class="pg" :data-theme="theme">
     <aside class="pg__sidebar">
-      <h1>orb-scheduler</h1>
+      <h1>schedvueler</h1>
       <a class="pg__link" href="#/examples">Simple view examples →</a>
       <a class="pg__link" href="#/parts">Slots and parts →</a>
 
@@ -421,7 +421,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
     <main class="pg__main" :class="{ 'pg__main--phone': phoneFrame }">
       <Scheduler
         ref="scheduler"
-        storage-key="orb-scheduler:playground"
+        storage-key="schedvueler:playground"
         v-model:date="date"
         v-model:view="view"
         :events="events"
@@ -680,12 +680,12 @@ body {
   justify-content: center;
 }
 
-.pg__main--phone > .orb-scheduler {
+.pg__main--phone > .schedvueler {
   width: 390px;
   max-width: 100%;
 }
 
-.pg__main > .orb-scheduler {
+.pg__main > .schedvueler {
   padding: 1rem;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);

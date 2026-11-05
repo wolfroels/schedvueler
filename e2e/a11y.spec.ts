@@ -19,7 +19,7 @@ for (const view of VIEWS) {
     test(`${view}, ${theme}: no automatically detectable problems`, async ({ page }) => {
       await open(page, { view }, { theme, businessHours: { start: '09:00', end: '17:00' } })
       const results = await new AxeBuilder({ page })
-        .include('.orb-scheduler')
+        .include('.schedvueler')
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
         .analyze()
       const summary = results.violations.map(
@@ -108,7 +108,7 @@ test.describe('moving without dragging', () => {
 
 test('a real right-to-left locale', async ({ page }) => {
   await open(page, { rtl: '1' }, { locale: 'ar-EG' })
-  await expect(page.locator('.orb-scheduler')).toHaveCSS('direction', 'rtl')
+  await expect(page.locator('.schedvueler')).toHaveCSS('direction', 'rtl')
   await expect(page.locator('[data-orb-part="dayHeader"]').first()).toContainText(/[؀-ۿ]/)
   await event(page, 'Alpha').focus()
   await page.keyboard.press('Alt+ArrowLeft')
@@ -198,12 +198,12 @@ test('compact month markers use shapes as well as color when enabled', async ({ 
       },
     ],
   )
-  await page.locator('.orb-scheduler').evaluate((element) => {
+  await page.locator('.schedvueler').evaluate((element) => {
     ;(element as HTMLElement).style.width = '360px'
   })
 
   const markers = page.locator('[data-date="2026-06-15"] .orb-month__dot')
-  await expect(page.locator('.orb-scheduler')).toHaveClass(/orb-scheduler--color-blind/)
+  await expect(page.locator('.schedvueler')).toHaveClass(/schedvueler--color-blind/)
   await expect(markers).toHaveCount(3)
   const patterns = await markers.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute('data-orb-color-pattern')),

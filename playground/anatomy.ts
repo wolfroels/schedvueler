@@ -115,16 +115,16 @@ export const PARTS: PartInfo[] = [
   part('titlePicker', 'Toolbar', 'orb-toolbar__title-button', 'The title as a date picker.', ALL, {
     hint: 'Needs title-date-picker.',
   }),
-  part('loading', 'Scheduler', 'orb-scheduler__overlay', 'Over the view while loading.', ALL, {
+  part('loading', 'Scheduler', 'schedvueler__overlay', 'Over the view while loading.', ALL, {
     hint: 'Needs loading.',
   }),
-  part('empty', 'Scheduler', 'orb-scheduler__overlay--empty', 'Over a range without events.', ALL, {
+  part('empty', 'Scheduler', 'schedvueler__overlay--empty', 'Over a range without events.', ALL, {
     hint: 'Needs the empty slot.',
   }),
   part(
     'error',
     'Scheduler',
-    'orb-scheduler__overlay--error',
+    'schedvueler__overlay--error',
     'Over the view after an error.',
     ALL,
     { hint: 'Needs error.' },
@@ -225,8 +225,8 @@ export const PARTS: PartInfo[] = [
       hint: 'Needs limited visible hours.',
     },
   ),
-  part('root', 'Scheduler', 'orb-scheduler', 'The whole scheduler.', ALL),
-  part('body', 'Scheduler', 'orb-scheduler__body', 'Holds the active view.', ALL),
+  part('root', 'Scheduler', 'schedvueler', 'The whole scheduler.', ALL),
+  part('body', 'Scheduler', 'schedvueler__body', 'Holds the active view.', ALL),
   part('toolbar', 'Toolbar', 'orb-toolbar', 'The bar above the view.', ALL),
   part('toolbarStart', 'Toolbar', 'orb-toolbar__section--start', 'Left section.', ALL),
   part('toolbarCenter', 'Toolbar', 'orb-toolbar__section--center', 'Middle section.', ALL),

@@ -1,7 +1,7 @@
 ---
 layout: home
 hero:
-  name: orb-scheduler
+  name: schedvueler
   text: A scheduler for Vue that stays yours
   tagline: Resource timelines, drag and drop and recurrence, free. Every part can be replaced with a slot or restyled with passthrough.
   actions:

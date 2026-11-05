@@ -16,7 +16,7 @@ test.describe('PrimeUIX styling', () => {
     test(`optional tokens and fallbacks in ${theme} mode`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'dark' })
       await open(page, { view: 'timeline' }, { theme })
-      const root = page.locator('.orb-scheduler')
+      const root = page.locator('.schedvueler')
       const original = await root.evaluate((element) => {
         const style = getComputedStyle(element)
         return { background: style.backgroundColor, color: style.color }
@@ -276,7 +276,7 @@ test.describe('how it looks', () => {
     for (const theme of ['light', 'dark']) {
       test(`${view}, ${theme}`, async ({ page }) => {
         await open(page, { view, date: '2026-06-15' }, { theme })
-        await expect(page.locator('.orb-scheduler')).toHaveScreenshot(`${view}-${theme}.png`, {
+        await expect(page.locator('.schedvueler')).toHaveScreenshot(`${view}-${theme}.png`, {
           maxDiffPixelRatio: 0.01,
           animations: 'disabled',
         })

@@ -159,11 +159,11 @@ export interface SchedulerContext<T = unknown> {
   announce(message: string): void
 }
 
-export const SchedulerContextKey: InjectionKey<SchedulerContext<unknown>> = Symbol('orb-scheduler')
+export const SchedulerContextKey: InjectionKey<SchedulerContext<unknown>> = Symbol('schedvueler')
 
 export function useSchedulerContext<T = unknown>(): SchedulerContext<T> {
   const ctx = inject(SchedulerContextKey, null)
-  if (!ctx) throw new Error('[orb-scheduler] This component must be used inside <Scheduler>.')
+  if (!ctx) throw new Error('[schedvueler] This component must be used inside <Scheduler>.')
   return ctx as SchedulerContext<T>
 }
 

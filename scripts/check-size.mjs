@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 
-const BUDGETS_KB = { 'dist/index.js': 70, 'dist/orb-scheduler.css': 11 }
+const BUDGETS_KB = { 'dist/index.js': 70, 'dist/schedvueler.css': 11 }
 
 let failed = false
 for (const [file, budget] of Object.entries(BUDGETS_KB)) {

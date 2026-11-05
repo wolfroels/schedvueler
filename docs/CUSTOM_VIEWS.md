@@ -7,7 +7,7 @@ A view is any component inside `<Scheduler>` that registers itself. The view swi
 ```vue
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useSchedulerContext, useSchedulerView, weekStrategy } from 'orb-scheduler'
+import { useSchedulerContext, useSchedulerView, weekStrategy } from 'schedvueler'
 
 const props = withDefaults(defineProps<{ name?: string }>(), { name: 'cards' })
 

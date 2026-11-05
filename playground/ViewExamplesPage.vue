@@ -88,7 +88,7 @@ const examples: ViewExample[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, DayView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, DayView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
@@ -130,7 +130,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, DayView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, DayView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Planning', start: '2026-11-03T10:00', end: '2026-11-03T11:00' },
@@ -174,7 +174,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, WeekView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, WeekView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
@@ -220,7 +220,7 @@ const events: SchedulerEvent[] = [
         ],
         resources: teams,
         code: `<script setup lang="ts">
-import { Scheduler, WeekView, type SchedulerEvent, type SchedulerResource } from 'orb-scheduler'
+import { Scheduler, WeekView, type SchedulerEvent, type SchedulerResource } from 'schedvueler'
 
 const resources: SchedulerResource[] = [
   { id: 'design', title: 'Design' },
@@ -279,7 +279,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, MonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, MonthView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Planning day', start: '2026-11-03', end: '2026-11-04' },
@@ -317,7 +317,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, MonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, MonthView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Planning day', start: '2026-11-03', end: '2026-11-04' },
@@ -360,7 +360,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, MultiMonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, MultiMonthView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Project starts', start: '2026-11-03', end: '2026-11-04' },
@@ -402,7 +402,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, MultiMonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, MultiMonthView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Kickoff', start: '2026-11-03', end: '2026-11-04' },
@@ -464,7 +464,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, YearView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, YearView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Planning', start: '2026-02-10', end: '2026-02-11' },
@@ -508,7 +508,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, YearView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, YearView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Design', start: '2026-01-06', end: '2026-03-15' },
@@ -552,7 +552,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, AgendaView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, AgendaView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
@@ -594,7 +594,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, AgendaView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, AgendaView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Kickoff', start: '2026-11-03T09:00', end: '2026-11-03T10:00' },
@@ -648,7 +648,7 @@ const events: SchedulerEvent[] = [
         ],
         resources: projectResources,
         code: `<script setup lang="ts">
-import { Scheduler, TimelineView, type SchedulerEvent, type SchedulerResource } from 'orb-scheduler'
+import { Scheduler, TimelineView, type SchedulerEvent, type SchedulerResource } from 'schedvueler'
 
 const resources: SchedulerResource[] = [
   { id: 'design', title: 'Design' },
@@ -704,7 +704,7 @@ const events: SchedulerEvent[] = [
         ],
         resources: projectResources,
         code: `<script setup lang="ts">
-import { Scheduler, TimelineView, type SchedulerEvent, type SchedulerResource } from 'orb-scheduler'
+import { Scheduler, TimelineView, type SchedulerEvent, type SchedulerResource } from 'schedvueler'
 
 const resources: SchedulerResource[] = [
   { id: 'design', title: 'Design' },
@@ -762,7 +762,7 @@ const events: SchedulerEvent[] = [
           },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, GanttView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, GanttView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 'scope', title: 'Define scope', start: '2026-11-02', end: '2026-11-04', progress: 1 },
@@ -795,7 +795,7 @@ const events: SchedulerEvent[] = [
           { id: 'launch', title: 'Launch', start: monday.add({ days: 8 }).toString() },
         ],
         code: `<script setup lang="ts">
-import { Scheduler, GanttView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, GanttView, type SchedulerEvent } from 'schedvueler'
 
 const events: SchedulerEvent[] = [
   { id: 1, title: 'Design phase', start: '2026-11-02', end: '2026-11-06', progress: 0.8 },
@@ -823,7 +823,7 @@ const activeDemo = computed(
 const activeCode = computed(() =>
   activeDemo.value.code.replace(
     '<script setup lang="ts">',
-    `<script setup lang="ts">\nimport 'orb-scheduler/style.css'`,
+    `<script setup lang="ts">\nimport 'schedvueler/style.css'`,
   ),
 )
 

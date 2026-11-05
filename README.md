@@ -1,4 +1,4 @@
-# orb-scheduler
+# schedvueler
 
 Modular scheduler and calendar components for Vue 3: views as child components, a slot for every
 part, typed emits, full RRULE recurrence and time-zone support, and a framework-free core.
@@ -50,8 +50,8 @@ import {
   MonthView,
   AgendaView,
   type SchedulerEvent,
-} from 'orb-scheduler'
-import 'orb-scheduler/style.css'
+} from 'schedvueler'
+import 'schedvueler/style.css'
 
 const events = ref<SchedulerEvent[]>([
   { id: 1, title: 'Planning', start: '2026-10-29T09:00', end: '2026-10-29T10:30' },
@@ -154,7 +154,7 @@ All-day `end` dates are exclusive. Emit payloads carry `Temporal` values (`Plain
 ## Your own event shape
 
 ```ts
-import { createAccessors } from 'orb-scheduler'
+import { createAccessors } from 'schedvueler'
 
 const accessors = { id: (b: Booking) => b.bookingId, start: (b) => b.from, end: (b) => b.to }
 // <Scheduler :events="bookings" :accessors="accessors">
@@ -178,7 +178,7 @@ are not re-read, so adding one event to 10 000 is cheap.
 ```
 
 ```ts
-import { applyEventEdit, removeEventOccurrence } from 'orb-scheduler'
+import { applyEventEdit, removeEventOccurrence } from 'schedvueler'
 
 function onChange(p: EventChangedPayload<SchedulerEvent>) {
   // For recurring events p.scope says "this", "following" or "all".
@@ -208,7 +208,7 @@ would land and `event-receive` gives you `start`, `end`, `allDay`, `resourceId` 
 ### Undo and redo
 
 ```ts
-import { useHistory } from 'orb-scheduler'
+import { useHistory } from 'schedvueler'
 
 const history = useHistory(events, { keyboard: true }) // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y
 
@@ -282,11 +282,11 @@ each part and slot is called and what connects to what. See
 
 ## Theming
 
-Everything is a CSS custom property on `.orb-scheduler`; see the top of
+Everything is a CSS custom property on `.schedvueler`; see the top of
 [src/styles/scheduler.css](src/styles/scheduler.css). For example:
 
 ```css
-.orb-scheduler {
+.schedvueler {
   --orb-color-accent: #0f766e;
   --orb-slot-height: 3rem;
   --orb-event-radius: 4px;
@@ -299,7 +299,7 @@ field (or the `color` accessor).
 
 ## Headless use
 
-`orb-scheduler/core` has no Vue dependency: `EventStore`, RRULE parsing and expansion, range
+`schedvueler/core` has no Vue dependency: `EventStore`, RRULE parsing and expansion, range
 strategies, resource trees, and layout algorithms (time grid, day rows, timeline). The
 composables (`useScheduler`, `useSchedulerView`, `useTimeGrid`, `useMonthGrid`, `useTimeline`,
 `useYearGrid`, `useHistory`) give you the state and layout without any markup.

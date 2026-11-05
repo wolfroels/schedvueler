@@ -4,7 +4,7 @@ const warned = new Set<string>()
 export function warnOnce(message: string): void {
   if (warned.has(message)) return
   warned.add(message)
-  console.warn(`[orb-scheduler] ${message}`)
+  console.warn(`[schedvueler] ${message}`)
 }
 
 export function validTimeZone(zone: string, fallback: () => string): string {

@@ -28,7 +28,7 @@ for (const [view, budget] of Object.entries(BUDGET_MS)) {
       return out
     })
     await expect(next).toBeVisible()
-    const nodes = await page.evaluate(() => document.querySelectorAll('.orb-scheduler *').length)
+    const nodes = await page.evaluate(() => document.querySelectorAll('.schedvueler *').length)
     // The first step warms caches.
     const best = times.slice(1).sort((a, b) => a - b)[Math.floor((times.length - 1) / 2)]!
     if (process.env.PERF_REPORT)

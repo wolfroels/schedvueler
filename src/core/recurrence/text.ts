@@ -59,7 +59,7 @@ const WEEKDAY_BASE = Temporal.PlainDate.from('2024-01-01') // A Monday.
 export interface RecurrenceTextOptions {
   /** Used for the names of weekdays, months and dates. */
   locale?: string
-  /** The words. Default English; `orb-scheduler/locales` has more. */
+  /** The words. Default English; `schedvueler/locales` has more. */
   strings?: RecurrenceTextStrings
   /** Zone to show `UNTIL` in. Default UTC. */
   timeZone?: string

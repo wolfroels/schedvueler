@@ -1,5 +1,5 @@
 {
-  "name": "orb-scheduler",
+  "name": "schedvueler",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
       "types": "./dist/locales/index.d.ts",
       "import": "./dist/locales.js"
     },
-    "./style.css": "./dist/orb-scheduler.css",
+    "./style.css": "./dist/schedvueler.css",
     "./primeuix.css": "./dist/primeuix.css"
   },
   "sideEffects": [

@@ -4,7 +4,7 @@
 
 The biggest difference: your data stays yours. FullCalendar changes its copy of an event and tells you; here the scheduler shows the change and emits it, and you update your array. `applyEventEdit` does that for the default event shape.
 
-| FullCalendar | orb-scheduler |
+| FullCalendar | schedvueler |
 |---|---|
 | `initialView`, `views` | View components inside `<Scheduler>` |
 | `headerToolbar` | The `toolbar`, `toolbar-start`, `toolbar-center` and `toolbar-end` slots |
@@ -33,7 +33,7 @@ Dates in emits are `Temporal.ZonedDateTime`. `p.start.toString()` gives ISO text
 
 ## From Schedule-X
 
-| Schedule-X | orb-scheduler |
+| Schedule-X | schedvueler |
 |---|---|
 | `createCalendar({ views })` | View components inside `<Scheduler>` |
 | `calendarApp.events.set(list)` | `:events` |
@@ -43,7 +43,7 @@ Dates in emits are `Temporal.ZonedDateTime`. `p.start.toString()` gives ISO text
 
 ## From vue-cal
 
-| vue-cal | orb-scheduler |
+| vue-cal | schedvueler |
 |---|---|
 | `events` with `start`, `end` | `:events` with `start`, `end`, in ISO text |
 | `split-days` | Resources with `<DayView :resources>` |

@@ -113,7 +113,7 @@ export class EventStore<T = SchedulerEvent> {
     this.onInvalid =
       options.onInvalidEvent ??
       this.onInvalid ??
-      ((error, event) => console.warn('[orb-scheduler] Skipping invalid event', event, error))
+      ((error, event) => console.warn('[schedvueler] Skipping invalid event', event, error))
     if (this.records.size)
       this.replaceAll(
         [...this.records.values()].map((r) => r.event),

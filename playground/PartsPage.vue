@@ -576,7 +576,7 @@ function scopeKeys(scope: object | undefined) {
   padding: 0.75rem;
 }
 
-.pp__stage > .orb-scheduler {
+.pp__stage > .schedvueler {
   height: 100%;
   padding: 0.75rem;
   border-radius: 10px;

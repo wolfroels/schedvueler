@@ -1,4 +1,4 @@
-# Using orb-scheduler
+# Using schedvueler
 
 This guide covers the common app workflows: showing events, choosing a view, handling edits,
 and connecting your own data. For every prop, event, and slot, see the [API reference](/api).
@@ -6,7 +6,7 @@ and connecting your own data. For every prop, event, and slot, see the [API refe
 ## Install and render
 
 ```sh
-npm install orb-scheduler
+npm install schedvueler
 ```
 
 Import the stylesheet and give the scheduler a container with a height. The scheduler fills its
@@ -22,8 +22,8 @@ import {
   applyEventEdit,
   type EventChangedPayload,
   type SchedulerEvent,
-} from 'orb-scheduler'
-import 'orb-scheduler/style.css'
+} from 'schedvueler'
+import 'schedvueler/style.css'
 
 const timeZone = 'Europe/Brussels'
 const view = ref('week')
@@ -68,8 +68,8 @@ If your app uses a PrimeUIX preset (for example through PrimeVue styled mode), a
 bridge stylesheet after the scheduler's base stylesheet:
 
 ```ts
-import 'orb-scheduler/style.css'
-import 'orb-scheduler/primeuix.css'
+import 'schedvueler/style.css'
+import 'schedvueler/primeuix.css'
 ```
 
 Keep the base stylesheet: it supplies layout, interactions, and fallback styling. The bridge
@@ -90,8 +90,8 @@ import { createApp } from 'vue'
 import PrimeVue from 'primevue/config'
 import Aura from '@primeuix/themes/aura'
 import App from './App.vue'
-import 'orb-scheduler/style.css'
-import 'orb-scheduler/primeuix.css'
+import 'schedvueler/style.css'
+import 'schedvueler/primeuix.css'
 
 createApp(App)
   .use(PrimeVue, { theme: { preset: Aura } })
@@ -237,7 +237,7 @@ and each timeline view's resource-bar width and zoom level across reloads:
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Scheduler, TimelineView, WeekView, clearStorage } from 'orb-scheduler'
+import { Scheduler, TimelineView, WeekView, clearStorage } from 'schedvueler'
 
 const scheduler = ref<{ clearStorage(): void }>()
 const storageKey = 'my-app:team-scheduler'

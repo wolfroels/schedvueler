@@ -315,7 +315,7 @@ export function stringifyICal(
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    `PRODID:${options.productId ?? '-//orb-scheduler//EN'}`,
+    `PRODID:${options.productId ?? '-//schedvueler//EN'}`,
     'CALSCALE:GREGORIAN',
     ...[...zones].flatMap(([zone, years]) => timeZoneBlock(zone, years.from, years.to)),
     ...body,

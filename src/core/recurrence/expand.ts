@@ -179,7 +179,7 @@ export function expandSeries(
     results.set(value, occurrence)
     if (results.size >= limit) {
       if (!warnedLimit)
-        console.warn(`[orb-scheduler] Stopped a recurring event at ${limit} occurrences.`)
+        console.warn(`[schedvueler] Stopped a recurring event at ${limit} occurrences.`)
       warnedLimit = true
       break
     }

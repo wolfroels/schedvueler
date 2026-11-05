@@ -271,13 +271,13 @@ defineExpose({
 <template>
   <div
     ref="root"
-    class="orb-scheduler"
+    class="schedvueler"
     v-bind="ctx.part('root')"
     :data-theme="theme"
     :data-density="density"
     :class="{
-      'orb-scheduler--animate': animate,
-      'orb-scheduler--color-blind': colorBlindMode,
+      'schedvueler--animate': animate,
+      'schedvueler--color-blind': colorBlindMode,
     }"
     @keydown="onKeydown"
     @dragover="ctx.interaction.nativeDragOver"
@@ -288,9 +288,9 @@ defineExpose({
       <HydratingToolbar v-if="toolbar" />
     </slot>
     <div
-      class="orb-scheduler__body"
+      class="schedvueler__body"
       v-bind="ctx.part('body')"
-      :class="{ 'orb-scheduler__body--swipe': swipeNavigation }"
+      :class="{ 'schedvueler__body--swipe': swipeNavigation }"
       @pointerdown.capture="onSwipeStart"
       @pointermove.capture="onSwipeMove"
       @pointerup.capture="onSwipeEnd"
@@ -299,7 +299,7 @@ defineExpose({
       <slot />
       <div
         v-if="error"
-        class="orb-scheduler__overlay orb-scheduler__overlay--error"
+        class="schedvueler__overlay schedvueler__overlay--error"
         v-bind="ctx.part('error')"
         role="alert"
       >
@@ -309,7 +309,7 @@ defineExpose({
       </div>
       <div
         v-else-if="loading"
-        class="orb-scheduler__overlay"
+        class="schedvueler__overlay"
         v-bind="ctx.part('loading')"
         role="status"
       >
@@ -323,7 +323,7 @@ defineExpose({
       </div>
       <div
         v-else-if="$slots.empty && !ctx.occurrences.value.length"
-        class="orb-scheduler__overlay orb-scheduler__overlay--empty"
+        class="schedvueler__overlay schedvueler__overlay--empty"
         v-bind="ctx.part('empty')"
       >
         <slot

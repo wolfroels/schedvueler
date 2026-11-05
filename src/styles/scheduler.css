@@ -1,12 +1,12 @@
 /*
- * orb-scheduler default theme.
- * Everything visual is driven by the custom properties below. Override them on `.orb-scheduler`
+ * schedvueler default theme.
+ * Everything visual is driven by the custom properties below. Override them on `.schedvueler`
  * (or any ancestor) to theme the scheduler, e.g.
  *
- *   .orb-scheduler { --orb-color-accent: #0f766e; --orb-slot-height: 3rem; }
+ *   .schedvueler { --orb-color-accent: #0f766e; --orb-slot-height: 3rem; }
  */
 
-.orb-scheduler {
+.schedvueler {
   /* typography */
   --orb-font-family: inherit;
   --orb-font-size: 0.875rem;
@@ -97,10 +97,10 @@
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   /* Compact layouts follow the scheduler width, not the window width. */
-  container: orb-scheduler / inline-size;
+  container: schedvueler / inline-size;
 }
 
-.orb-scheduler[data-theme='dark'] {
+.schedvueler[data-theme='dark'] {
   --orb-color-bg: var(--orb-primeuix-bg, #0b1120);
   --orb-color-surface: var(--orb-primeuix-surface, #111827);
   --orb-color-text: var(--orb-primeuix-text, #e2e8f0);
@@ -122,7 +122,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .orb-scheduler[data-theme='auto'] {
+  .schedvueler[data-theme='auto'] {
     --orb-color-bg: var(--orb-primeuix-bg, #0b1120);
     --orb-color-surface: var(--orb-primeuix-surface, #111827);
     --orb-color-text: var(--orb-primeuix-text, #e2e8f0);
@@ -144,23 +144,23 @@
   }
 }
 
-.orb-scheduler *,
-.orb-scheduler *::before,
-.orb-scheduler *::after {
+.schedvueler *,
+.schedvueler *::before,
+.schedvueler *::after {
   box-sizing: border-box;
 }
 
-.orb-scheduler button {
+.schedvueler button {
   font: inherit;
   color: inherit;
 }
 
-.orb-scheduler :focus-visible {
+.schedvueler :focus-visible {
   outline: 2px solid var(--orb-color-focus);
   outline-offset: 1px;
 }
 
-.orb-scheduler__body {
+.schedvueler__body {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -279,9 +279,9 @@
 }
 
 /* A container cannot query itself, so compact rules target the parts inside the scheduler. */
-@container orb-scheduler (max-width: 640px) {
+@container schedvueler (max-width: 640px) {
   .orb-toolbar,
-  .orb-scheduler__body {
+  .schedvueler__body {
     --orb-gutter-width: 3rem;
     --orb-font-size-title: 1.05rem;
     --orb-day-header-height: 2.75rem;
@@ -757,7 +757,7 @@
   outline-offset: 2px;
 }
 
-.orb-scheduler__overlay {
+.schedvueler__overlay {
   position: absolute;
   inset: 0;
   z-index: 70;
@@ -768,12 +768,12 @@
   background: color-mix(in srgb, var(--orb-color-bg) 70%, transparent);
 }
 
-.orb-scheduler__overlay--empty {
+.schedvueler__overlay--empty {
   background: none;
   pointer-events: none;
 }
 
-.orb-scheduler__overlay--error {
+.schedvueler__overlay--error {
   color: var(--orb-color-text);
 }
 
@@ -1072,8 +1072,8 @@
 }
 
 @media print {
-  .orb-scheduler,
-  .orb-scheduler__body,
+  .schedvueler,
+  .schedvueler__body,
   .orb-tg,
   .orb-tg__scroller,
   .orb-month,
@@ -1167,8 +1167,8 @@
 
 /* ---- motion ---- */
 @media (prefers-reduced-motion: no-preference) {
-  .orb-scheduler--animate .orb-tg__events > .orb-event,
-  .orb-scheduler--animate .orb-tl__lane > .orb-event {
+  .schedvueler--animate .orb-tg__events > .orb-event,
+  .schedvueler--animate .orb-tl__lane > .orb-event {
     transition:
       top var(--orb-transition-duration, 180ms) ease,
       height var(--orb-transition-duration, 180ms) ease,
@@ -1176,11 +1176,11 @@
       width var(--orb-transition-duration, 180ms) ease;
   }
 
-  .orb-scheduler--animate .orb-event--mirror {
+  .schedvueler--animate .orb-event--mirror {
     transition: none;
   }
 
-  .orb-scheduler--animate .orb-scheduler__body > * {
+  .schedvueler--animate .schedvueler__body > * {
     animation: orb-fade var(--orb-transition-duration, 180ms) ease;
   }
 }
@@ -1846,14 +1846,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orb-scheduler * {
+  .schedvueler * {
     transition: none !important;
   }
 }
 
 /* ---------------------------------------------------------------- interaction ----------------- */
 
-.orb-scheduler {
+.schedvueler {
   --orb-selection-bg: color-mix(in srgb, var(--orb-color-accent) 16%, transparent);
   --orb-selection-border: color-mix(in srgb, var(--orb-color-accent) 55%, transparent);
   --orb-mirror-shadow: 0 6px 16px -4px rgb(15 23 42 / 0.35);
@@ -2100,7 +2100,7 @@
   color: var(--orb-color-text-muted);
 }
 
-@container orb-scheduler (max-width: 480px) {
+@container schedvueler (max-width: 480px) {
   .orb-agenda {
     --orb-agenda-time-width: 5.5rem;
   }
@@ -2131,15 +2131,15 @@
   background: var(--orb-event-color, var(--orb-color-accent));
 }
 
-.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='1'] {
+.schedvueler--color-blind .orb-month__dot[data-orb-color-pattern='1'] {
   border-radius: 0;
 }
 
-.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='2'] {
+.schedvueler--color-blind .orb-month__dot[data-orb-color-pattern='2'] {
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
-.orb-scheduler--color-blind .orb-month__dot[data-orb-color-pattern='3'] {
+.schedvueler--color-blind .orb-month__dot[data-orb-color-pattern='3'] {
   border-radius: 0;
   transform: rotate(45deg) scale(0.8);
 }
@@ -2157,19 +2157,19 @@
 /* ---------------------------------------------------------------- touch ----------------------- */
 
 /* Vertical panning stays with the browser; horizontal swipes go to the scheduler. */
-.orb-scheduler__body--swipe,
+.schedvueler__body--swipe,
 /* touch-action only counts up to the nearest scroll container, so these need it as well. */
-.orb-scheduler__body--swipe .orb-tg__scroller,
-.orb-scheduler__body--swipe .orb-month__body,
-.orb-scheduler__body--swipe .orb-agenda__scroller,
-.orb-scheduler__body--swipe .orb-year,
-.orb-scheduler__body--swipe .orb-planner,
-.orb-scheduler__body--swipe .orb-multi-month {
+.schedvueler__body--swipe .orb-tg__scroller,
+.schedvueler__body--swipe .orb-month__body,
+.schedvueler__body--swipe .orb-agenda__scroller,
+.schedvueler__body--swipe .orb-year,
+.schedvueler__body--swipe .orb-planner,
+.schedvueler__body--swipe .orb-multi-month {
   touch-action: pan-y pinch-zoom;
 }
 
 @media (pointer: coarse) {
-  .orb-scheduler {
+  .schedvueler {
     --orb-resizer-size: 14px;
     --orb-control-height: 2.5rem;
   }
@@ -2493,7 +2493,7 @@
   pointer-events: none;
 }
 
-@container orb-scheduler (max-width: 640px) {
+@container schedvueler (max-width: 640px) {
   .orb-tl {
     --orb-tl-resource-width: 7.5rem;
   }

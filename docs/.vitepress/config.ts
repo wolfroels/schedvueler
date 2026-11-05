@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   base: process.env.PAGES_BASE_PATH ?? '/',
-  title: 'orb-scheduler',
+  title: 'schedvueler',
   description: 'Modular, slot-driven scheduler and calendar components for Vue 3',
   cleanUrls: true,
   // The reference links to source files that are not part of the site.

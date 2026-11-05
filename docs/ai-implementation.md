@@ -1,6 +1,6 @@
 # AI implementation guide
 
-Use this guide when adding orb-scheduler to an existing Vue 3 application. It is an integration
+Use this guide when adding schedvueler to an existing Vue 3 application. It is an integration
 workflow, not a substitute for the [API reference](/api) or the app's own architecture.
 
 ## Instructions for coding assistants
@@ -13,7 +13,7 @@ When asked to implement a scheduler feature:
 2. Clarify only decisions that block a correct implementation: which events to show, the display
    time zone, required views, whether people may create or edit events, and which resources are
    meaningful. Use sensible defaults when the repository or request already answers these.
-3. Use the installed `orb-scheduler` package and its public exports. Do not copy the scheduler's
+3. Use the installed `schedvueler` package and its public exports. Do not copy the scheduler's
    internal layout or interaction logic into the application.
 4. Keep event data and persistence in the application. Treat scheduler props as input and emits as
    requests to update that application-owned data.
@@ -27,11 +27,11 @@ When asked to implement a scheduler feature:
 
 ### 1. Install and import
 
-Use the repository's package manager to add `orb-scheduler`. Import the public stylesheet once in
+Use the repository's package manager to add `schedvueler`. Import the public stylesheet once in
 the app entry point or owning page:
 
 ```ts
-import 'orb-scheduler/style.css'
+import 'schedvueler/style.css'
 ```
 
 Do not install another calendar library unless the user specifically asks for one.
@@ -62,7 +62,7 @@ Give the parent a definite height. Declare only the views the feature needs, and
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Scheduler, WeekView, MonthView, type SchedulerEvent } from 'orb-scheduler'
+import { Scheduler, WeekView, MonthView, type SchedulerEvent } from 'schedvueler'
 
 const view = ref('week')
 const events = ref<SchedulerEvent[]>([])
@@ -95,7 +95,7 @@ Enable only the interactions the feature requires. For drag/resize, update app s
 `applyEventEdit` rather than rebuilding recurrence and resource behavior yourself:
 
 ```ts
-import { applyEventEdit, type EventChangedPayload, type SchedulerEvent } from 'orb-scheduler'
+import { applyEventEdit, type EventChangedPayload, type SchedulerEvent } from 'schedvueler'
 
 const timeZone = 'Europe/Brussels'
 
