@@ -30,6 +30,10 @@ export async function open(
   if (events) all.set('events', JSON.stringify(events))
   await page.goto(`/e2e/fixture/?${all}`)
   await expect(page.locator('[data-orb-part="root"]')).toBeVisible()
+  // The view fades in on load (`animate`); measuring colours or positions mid-fade gives noise.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  )
 }
 
 export const event = (page: Page, title: string) =>

@@ -90,6 +90,11 @@
   --orb-tl-day-heading-height: 2rem;
   --orb-tl-slot-heading-height: 1.75rem;
 
+  /* motion: one curve; short for feedback, a little longer for things that enter */
+  --orb-ease: cubic-bezier(0.2, 0, 0, 1);
+  --orb-duration-fast: 120ms;
+  --orb-duration-enter: 220ms;
+
   display: flex;
   flex-direction: column;
   gap: var(--orb-toolbar-gap);
@@ -697,12 +702,17 @@
   font-weight: 500;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
+    background-color var(--orb-duration-fast) var(--orb-ease),
+    border-color var(--orb-duration-fast) var(--orb-ease),
+    transform var(--orb-duration-fast) var(--orb-ease);
 }
 
 .orb-button:hover {
   background: var(--orb-color-hover);
+}
+
+.orb-button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .orb-button--icon {
@@ -889,6 +899,26 @@
 .orb-event--month:hover,
 .orb-event--timeline:hover {
   background: var(--orb-event-bg-hover);
+}
+
+/* Hover, selection and today feedback eases in instead of flicking. Colour and opacity only, so
+   nothing moves; the reduced-motion rule further down turns it off. */
+.orb-event,
+.orb-segmented__item,
+.orb-tg__day-button,
+.orb-tl__day-button,
+.orb-month__cell,
+.orb-mini__day,
+.orb-year__day {
+  transition:
+    background-color var(--orb-duration-fast) var(--orb-ease),
+    color var(--orb-duration-fast) var(--orb-ease),
+    box-shadow var(--orb-duration-fast) var(--orb-ease),
+    opacity var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-event__resizer {
+  transition: opacity var(--orb-duration-fast) var(--orb-ease);
 }
 
 .orb-event--custom {
@@ -1712,24 +1742,86 @@
   .schedvueler--animate .orb-tg__events > .orb-event,
   .schedvueler--animate .orb-tl__lane > .orb-event {
     transition:
-      top var(--orb-transition-duration, 180ms) ease,
-      height var(--orb-transition-duration, 180ms) ease,
-      inset-inline-start var(--orb-transition-duration, 180ms) ease,
-      width var(--orb-transition-duration, 180ms) ease;
+      top var(--orb-transition-duration, 180ms) var(--orb-ease),
+      height var(--orb-transition-duration, 180ms) var(--orb-ease),
+      inset-inline-start var(--orb-transition-duration, 180ms) var(--orb-ease),
+      width var(--orb-transition-duration, 180ms) var(--orb-ease),
+      background-color var(--orb-duration-fast) var(--orb-ease),
+      opacity var(--orb-duration-fast) var(--orb-ease);
   }
 
-  .schedvueler--animate .orb-event--mirror {
+  /* Just dropped: already where the copy was, so it doesn't glide there again. */
+  .schedvueler--animate .orb-tg__events > .orb-event--landed,
+  .schedvueler--animate .orb-tl__lane > .orb-event--landed {
+    transition:
+      background-color var(--orb-duration-fast) var(--orb-ease),
+      opacity var(--orb-duration-fast) var(--orb-ease);
+  }
+
+  /* The dragged copy follows the pointer directly, and lifts off the grid as it appears. As specific
+     as the rule above, so the copy never eases after a snap and trails behind the pointer. */
+  .schedvueler--animate .orb-event--mirror,
+  .schedvueler--animate .orb-tg__events > .orb-event--mirror,
+  .schedvueler--animate .orb-tl__lane > .orb-event--mirror {
     transition: none;
+    animation: orb-lift var(--orb-duration-fast) var(--orb-ease);
   }
 
+  /* A new view fades in, in place: nothing moves on load, so the first click lands where it was
+     aimed. Moving to another period slides instead (see Scheduler.vue). */
   .schedvueler--animate .schedvueler__body > * {
-    animation: orb-fade var(--orb-transition-duration, 180ms) ease;
+    animation: orb-fade var(--orb-duration-enter) var(--orb-ease);
+  }
+
+  /* Things that open grow out of where they were opened from. */
+  .schedvueler--animate .orb-popover {
+    transform-origin: top center;
+    animation: orb-pop var(--orb-duration-enter) var(--orb-ease);
+  }
+
+  .schedvueler--animate .orb-draft-bar {
+    animation: orb-enter var(--orb-duration-enter) var(--orb-ease);
+  }
+
+  .schedvueler--animate .orb-undo-toast {
+    animation: orb-toast var(--orb-duration-enter) var(--orb-ease);
+  }
+
+  .schedvueler--animate :is(.orb-tg__selection, .orb-tg__allday-selection, .orb-marquee) {
+    animation: orb-fade var(--orb-duration-fast) var(--orb-ease);
   }
 }
 
 @keyframes orb-fade {
   from {
-    opacity: 0.4;
+    opacity: 0;
+  }
+}
+
+@keyframes orb-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes orb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes orb-toast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+@keyframes orb-lift {
+  from {
+    box-shadow: none;
   }
 }
 
@@ -2386,8 +2478,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .schedvueler * {
+  .schedvueler,
+  .schedvueler *,
+  .orb-undo-toast {
     transition: none !important;
+    animation: none !important;
   }
 }
 

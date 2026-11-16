@@ -333,7 +333,10 @@ export interface SchedulerOptions<T> {
   dragTooltip?: boolean
   /** Running events show how far along they are. */
   liveProgress?: boolean
-  /** Events move smoothly, unless the user prefers reduced motion. */
+  /**
+   * Navigation, views, popovers and moved events animate, unless the user prefers reduced motion.
+   * Default true; `false` keeps only the hover and selection colour easing.
+   */
   animate?: boolean
   /** Who is looking at or editing what. */
   presence?: readonly SchedulerPresence[]

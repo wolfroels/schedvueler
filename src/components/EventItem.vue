@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, mergeProps, onMounted, ref } from 'vue'
+import { computed, mergeProps, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   formatDate,
   formatTime,
@@ -174,6 +174,25 @@ const isDragSource = computed(() => {
   return !props.mirror && !!s?.preview && s.occurrence?.key === props.occurrence.key
 })
 
+// When a pointer drag ends, the event (or another selected one moved with it) is drawn where the
+// copy was dropped. With `animate` it would glide there from its old place, crossing the grid a
+// second time behind the copy; `landed` skips that glide for a moment. Keyboard moves keep it.
+const inDrag = computed(() => {
+  const s = interaction.state.value
+  if (props.mirror || !s?.preview) return false
+  const key = props.occurrence.key
+  return s.occurrence?.key === key || !!s.group?.some((g) => g.occurrence.key === key)
+})
+const landed = ref(false)
+let landedTimer: ReturnType<typeof setTimeout> | undefined
+watch(inDrag, (now, was) => {
+  if (now || !was) return
+  landed.value = true
+  clearTimeout(landedTimer)
+  landedTimer = setTimeout(() => (landed.value = false), 400)
+})
+onBeforeUnmount(() => clearTimeout(landedTimer))
+
 // The name starts with what is shown, in that order, so that voice control can find it by it.
 const ariaLabel = computed(() => {
   const p = slotProps.value
@@ -305,6 +324,7 @@ function onKeydown(e: KeyboardEvent) {
         'orb-event--continues-after': !isEnd,
         'orb-event--draggable': draggable,
         'orb-event--drag-source': isDragSource,
+        'orb-event--landed': landed,
         'orb-event--mirror': mirror,
         'orb-event--invalid': mirror && !valid,
         'orb-event--selected': isSelected,

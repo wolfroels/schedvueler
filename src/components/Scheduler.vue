@@ -21,6 +21,7 @@ import type {
   SchedulerSlots,
 } from '../types'
 import { HydratingToolbar } from './HydratingToolbar'
+import { isRtl } from './direction'
 import { ownerWindow } from '../composables/usePictureInPicture'
 
 export interface SchedulerProps<T> extends SchedulerOptions<T> {
@@ -50,6 +51,7 @@ const props = withDefaults(defineProps<SchedulerProps<T>>(), {
   eventResizable: undefined,
   swipeNavigation: true,
   pictureInPicture: true,
+  animate: true,
 })
 
 /** Anchor date, "YYYY-MM-DD". Leave unbound to start on today. */
@@ -100,6 +102,34 @@ onBeforeUnmount(() => observer?.disconnect())
 const pip = ctx.pictureInPicture
 const pipBody = computed(() => pip.window.value?.document.body ?? null)
 watch(pipBody, observe, { flush: 'post' })
+
+// With `animate`, moving to another period in the same view slides the new one in from the side it
+// lies on (later dates from the inline end), and the title with it. A view switch is left to the
+// CSS entrance on the new view. Web Animations leave no styles behind once they finish.
+watch(
+  () => [ctx.activeViewName.value, ctx.window.value?.startMs] as const,
+  ([view, start], [oldView, oldStart]) => {
+    const el = root.value
+    if (!props.animate || !el || view !== oldView || start == null || oldStart == null) return
+    if (start === oldStart || typeof el.animate !== 'function') return
+    if (ownerWindow(el).matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const style = getComputedStyle(el)
+    const duration = parseFloat(style.getPropertyValue('--orb-duration-enter')) || 220
+    const easing = style.getPropertyValue('--orb-ease').trim() || 'ease-out'
+    const side = (start > oldStart ? 1 : -1) * (isRtl(el) ? -1 : 1)
+    const slide = (target: Element | null | undefined, distance: number) =>
+      target?.animate(
+        [
+          { opacity: 0, transform: `translateX(${side * distance}px)` },
+          { opacity: 1, transform: 'none' },
+        ],
+        { duration, easing },
+      )
+    slide(el.querySelector('.schedvueler__body > :not(.schedvueler__overlay)'), 16)
+    slide(el.querySelector('[data-orb-part="title"]'), 6)
+  },
+  { flush: 'post' },
+)
 
 // Horizontal swipe on touch screens goes to the previous/next period. Vertical scrolling stays
 // with the browser (touch-action: pan-y); swipes that become a drag or selection are ignored.
