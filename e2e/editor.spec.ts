@@ -94,7 +94,10 @@ for (const theme of ['light', 'dark']) {
     await open(page, { editor: '1' }, { theme })
     await event(page, 'Standup').first().dblclick()
     await expect(dialog(page)).toBeVisible()
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)))
+    // A transition cancelled meanwhile (WebKit does on hover) rejects; that is fine here.
+    await page.evaluate(() =>
+      Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+    )
     const results = await new AxeBuilder({ page })
       .include('.orb-editor')
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

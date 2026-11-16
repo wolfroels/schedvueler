@@ -353,7 +353,8 @@ Cancelable payloads (marked ✋) have `preventDefault()` and `waitUntil(promise)
 cancelled when the promise rejects or resolves to `false`.
 
 Right-click callbacks (`event-contextmenu`, `slot-contextmenu`, `date-contextmenu`,
-`resource-contextmenu`) also fire for the menu key and Shift+F10 on the focused element. Call
+`resource-contextmenu`) also fire when the browser opens its menu from the keyboard (the menu key
+or Shift+F10 on Windows and Linux) on the focused element. Call
 `nativeEvent.preventDefault()` to show your own menu instead of the browser's, and anchor it to
 `element` or to `nativeEvent.clientX` / `clientY`.
 

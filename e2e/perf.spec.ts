@@ -3,7 +3,8 @@ import { expect, test } from './helpers'
 // Budgets against the dev build of the playground, on whatever machine runs them, so they are wide:
 // they catch something becoming several times slower, not small changes. `PERF_REPORT=1` prints
 // the numbers.
-const BUDGET_MS: Record<string, number> = { Week: 600, Month: 900, 'Timeline month': 1500 }
+// Week takes about 250 ms locally and up to 750 ms on a CI runner.
+const BUDGET_MS: Record<string, number> = { Week: 900, Month: 900, 'Timeline month': 1500 }
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'One browser is enough')
 

@@ -33,7 +33,10 @@ test('right-clicking a resource, on a timeline and as a column header', async ({
   expect(await logged(page)).toContain('resource-contextmenu r1')
 })
 
-test('the menu key on a focused event', async ({ page }) => {
+test('the menu key on a focused event', async ({ page, browserName }) => {
+  // Only Chromium turns a synthetic Shift+F10 into a contextmenu event; Firefox and WebKit open
+  // their menu from the real key only, and macOS has no menu key at all.
+  test.skip(browserName !== 'chromium', 'Synthetic Shift+F10 opens no menu in this browser')
   await open(page)
   await event(page, 'Alpha').focus()
   await page.keyboard.press('Shift+F10')
