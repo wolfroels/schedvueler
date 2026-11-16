@@ -300,8 +300,12 @@ function resourceScope(resource: ResourceNode<unknown>) {
   }
 }
 
-function onResourceClick(resource: ResourceNode<unknown>, e: MouseEvent) {
-  ctx.emit('resource-click', {
+function onResourceClick(
+  resource: ResourceNode<unknown>,
+  e: MouseEvent,
+  name: 'resource-click' | 'resource-contextmenu' = 'resource-click',
+) {
+  ctx.emit(name, {
     resource,
     view: props.view,
     nativeEvent: e,
@@ -627,6 +631,7 @@ defineExpose({ scrollToMinute })
                 :aria-label="`${cell.column.weekday} ${cell.column.dayNumber}, ${dateLabel(cell.column.date)}`"
                 :aria-current="cell.column.isToday ? 'date' : undefined"
                 @click="onDateClick(cell.column, $event)"
+                @contextmenu="ctx.openDateMenu(cell.column.date, view, $event)"
               >
                 <RenderSlot
                   :fn="resolve('day-header')"
@@ -652,6 +657,7 @@ defineExpose({ scrollToMinute })
               :class="{ 'is-group-end': cell.span === 1 && cell.column.isGroupEnd }"
               :style="{ gridColumn: `${cell.col + 2} / span ${cell.span}` }"
               @click="onResourceClick(cell.column.resource!, $event)"
+              @contextmenu="onResourceClick(cell.column.resource!, $event, 'resource-contextmenu')"
             >
               <RenderSlot
                 :fn="resolve('resource-label')"

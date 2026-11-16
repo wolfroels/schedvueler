@@ -566,8 +566,12 @@ function labelScope(resource: ResourceNode<unknown>): ResourceLabelSlotProps {
   }
 }
 
-function onResourceClick(resource: ResourceNode<unknown>, e: MouseEvent) {
-  ctx.emit('resource-click', {
+function onResourceClick(
+  resource: ResourceNode<unknown>,
+  e: MouseEvent,
+  name: 'resource-click' | 'resource-contextmenu' = 'resource-click',
+) {
+  ctx.emit(name, {
     resource,
     view: props.view,
     nativeEvent: e,
@@ -891,6 +895,7 @@ function eventTop(lane: number) {
                   class="orb-tl__day-button"
                   :aria-current="day.isToday ? 'date' : undefined"
                   @click="onDateClick(day, $event)"
+                  @contextmenu="ctx.openDateMenu(day.date, view, $event)"
                 >
                   <RenderSlot
                     :fn="resolve('timeline-header')"
@@ -1033,6 +1038,7 @@ function eventTop(lane: number) {
                       : undefined
                   "
                   @click="onResourceClick(row.resource, $event)"
+                  @contextmenu="onResourceClick(row.resource, $event, 'resource-contextmenu')"
                 >
                   {{ row.resource.title }}
                 </span>

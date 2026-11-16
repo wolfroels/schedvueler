@@ -15,7 +15,8 @@ import {
 } from '../core'
 import type {
   SchedulerDensity,
-  SchedulerEmits,
+  SchedulerChangeEmits,
+  SchedulerPointerHandlers,
   SchedulerOptions,
   SchedulerPreset,
   SchedulerSlots,
@@ -24,7 +25,7 @@ import { HydratingToolbar } from './HydratingToolbar'
 import { isRtl } from './direction'
 import { ownerWindow } from '../composables/usePictureInPicture'
 
-export interface SchedulerProps<T> extends SchedulerOptions<T> {
+export interface SchedulerProps<T> extends SchedulerOptions<T>, SchedulerPointerHandlers<T> {
   /** Color scheme. "auto" follows the operating system. Default "light". */
   theme?: 'light' | 'dark' | 'auto'
   /** Visual treatment, independent of the color scheme. Default "default". */
@@ -62,7 +63,8 @@ const view = defineModel<string>('view')
 /** Keys of the selected events, with `event-selection`. */
 const selectedEvents = defineModel<readonly string[]>('selectedEvents')
 
-const emit = defineEmits<SchedulerEmits<T>>()
+// Pointer callbacks (`@event-click`, …) are props: see SchedulerPointerHandlers.
+const emit = defineEmits<SchedulerChangeEmits<T>>()
 const slots = defineSlots<SchedulerSlots<T>>()
 
 const ctx = useScheduler<T>(

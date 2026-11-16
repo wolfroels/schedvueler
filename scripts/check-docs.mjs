@@ -19,7 +19,10 @@ const missing = [
     .filter((name) => name !== 'events')
     .filter((name) => !docs.includes(`\`${kebab(name)}\``))
     .map((name) => `prop ${kebab(name)}`),
-  ...members('export interface SchedulerEmits<T>')
+  ...[
+    ...members('export interface SchedulerChangeEmits<T>'),
+    ...members('export interface SchedulerPointerEmits<T>'),
+  ]
     .filter((name) => !docs.includes(`\`${name}\``))
     .map((name) => `emit ${name}`),
   ...members('export interface SchedulerSlots<T>')

@@ -5,6 +5,7 @@ import {
   DayView,
   MonthView,
   Scheduler,
+  SchedulerEventEditor,
   Temporal,
   TimelineView,
   WeekView,
@@ -68,6 +69,7 @@ watch([preset, theme], () => {
 })
 
 const scheduler = ref<{ clearSelection(): void }>()
+const editor = ref<InstanceType<typeof SchedulerEventEditor>>()
 const date = ref<string>()
 const view = ref('week')
 
@@ -168,32 +170,9 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
 }
 
 function onSelect(p: SelectPayload) {
-  const id = `new-${Date.now()}`
-  history.commit(
-    [
-      ...events.value,
-      p.allDay
-        ? {
-            id,
-            title: 'New event',
-            start: p.start.toPlainDate().toString(),
-            end: p.end.toPlainDate().toString(),
-            color: '#ca8a04',
-            resourceId: p.resourceId,
-          }
-        : {
-            id,
-            title: 'New event',
-            start: p.start.toString(),
-            end: p.end.toString(),
-            color: '#ca8a04',
-            resourceId: p.resourceId,
-          },
-    ],
-    'Create event',
-  )
-  scheduler.value?.clearSelection()
-  log('select', `created event ${fmtTimes(p)}`)
+  // The selection stays visible while the editor is open; closing it clears the selection.
+  editor.value?.create(p)
+  log('select', fmtTimes(p))
 }
 
 // --- dragging in from the sidebar ------------------------------------------------------------
@@ -253,32 +232,19 @@ function beforeChange(p: {
 }
 
 function onSlotDblClick(p: SlotPointerPayload) {
-  // Adding an event creates a new array; the store re-reads only the new object.
-  const id = `new-${Date.now()}`
-  history.commit(
-    [
-      ...events.value,
-      p.allDay
-        ? {
-            id,
-            title: 'New all-day event',
-            start: p.date.toString(),
-            color: '#ca8a04',
-            resourceId: p.resourceId,
-          }
-        : {
-            id,
-            title: 'New event',
-            start: p.start.toString(),
-            end: p.start.add({ minutes: 60 }).toString(),
-            color: '#ca8a04',
-            resourceId: p.resourceId,
-          },
-    ],
-    'Add event',
-  )
-  log('slot-dblclick', `added event at ${p.allDay ? p.date : p.start.toPlainDateTime().toString()}`)
+  editor.value?.create({
+    start: p.start,
+    end: p.allDay ? p.start.add({ days: 1 }) : p.start.add({ minutes: 60 }),
+    allDay: p.allDay,
+    resourceId: p.resourceId,
+  })
+  log('slot-dblclick', p.allDay ? p.date.toString() : p.start.toPlainDateTime().toString())
 }
+
+// Groups (crews, cranes) are headings in the timeline; events go on their members.
+const editorResources = computed(() => resources.value.filter((r) => r.parentId != null))
+
+const menu = (name: string, detail: string) => log(name, detail)
 </script>
 
 <template>
@@ -313,8 +279,9 @@ function onSlotDblClick(p: SlotPointerPayload) {
           </select>
         </label>
         <p class="pg__hint">
-          Drag over empty slots to create an event, drag events to move them, drag their edges to
-          resize. Click a date to open its day. On touch, swipe to navigate and long-press to drag.
+          Drag over empty slots or double-click one to create an event, double-click an event to
+          edit it, drag events to move them and their edges to resize. Right-clicks show up in the
+          emits. Click a date to open its day. On touch, swipe to navigate and long-press to drag.
         </p>
         <dl class="pg__keys">
           <div v-for="s in shortcuts" :key="s.label">
@@ -513,6 +480,11 @@ function onSlotDblClick(p: SlotPointerPayload) {
         @navigate="(p) => log('navigate', `${p.reason}: ${p.from} → ${p.to}`)"
         @view-change="(p) => log('view-change', `${p.from} → ${p.to}`)"
         @event-click="onEventClick"
+        @event-dblclick="(p) => editor?.edit(p)"
+        @event-contextmenu="(p) => menu('event-contextmenu', title(p.event))"
+        @slot-contextmenu="(p) => menu('slot-contextmenu', p.start.toPlainDateTime().toString())"
+        @date-contextmenu="(p) => menu('date-contextmenu', p.date.toString())"
+        @resource-contextmenu="(p) => menu('resource-contextmenu', p.resource.title ?? '')"
         @slot-click="(p) => log('slot-click', `${p.allDay ? p.date : p.start.toPlainDateTime()}`)"
         @slot-dblclick="onSlotDblClick"
         @date-click="(p) => log('date-click', p.date.toString())"
@@ -582,6 +554,17 @@ function onSlotDblClick(p: SlotPointerPayload) {
           :slot-width="56"
         />
       </Scheduler>
+      <SchedulerEventEditor
+        ref="editor"
+        :events="events"
+        :resources="editorResources"
+        :time-zone="timeZone"
+        :locale="locale"
+        :theme="theme"
+        :preset="preset"
+        @update:events="(next, label) => history.commit(next, label)"
+        @close="scheduler?.clearSelection()"
+      />
     </main>
   </div>
 </template>

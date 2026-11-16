@@ -393,6 +393,110 @@ function removeSeriesFrom(
   return replace(rest, series.id, { ...series, rrule: stringifyRRule(truncated) })
 }
 
+/** Fields an edit writes besides the times: what an editor form changes. */
+export type EventFields = Omit<
+  Partial<SchedulerEvent>,
+  | 'id'
+  | 'start'
+  | 'end'
+  | 'allDay'
+  | 'resourceId'
+  | 'resourceIds'
+  | 'recurringEventId'
+  | 'recurrenceId'
+  | 'exdates'
+  | 'rdates'
+> &
+  Record<string, unknown>
+
+/** What an editor saves: the times, and the other fields it changed. */
+export interface EventSave extends EventTimes {
+  /** Title, color, `rrule` (`null` to stop repeating) and any fields of your own. */
+  fields?: EventFields
+}
+
+// Kept by the edit itself, never copied from a form.
+const OWN_FIELDS = new Set([
+  'id',
+  'start',
+  'end',
+  'allDay',
+  'resourceId',
+  'resourceIds',
+  'recurringEventId',
+  'recurrenceId',
+  'exdates',
+  'rdates',
+])
+
+function withFields(event: SchedulerEvent, fields: EventFields, rule: boolean): SchedulerEvent {
+  const next: Record<string, unknown> = { ...event }
+  for (const [key, value] of Object.entries(fields)) {
+    if (OWN_FIELDS.has(key) || (key === 'rrule' && !rule)) continue
+    if (value === undefined) delete next[key]
+    else next[key] = value
+  }
+  // Repeating stopped: the series' own exceptions to the rule go with it.
+  if (rule && 'rrule' in fields && !fields.rrule) {
+    delete next.rrule
+    delete next.exdates
+    delete next.rdates
+  }
+  return next as unknown as SchedulerEvent
+}
+
+/**
+ * Saves an editor's changes. With `occurrence` it updates that event, or for a recurring one the
+ * occurrences in `scope`, as `applyEventEdit` does with the times, and writes `fields` to the
+ * event that holds the change: the event itself, its series, a new exception or the split-off
+ * series. Without `occurrence` it adds a new event. `fields.rrule` is ignored for "this", since
+ * one occurrence cannot repeat.
+ */
+export function saveEventEdit(
+  events: readonly SchedulerEvent[],
+  occurrence: EventOccurrence<SchedulerEvent> | null | undefined,
+  edit: EventSave,
+  options: EditOptions,
+): SchedulerEvent[] {
+  const fields = edit.fields ?? {}
+  const createId = options.createId ?? defaultCreateId
+
+  if (!occurrence) {
+    const ids = edit.resourceIds ?? []
+    const event = withFields(
+      {
+        id: createId({ id: 'new', start: edit.start.toString() }),
+        ...formatTimes(edit, options.timeZone),
+        ...(ids.length === 1
+          ? { resourceId: ids[0] }
+          : ids.length
+            ? { resourceIds: [...ids] }
+            : {}),
+      },
+      fields,
+      true,
+    )
+    return [...events, event]
+  }
+
+  const scope = options.scope ?? 'this'
+  const created: EventId[] = []
+  const recording = (from: SchedulerEvent) => {
+    const id = createId(from)
+    created.push(id)
+    return id
+  }
+  const next = applyEventEdit(events, occurrence, edit, { ...options, createId: recording })
+  const target =
+    created.at(-1) ??
+    (occurrence.isException && scope !== 'this' && occurrence.seriesId != null
+      ? occurrence.seriesId
+      : occurrence.event.id)
+  // An exception made for "this" is one occurrence: it never repeats.
+  const rule = !(scope === 'this' && (occurrence.recurring || occurrence.isException))
+  return next.map((e) => (e.id === target ? withFields(e, fields, rule) : e))
+}
+
 /** One change of several, as carried by `event-drop` and `event-resize`. */
 export interface EventEdit extends EventTimes {
   occurrence: EventOccurrence<SchedulerEvent>

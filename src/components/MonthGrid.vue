@@ -511,6 +511,7 @@ onBeforeUnmount(stopListening)
               v-bind="ctx.part('monthDayNumber', cell)"
               tabindex="-1"
               @click.stop="onDateClick(cell, $event)"
+              @contextmenu.stop="ctx.openDateMenu(cell.date, view, $event)"
             >
               <RenderSlot :fn="resolve('month-day-number')" :scope="{ view, ...cell }">
                 {{ cell.dayNumber }}

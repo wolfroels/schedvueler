@@ -4,7 +4,8 @@ Short, complete answers to what comes up in most apps. The package stays out of 
 
 ## An editor dialog
 
-The scheduler has no built-in editor. `select` creates, `event-click` edits, and your dialog owns the form.
+`<SchedulerEventEditor>` is ready-made: see [Event editor](/api#event-editor). To use your own
+dialog instead, `select` creates, `event-click` edits, and your dialog owns the form.
 
 ```vue
 <script setup lang="ts">
@@ -32,7 +33,7 @@ function save(event: SchedulerEvent) {
 </template>
 ```
 
-Use `recurrenceToForm` and `formToRecurrence` for the repeat fields, and `recurrenceToText` to show the result in words.
+Use `recurrenceToForm` and `formToRecurrence` for the repeat fields, `recurrenceToText` to show the result in words, and `saveEventEdit` to write the form back, including to one occurrence of a series.
 
 ## Asking which occurrences to change
 
@@ -129,6 +130,36 @@ const tip = useEventPopover<SchedulerEvent>({ placement: 'top' })
   />
   <div v-if="tip.isOpen.value" :ref="tip.setElement" :style="tip.style.value" role="tooltip">
     {{ tip.data.value?.title }}
+  </div>
+</template>
+```
+
+## A right-click menu
+
+Every right-click callback (`event-contextmenu`, `slot-contextmenu`, `date-contextmenu`,
+`resource-contextmenu`) carries the element, so a popover can anchor to it. `preventDefault()`
+keeps the browser's own menu away.
+
+```vue
+<script setup lang="ts">
+const menu = useEventPopover<EventPointerPayload<SchedulerEvent>>({ placement: 'bottom' })
+
+function onMenu(p: EventPointerPayload<SchedulerEvent>) {
+  p.nativeEvent.preventDefault()
+  menu.open(p.element, p)
+}
+function remove() {
+  const p = menu.data.value!
+  history.commit(removeEventOccurrence(events.value, p.occurrence, { timeZone }), 'Delete')
+  menu.close()
+}
+</script>
+
+<template>
+  <Scheduler @event-contextmenu="onMenu" />
+  <div v-if="menu.isOpen.value" :ref="menu.setElement" :style="menu.style.value" role="menu">
+    <button role="menuitem" @click="editor?.edit(menu.data.value!), menu.close()">Edit</button>
+    <button role="menuitem" @click="remove">Delete</button>
   </div>
 </template>
 ```

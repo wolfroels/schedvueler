@@ -8,6 +8,7 @@ import {
   MultiMonthView,
   MonthView,
   Scheduler,
+  SchedulerEventEditor,
   TimelineView,
   WeekView,
   YearView,
@@ -141,7 +142,14 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
   log.push(`event-delete ${p.event.title}`)
 }
 
-const onSelect = (p: SelectPayload) => log.push(`select ${when(p)} @${p.resourceId ?? ''}`)
+// With ?editor, selecting and double-clicking open <SchedulerEventEditor>.
+const withEditor = params.has('editor')
+const editor = ref<InstanceType<typeof SchedulerEventEditor>>()
+
+function onSelect(p: SelectPayload) {
+  log.push(`select ${when(p)} @${p.resourceId ?? ''}`)
+  if (withEditor) editor.value?.create(p)
+}
 const onReceive = (p: EventReceivePayload) =>
   log.push(`event-receive ${p.template.title} ${when(p)}`)
 </script>
@@ -202,11 +210,36 @@ const onReceive = (p: EventReceivePayload) =>
       @event-change-failed="(p) => log.push(`event-change-failed ${p.event.title} ${p.reason}`)"
       @event-receive="onReceive"
       @select="onSelect"
+      @event-dblclick="(p) => withEditor && editor?.edit(p)"
       @unselect="log.push('unselect')"
       @navigate="(p) => log.push(`navigate ${p.reason} ${p.to}`)"
       @view-change="(p) => log.push(`view-change ${p.to}`)"
       @date-click="(p) => log.push(`date-click ${p.date}`)"
       @slot-click="(p) => log.push(`slot-click ${p.date}`)"
+      @event-contextmenu="
+        (p) => {
+          p.nativeEvent.preventDefault()
+          log.push(`event-contextmenu ${p.event.title}`)
+        }
+      "
+      @slot-contextmenu="
+        (p) => {
+          p.nativeEvent.preventDefault()
+          log.push(`slot-contextmenu ${p.start.toPlainDateTime()}`)
+        }
+      "
+      @date-contextmenu="
+        (p) => {
+          p.nativeEvent.preventDefault()
+          log.push(`date-contextmenu ${p.date}`)
+        }
+      "
+      @resource-contextmenu="
+        (p) => {
+          p.nativeEvent.preventDefault()
+          log.push(`resource-contextmenu ${p.resource.id}`)
+        }
+      "
       @more-click="(p) => log.push(`more-click ${p.date} ${p.hiddenCount}`)"
     >
       <template v-for="name in allSlots" :key="name" #[name]>
@@ -236,6 +269,17 @@ const onReceive = (p: EventReceivePayload) =>
       <GanttView />
       <AgendaCards />
     </Scheduler>
+    <SchedulerEventEditor
+      v-if="withEditor"
+      ref="editor"
+      :events="events"
+      :resources="[
+        { id: 'r1', title: 'Room 1' },
+        { id: 'r2', title: 'Room 2' },
+      ]"
+      time-zone="Europe/Brussels"
+      @update:events="(next, label) => ((events = next), log.push(`editor ${label}`))"
+    />
   </div>
 </template>
 

@@ -109,6 +109,7 @@ function onEmptyPointerDown(e: PointerEvent) {
           :data-date="date.toString()"
           :aria-label="date.toLocaleString(ctx.options.value.locale, { dateStyle: 'full' })"
           @click="onDayClick(date, $event)"
+          @contextmenu="ctx.openDateMenu(date, view, $event)"
         >
           {{ date.day }}
         </button>

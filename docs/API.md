@@ -259,6 +259,7 @@ One row per event, with `progress` (0 to 1), milestones (events without length),
 - `<SchedulerLegend :layers @toggle>` lists calendars, with `useCalendars`. Slots `legend` and `legend-item`.
 - `<SchedulerUndoToast :history>` shows the last change with an undo button, with `useHistory`. Slot `undo-toast`.
 - `<SchedulerQuickAdd @add>` reads "Lunch friday 12:30 for 1h". Slot `quick-add`; `parser` for your own reader. `parseQuickAdd` is the reader on its own.
+- `<SchedulerEventEditor>` is a ready-made dialog to create, edit and delete events. See [Event editor](#event-editor).
 
 Composables without any markup:
 
@@ -279,6 +280,68 @@ Events can have `bufferBefore` and `bufferAfter`, in minutes: drawn around the e
 
 Time grid views take `fold-empty-hours` (`true`, or the shortest stretch in minutes), which collapses stretches without events into one row with the `time-fold` slot, and `event-stack-threshold`, which takes overlapping events together from that many on, with the `event-stack` slot. Timelines take `minimap`, and show zoom buttons with `zoom-levels` (slot `zoom-control`).
 
+## Event editor
+
+`<SchedulerEventEditor>` is an optional dialog for creating, editing and deleting events: title,
+all day, start and end, resource, color, repeat, and the "this / following / all" choice for
+recurring events. Open it from the scheduler's emits; with `events` it applies its changes itself.
+Its styles are separate, so apps without it don't load them: `import 'schedvueler/editor.css'`.
+
+```vue
+<script setup lang="ts">
+const events = shallowRef<SchedulerEvent[]>(initial)
+const history = useHistory(events, { keyboard: true })
+const editor = ref<InstanceType<typeof SchedulerEventEditor>>()
+</script>
+
+<template>
+  <Scheduler
+    ref="scheduler"
+    :events="events"
+    selectable
+    @select="editor?.create"
+    @event-dblclick="editor?.edit"
+  >
+    <WeekView />
+  </Scheduler>
+  <SchedulerEventEditor
+    ref="editor"
+    :events="events"
+    :resources="resources"
+    time-zone="Europe/Brussels"
+    @update:events="(next, label) => history.commit(next, label)"
+    @close="scheduler?.clearSelection()"
+  />
+</template>
+```
+
+| Prop        | Default       | Meaning                                                                             |
+| ----------- | ------------- | ----------------------------------------------------------------------------------- |
+| `events`    | –             | Your events. With them the editor applies its changes and emits `update:events`.    |
+| `time-zone` | of the opened | Zone of the form's dates and times.                                                 |
+| `resources` | –             | `{ id, title }` to choose from; without them there is no resource field.            |
+| `colors`    | nine swatches | Swatches for `color`; `[]` hides the field.                                         |
+| `messages`  | English       | `Partial<EditorMessages>`. The locale packs have `editor`: `:messages="nl.editor"`. |
+| `locale`    | the browser's | For weekday names.                                                                  |
+| `theme`     | `'light'`     | `'light'`, `'dark'` or `'auto'`, as on the scheduler.                               |
+| `preset`    | `'default'`   | The scheduler's visual preset.                                                      |
+| `create-id` | generated     | Id for new events and for the exceptions and series an edit creates.                |
+
+- Exposed: `create(input)` opens it for a new event; the `select` payload fits, or
+  `{ start, end, allDay, resourceId? }`. `edit({ occurrence })` opens it for an event; any
+  event payload fits. Also `close()` and `isOpen`.
+- Emits: `update:events` (`events`, `label` for undo; only with `events`), `save`
+  (`occurrence`, `edit`, `scope`) before applying, `delete` (`occurrence`, `scope`), `close`.
+  Without `events`, apply `save` yourself: `saveEventEdit(list, p.occurrence, p.edit, { scope: p.scope, timeZone })`.
+- Slot `fields` (`fields`, `occurrence`): more fields after the built-in ones. Write to
+  `fields`, e.g. `v-model="fields.location"`; they are saved on the event.
+- It is a modal `<dialog>`: focus moves into it and comes back, Escape and a click outside close
+  it, and Enter in the title saves. On phones it opens as a sheet from the bottom.
+- It opens outside `.schedvueler`, so CSS variables you set on `.schedvueler` should also be set
+  on `.orb-editor` (or on a common ancestor).
+- A change to a recurring rule offers only "following" and "all", since one occurrence cannot
+  repeat.
+
 ## Custom views
 
 See [Custom views](/custom-views).
@@ -287,6 +350,11 @@ See [Custom views](/custom-views).
 
 Cancelable payloads (marked ✋) have `preventDefault()` and `waitUntil(promise)`; the action is
 cancelled when the promise rejects or resolves to `false`.
+
+Right-click callbacks (`event-contextmenu`, `slot-contextmenu`, `date-contextmenu`,
+`resource-contextmenu`) also fire for the menu key and Shift+F10 on the focused element. Call
+`nativeEvent.preventDefault()` to show your own menu instead of the browser's, and anchor it to
+`element` or to `nativeEvent.clientX` / `clientY`.
 
 | Emit                                                                                         | Payload highlights                                                                                                                 |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -297,6 +365,7 @@ cancelled when the promise rejects or resolves to `false`.
 | `event-keydown`                                                                              | same, with a `KeyboardEvent`                                                                                                       |
 | `slot-click`, `slot-dblclick`, `slot-contextmenu`                                            | `view`, `date`, `start`, `end`, `allDay`, `resourceId?`, `nativeEvent`, `element`                                                  |
 | `date-click` ✋                                                                              | `view`, `date`; preventing it stops the drill-down                                                                                 |
+| `date-contextmenu`                                                                           | `view`, `date`, `nativeEvent`, `element` (the same dates as `date-click`, right-clicked)                                           |
 | `more-click` ✋                                                                              | `date`, `occurrences`, `hiddenCount`; preventing it keeps the popover closed                                                       |
 | `event-drag-start` ✋                                                                        | `occurrence`, `kind` (`move`, `resize-start`, `resize-end`)                                                                        |
 | `event-drag`                                                                                 | where the event would land now: `start`, `end`, `allDay`, `resourceIds`, `valid`                                                   |
@@ -310,7 +379,7 @@ cancelled when the promise rejects or resolves to `false`.
 | `before-event-receive` ✋                                                                    | an event dragged in from outside is about to be dropped: `start`, `end`, `allDay`, `resourceIds`, `resourceId`, `template`, `data` |
 | `event-receive`                                                                              | the same, after the drop. Add the event to your data.                                                                              |
 | `unselect`                                                                                   | –                                                                                                                                  |
-| `resource-click`                                                                             | `resource` (node with `id`, `title`, `depth`, ...), `view`                                                                         |
+| `resource-click`, `resource-contextmenu`                                                     | `resource` (node with `id`, `title`, `depth`, ...), `view`, `nativeEvent`, `element`                                               |
 | `resource-toggle`                                                                            | `resource`, `expanded`                                                                                                             |
 | `visible-resources-change`                                                                   | `view`, `resourceIds` (rendered timeline rows), `start`, `end`, `startMs`, `endMs`. Load events for just those resources.          |
 
@@ -424,6 +493,10 @@ function onDelete(p: EventDeletePayload<SchedulerEvent>) {
   written too.
 - `removeEventOccurrence(events, occurrence, { scope, timeZone })`: `this` adds an exdate,
   `following` ends the series, `all` removes the series and its exceptions.
+- `saveEventEdit(events, occurrence | null, { start, end, allDay, resourceIds?, fields? }, { scope, timeZone })`
+  saves what an editor changed: the times as `applyEventEdit` does, and `fields` (title, color,
+  `rrule`, your own fields) on the event that holds the change: the event, its series, a new
+  exception or the split-off series. Without `occurrence` it adds a new event.
 - `useHistory(ref, { keyboard?, limit? })` returns `commit(next, label?)`, `undo()`, `redo()`,
   `reset(present?)`, and the computed `canUndo`, `canRedo`, `undoLabel`, `redoLabel`. With
   `keyboard: true`, Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z or Ctrl+Y redoes (not while typing).

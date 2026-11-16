@@ -16,14 +16,17 @@ export default defineConfig({
     vueDevTools(),
     dts({ tsconfigPath: './tsconfig.lib.json' }),
     {
-      name: 'primeuix-styles',
+      // Optional sheets, imported on their own: `schedvueler/primeuix.css`, `schedvueler/editor.css`.
+      name: 'optional-styles',
       apply: 'build',
       generateBundle() {
-        this.emitFile({
-          type: 'asset',
-          fileName: 'primeuix.css',
-          source: readFileSync(new URL('./src/styles/primeuix.css', import.meta.url), 'utf8'),
-        })
+        for (const name of ['primeuix.css', 'editor.css']) {
+          this.emitFile({
+            type: 'asset',
+            fileName: name,
+            source: readFileSync(new URL(`./src/styles/${name}`, import.meta.url), 'utf8'),
+          })
+        }
       },
     },
   ],

@@ -105,6 +105,89 @@ export const defaultMessages: SchedulerMessages = {
   poppedOut: 'The scheduler is open in a picture-in-picture window.',
 }
 
+/** Wording of `<SchedulerEventEditor>`. */
+export interface EditorMessages {
+  newEvent: string
+  editEvent: string
+  title: string
+  titlePlaceholder: string
+  allDay: string
+  start: string
+  end: string
+  /** Shown when the end is not after the start. */
+  endBeforeStart: string
+  resource: string
+  noResource: string
+  color: string
+  defaultColor: string
+  repeat: string
+  doesNotRepeat: string
+  /** Names of the repeat choices. */
+  frequencies: Record<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY', string>
+  every: string
+  /** The unit after "Every 2", by frequency: [one, more]. */
+  units: Record<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY', [string, string]>
+  onDays: string
+  repeatEnds: string
+  never: string
+  afterCount: string
+  /** After the count: "times". */
+  occurrences: string
+  onDate: string
+  save: string
+  cancel: string
+  delete: string
+  back: string
+  /** Asked before a change to a recurring event. */
+  saveWhich: string
+  /** Asked before deleting from a recurring event. */
+  deleteWhich: string
+  /** Labels and explanations of "this", "following" and "all". */
+  scope: Record<'this' | 'following' | 'all', [string, string]>
+}
+
+export const defaultEditorMessages: EditorMessages = {
+  newEvent: 'New event',
+  editEvent: 'Edit event',
+  title: 'Title',
+  titlePlaceholder: 'Add a title',
+  allDay: 'All day',
+  start: 'Starts',
+  end: 'Ends',
+  endBeforeStart: 'The end is not after the start.',
+  resource: 'Resource',
+  noResource: 'None',
+  color: 'Color',
+  defaultColor: 'Default color',
+  repeat: 'Repeat',
+  doesNotRepeat: 'Does not repeat',
+  frequencies: { DAILY: 'Daily', WEEKLY: 'Weekly', MONTHLY: 'Monthly', YEARLY: 'Yearly' },
+  every: 'Every',
+  units: {
+    DAILY: ['day', 'days'],
+    WEEKLY: ['week', 'weeks'],
+    MONTHLY: ['month', 'months'],
+    YEARLY: ['year', 'years'],
+  },
+  onDays: 'On',
+  repeatEnds: 'Until',
+  never: 'Forever',
+  afterCount: 'A number of times',
+  occurrences: 'times',
+  onDate: 'A date',
+  save: 'Save',
+  cancel: 'Cancel',
+  delete: 'Delete',
+  back: 'Back',
+  saveWhich: 'Save the change for',
+  deleteWhich: 'Delete',
+  scope: {
+    this: ['This event', 'Only this occurrence changes.'],
+    following: ['This and following events', 'This occurrence and all later ones change.'],
+    all: ['All events', 'Every occurrence in the series changes.'],
+  },
+}
+
 /** Extra attributes for an event or a cell; merged onto the element the scheduler renders. */
 export interface ElementAttrs {
   class?: HTMLAttributes['class']
@@ -623,13 +706,15 @@ export interface SlotPointerPayload {
   element: HTMLElement
 }
 
-/** Cancelable: preventing it stops the drill-down to `drillDownView`. */
-export interface DateClickPayload extends Cancelable {
+export interface DatePointerPayload {
   view: string
   date: Temporal.PlainDate
   nativeEvent: MouseEvent
   element: HTMLElement
 }
+
+/** Cancelable: preventing it stops the drill-down to `drillDownView`. */
+export interface DateClickPayload extends DatePointerPayload, Cancelable {}
 
 export interface MoreClickPayload<T> extends Cancelable {
   view: string
@@ -814,26 +899,17 @@ export interface VisibleResourcesPayload {
   endMs: number
 }
 
-export interface SchedulerEmits<T> {
+/**
+ * What `<Scheduler>` emits when something changes: navigation, edits, selection and resources.
+ * The pointer and keyboard callbacks are in `SchedulerPointerHandlers`; `SchedulerEmits` has both.
+ */
+export interface SchedulerChangeEmits<T> {
   /** The visible range changed. Use it to load events for that range. */
   'range-change': [payload: RangeChangePayload]
   /** Before the date changes. Cancelable. */
   navigate: [payload: NavigatePayload]
   /** Before the view changes. Cancelable. */
   'view-change': [payload: ViewChangePayload]
-  'event-click': [payload: EventPointerPayload<T>]
-  'event-dblclick': [payload: EventPointerPayload<T>]
-  'event-contextmenu': [payload: EventPointerPayload<T>]
-  'event-mouseenter': [payload: EventPointerPayload<T>]
-  'event-mouseleave': [payload: EventPointerPayload<T>]
-  'event-keydown': [payload: EventKeyPayload<T>]
-  'slot-click': [payload: SlotPointerPayload]
-  'slot-dblclick': [payload: SlotPointerPayload]
-  'slot-contextmenu': [payload: SlotPointerPayload]
-  /** A day header (time grid), day number (month) or agenda day was clicked. Cancelable. */
-  'date-click': [payload: DateClickPayload]
-  /** Before the "+N more" popover opens. Cancelable. */
-  'more-click': [payload: MoreClickPayload<T>]
 
   /** A move or resize starts (pointer passed the threshold, or long press). Cancelable. */
   'event-drag-start': [payload: EventDragStartPayload<T>]
@@ -883,13 +959,62 @@ export interface SchedulerEmits<T> {
   'event-receive': [payload: EventReceivePayload]
   /** The selection was cleared. */
   unselect: []
-  /** A resource label was clicked. */
-  'resource-click': [payload: ResourcePointerPayload]
   /** A resource group was expanded or collapsed. */
   'resource-toggle': [payload: ResourceTogglePayload]
   /** Different timeline rows came into view. Use it to load events for just those resources. */
   'visible-resources-change': [payload: VisibleResourcesPayload]
 }
+
+/**
+ * Pointer and keyboard callbacks of `<Scheduler>`: `@event-click`, `@slot-contextmenu` and so on.
+ * They work like emits. They are declared as props because Vue's template type checker gives up
+ * on components with more than about 40 emits, and then types none of their handlers.
+ */
+export interface SchedulerPointerHandlers<T> {
+  onEventClick?: (payload: EventPointerPayload<T>) => void
+  onEventDblclick?: (payload: EventPointerPayload<T>) => void
+  onEventContextmenu?: (payload: EventPointerPayload<T>) => void
+  onEventMouseenter?: (payload: EventPointerPayload<T>) => void
+  onEventMouseleave?: (payload: EventPointerPayload<T>) => void
+  onEventKeydown?: (payload: EventKeyPayload<T>) => void
+  onSlotClick?: (payload: SlotPointerPayload) => void
+  onSlotDblclick?: (payload: SlotPointerPayload) => void
+  onSlotContextmenu?: (payload: SlotPointerPayload) => void
+  /** A day header (time grid), day number (month) or agenda day was clicked. Cancelable. */
+  onDateClick?: (payload: DateClickPayload) => void
+  /**
+   * The same dates as `date-click`, right-clicked (or the menu key). Call
+   * `nativeEvent.preventDefault()` to show your own menu instead of the browser's.
+   */
+  onDateContextmenu?: (payload: DatePointerPayload) => void
+  /** Before the "+N more" popover opens. Cancelable. */
+  onMoreClick?: (payload: MoreClickPayload<T>) => void
+  /** A resource label was clicked. */
+  onResourceClick?: (payload: ResourcePointerPayload) => void
+  /** A resource label or column header was right-clicked (or the menu key). */
+  onResourceContextmenu?: (payload: ResourcePointerPayload) => void
+}
+
+/** The callbacks of `SchedulerPointerHandlers`, in the shape of an emits declaration. */
+export interface SchedulerPointerEmits<T> {
+  'event-click': [payload: EventPointerPayload<T>]
+  'event-dblclick': [payload: EventPointerPayload<T>]
+  'event-contextmenu': [payload: EventPointerPayload<T>]
+  'event-mouseenter': [payload: EventPointerPayload<T>]
+  'event-mouseleave': [payload: EventPointerPayload<T>]
+  'event-keydown': [payload: EventKeyPayload<T>]
+  'slot-click': [payload: SlotPointerPayload]
+  'slot-dblclick': [payload: SlotPointerPayload]
+  'slot-contextmenu': [payload: SlotPointerPayload]
+  'date-click': [payload: DateClickPayload]
+  'date-contextmenu': [payload: DatePointerPayload]
+  'more-click': [payload: MoreClickPayload<T>]
+  'resource-click': [payload: ResourcePointerPayload]
+  'resource-contextmenu': [payload: ResourcePointerPayload]
+}
+
+/** Everything `<Scheduler>` emits, by name, with its payload. */
+export type SchedulerEmits<T> = SchedulerChangeEmits<T> & SchedulerPointerEmits<T>
 
 // ---------------------------------------------------------------------------------------------
 // Slot props

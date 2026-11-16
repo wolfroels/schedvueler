@@ -207,6 +207,7 @@ function onDayKeydown(e: KeyboardEvent, cell: YearDayCell<unknown>) {
             :aria-label="dayLabel(cell)"
             :aria-current="cell.isToday ? 'date' : undefined"
             @click="onDayClick(cell, $event)"
+            @contextmenu="ctx.openDateMenu(cell.date, name, $event)"
             @keydown="onDayKeydown($event, cell)"
           >
             <RenderSlot :fn="resolve('year-day')" :scope="daySlotProps(cell)">

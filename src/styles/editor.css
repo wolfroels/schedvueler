@@ -1,0 +1,310 @@
+/*
+ * Styles of <SchedulerEventEditor>, which is optional: import them next to the scheduler's,
+ *
+ *   import 'schedvueler/style.css'
+ *   import 'schedvueler/editor.css'
+ *
+ * The theme variables come from the scheduler's sheet, which gives them to `.orb-editor` too.
+ */
+
+/* Without weight, so the editor's own control styles win. */
+:where(.orb-editor) :where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+.orb-button--primary {
+  border-color: transparent;
+  background: var(--orb-color-accent);
+  color: var(--orb-color-accent-contrast);
+}
+
+.orb-button--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--orb-color-accent) 86%, var(--orb-color-text));
+}
+
+/* A modal <dialog>, outside the scheduler; it takes the theme through data-theme and data-preset. */
+.orb-editor {
+  --orb-editor-label: 5.5rem;
+  --orb-editor-danger: #dc2626;
+
+  width: min(30rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--orb-color-border);
+  border-radius: calc(var(--orb-radius) + 6px);
+  background: var(--orb-color-bg);
+  color: var(--orb-color-text);
+  box-shadow: var(--orb-shadow-popover);
+}
+
+.orb-editor::backdrop {
+  background: rgb(15 23 42 / 0.32);
+}
+
+.orb-editor[data-theme='dark'] {
+  --orb-editor-danger: #f87171;
+}
+
+.orb-editor[data-theme='dark']::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.orb-editor[open] {
+  animation: orb-pop var(--orb-duration-enter) var(--orb-ease);
+}
+
+.orb-editor__form {
+  display: flex;
+  flex-direction: column;
+}
+
+.orb-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 16px 8px 20px;
+}
+
+.orb-editor__heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: var(--orb-font-weight-strong);
+}
+
+.orb-editor .orb-button svg {
+  width: 1.1em;
+  height: 1.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.orb-editor__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 20px 16px;
+}
+
+.orb-editor__title {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--orb-color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.125rem;
+  transition: border-color var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-editor__title:focus-visible {
+  outline: none;
+  border-bottom-color: var(--orb-color-accent);
+}
+
+.orb-editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.orb-editor__label {
+  flex: 0 0 var(--orb-editor-label);
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+}
+
+.orb-editor__input {
+  height: var(--orb-control-height);
+  padding: 0 8px;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  background: var(--orb-color-bg);
+  color: inherit;
+  transition: border-color var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-editor__input:hover {
+  border-color: color-mix(in srgb, var(--orb-color-text) 28%, transparent);
+}
+
+.orb-editor__input[aria-invalid='true'] {
+  border-color: var(--orb-editor-danger);
+}
+
+.orb-editor__input--number {
+  width: 4.5rem;
+}
+
+.orb-editor__unit {
+  color: var(--orb-color-text-muted);
+}
+
+.orb-editor__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.orb-editor__check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--orb-color-accent);
+}
+
+.orb-editor__error {
+  margin: -4px 0 0 calc(var(--orb-editor-label) + 8px);
+  color: var(--orb-editor-danger);
+  font-size: var(--orb-font-size-sm);
+}
+
+.orb-editor__swatches,
+.orb-editor__weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.orb-editor__swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+  cursor: pointer;
+  transition: box-shadow var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-editor__swatch[aria-checked='true'] {
+  box-shadow:
+    0 0 0 2px var(--orb-color-bg),
+    0 0 0 4px var(--swatch, var(--orb-color-text-muted));
+}
+
+.orb-editor__swatch--none {
+  background: var(--orb-color-surface);
+  box-shadow: inset 0 0 0 1px var(--orb-color-border);
+}
+
+/* "Default": a struck-through swatch. */
+.orb-editor__swatch--none::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 4px;
+  width: 16px;
+  height: 2px;
+  background: var(--orb-color-text-muted);
+  transform: rotate(-45deg);
+}
+
+.orb-editor__weekday {
+  min-width: 2.5rem;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  background: var(--orb-color-bg);
+  color: var(--orb-color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--orb-duration-fast) var(--orb-ease),
+    color var(--orb-duration-fast) var(--orb-ease),
+    border-color var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-editor__weekday[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--orb-color-accent);
+  color: var(--orb-color-accent-contrast);
+}
+
+.orb-editor__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--orb-color-border-subtle);
+}
+
+.orb-editor__spacer {
+  flex: 1;
+}
+
+.orb-editor__delete {
+  color: var(--orb-editor-danger);
+}
+
+.orb-editor__scope {
+  gap: 8px;
+}
+
+.orb-editor__question {
+  margin: 0 0 4px;
+  color: var(--orb-color-text-muted);
+}
+
+.orb-editor__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--orb-color-border);
+  border-radius: var(--orb-radius);
+  background: var(--orb-color-bg);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--orb-duration-fast) var(--orb-ease),
+    border-color var(--orb-duration-fast) var(--orb-ease);
+}
+
+.orb-editor__choice:hover {
+  border-color: color-mix(in srgb, var(--orb-color-accent) 45%, var(--orb-color-border));
+  background: var(--orb-color-hover);
+}
+
+.orb-editor__choice small {
+  color: var(--orb-color-text-muted);
+  font-size: var(--orb-font-size-sm);
+}
+
+/* Phones: a sheet from the bottom, labels above their fields. */
+@media (max-width: 480px) {
+  .orb-editor {
+    width: 100vw;
+    margin: auto 0 0;
+    border-radius: calc(var(--orb-radius) + 6px) calc(var(--orb-radius) + 6px) 0 0;
+  }
+
+  .orb-editor__label {
+    flex-basis: 100%;
+  }
+
+  .orb-editor__error {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-editor,
+  .orb-editor * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

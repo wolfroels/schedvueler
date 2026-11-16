@@ -26,3 +26,10 @@ export { default as SchedulerMiniCalendar } from './SchedulerMiniCalendar.vue'
 export { default as SchedulerLegend } from './SchedulerLegend.vue'
 export { default as SchedulerUndoToast } from './SchedulerUndoToast.vue'
 export { default as SchedulerQuickAdd } from './SchedulerQuickAdd.vue'
+export { default as SchedulerEventEditor } from './SchedulerEventEditor.vue'
+export type {
+  EditorCreateInput,
+  EditorDeletePayload,
+  EditorEditInput,
+  EditorSavePayload,
+} from './SchedulerEventEditor.vue'

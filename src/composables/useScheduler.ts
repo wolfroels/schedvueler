@@ -531,6 +531,14 @@ export function useScheduler<T>(
         state.view.value = name
       })
     },
+    openDateMenu(target, view, nativeEvent) {
+      emit('date-contextmenu', {
+        view,
+        date: target,
+        nativeEvent,
+        element: nativeEvent.currentTarget as HTMLElement,
+      })
+    },
     openDate(target, view, nativeEvent) {
       const { payload, settle } = createCancelable({
         view,

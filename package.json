@@ -1,6 +1,6 @@
 {
   "name": "schedvueler",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "description": "Modular, slot-driven scheduler and calendar components for Vue 3",
@@ -24,7 +24,8 @@
       "import": "./dist/locales.js"
     },
     "./style.css": "./dist/schedvueler.css",
-    "./primeuix.css": "./dist/primeuix.css"
+    "./primeuix.css": "./dist/primeuix.css",
+    "./editor.css": "./dist/editor.css"
   },
   "sideEffects": [
     "**/*.css",

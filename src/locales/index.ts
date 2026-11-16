@@ -1,4 +1,4 @@
-import type { Frequency, RecurrenceTextStrings, SchedulerMessages } from '../index'
+import type { EditorMessages, Frequency, RecurrenceTextStrings, SchedulerMessages } from '../index'
 
 // Translated wording. Pass a pack's `messages` to `<Scheduler :messages>`, and its `recurrence` to
 // `recurrenceToText`. Dates and weekday names already follow the `locale` prop.
@@ -6,6 +6,8 @@ import type { Frequency, RecurrenceTextStrings, SchedulerMessages } from '../ind
 export interface LocalePack {
   messages: Partial<SchedulerMessages>
   recurrence: RecurrenceTextStrings
+  /** For `<SchedulerEventEditor :messages>`. */
+  editor: EditorMessages
 }
 
 type Units = Record<Frequency, [string, string]>
@@ -48,8 +50,10 @@ function pack(words: {
   times: (n: number) => string
   until: string
   and: string
+  editor: EditorMessages
 }): LocalePack {
   return {
+    editor: words.editor,
     messages: {
       today: words.today,
       previous: words.previous,
@@ -149,6 +153,52 @@ export const nl = pack({
   times: (n) => (n === 1 ? 'eenmaal' : `${n} keer`),
   until: 'tot',
   and: 'en',
+  editor: {
+    newEvent: 'Nieuwe afspraak',
+    editEvent: 'Afspraak bewerken',
+    title: 'Titel',
+    titlePlaceholder: 'Titel toevoegen',
+    allDay: 'Hele dag',
+    start: 'Begint',
+    end: 'Eindigt',
+    endBeforeStart: 'Het einde ligt niet na het begin.',
+    resource: 'Middel',
+    noResource: 'Geen',
+    color: 'Kleur',
+    defaultColor: 'Standaardkleur',
+    repeat: 'Herhalen',
+    doesNotRepeat: 'Niet herhalen',
+    frequencies: {
+      DAILY: 'Dagelijks',
+      WEEKLY: 'Wekelijks',
+      MONTHLY: 'Maandelijks',
+      YEARLY: 'Jaarlijks',
+    },
+    every: 'Elke',
+    units: {
+      DAILY: ['dag', 'dagen'],
+      WEEKLY: ['week', 'weken'],
+      MONTHLY: ['maand', 'maanden'],
+      YEARLY: ['jaar', 'jaar'],
+    },
+    onDays: 'Op',
+    repeatEnds: 'Tot',
+    never: 'Altijd',
+    afterCount: 'Een aantal keer',
+    occurrences: 'keer',
+    onDate: 'Een datum',
+    save: 'Opslaan',
+    cancel: 'Annuleren',
+    delete: 'Verwijderen',
+    back: 'Terug',
+    saveWhich: 'Wijziging opslaan voor',
+    deleteWhich: 'Verwijderen',
+    scope: {
+      this: ['Deze afspraak', 'Alleen deze keer wijzigt.'],
+      following: ['Deze en volgende afspraken', 'Deze keer en alle latere wijzigen.'],
+      all: ['Alle afspraken', 'Elke keer in de reeks wijzigt.'],
+    },
+  },
 })
 
 const FR_NTH: Record<string, string> = {
@@ -209,6 +259,52 @@ export const fr = pack({
   times: (n) => (n === 1 ? 'une fois' : `${n} fois`),
   until: "jusqu'au",
   and: 'et',
+  editor: {
+    newEvent: 'Nouvel événement',
+    editEvent: "Modifier l'événement",
+    title: 'Titre',
+    titlePlaceholder: 'Ajouter un titre',
+    allDay: 'Toute la journée',
+    start: 'Début',
+    end: 'Fin',
+    endBeforeStart: "La fin n'est pas après le début.",
+    resource: 'Ressource',
+    noResource: 'Aucune',
+    color: 'Couleur',
+    defaultColor: 'Couleur par défaut',
+    repeat: 'Répéter',
+    doesNotRepeat: 'Ne se répète pas',
+    frequencies: {
+      DAILY: 'Tous les jours',
+      WEEKLY: 'Toutes les semaines',
+      MONTHLY: 'Tous les mois',
+      YEARLY: 'Tous les ans',
+    },
+    every: 'Tous les',
+    units: {
+      DAILY: ['jour', 'jours'],
+      WEEKLY: ['semaine', 'semaines'],
+      MONTHLY: ['mois', 'mois'],
+      YEARLY: ['an', 'ans'],
+    },
+    onDays: 'Le',
+    repeatEnds: "Jusqu'à",
+    never: 'Toujours',
+    afterCount: 'Un nombre de fois',
+    occurrences: 'fois',
+    onDate: 'Une date',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    delete: 'Supprimer',
+    back: 'Retour',
+    saveWhich: 'Enregistrer la modification pour',
+    deleteWhich: 'Supprimer',
+    scope: {
+      this: ['Cet événement', 'Seule cette occurrence change.'],
+      following: ['Cet événement et les suivants', 'Cette occurrence et les suivantes changent.'],
+      all: ['Tous les événements', 'Chaque occurrence de la série change.'],
+    },
+  },
 })
 
 const DE_NTH: Record<string, string> = {
@@ -275,6 +371,52 @@ export const de = pack({
   times: (n) => (n === 1 ? 'einmal' : `${n} Mal`),
   until: 'bis',
   and: 'und',
+  editor: {
+    newEvent: 'Neuer Termin',
+    editEvent: 'Termin bearbeiten',
+    title: 'Titel',
+    titlePlaceholder: 'Titel hinzufügen',
+    allDay: 'Ganztägig',
+    start: 'Beginn',
+    end: 'Ende',
+    endBeforeStart: 'Das Ende liegt nicht nach dem Beginn.',
+    resource: 'Ressource',
+    noResource: 'Keine',
+    color: 'Farbe',
+    defaultColor: 'Standardfarbe',
+    repeat: 'Wiederholen',
+    doesNotRepeat: 'Keine Wiederholung',
+    frequencies: {
+      DAILY: 'Täglich',
+      WEEKLY: 'Wöchentlich',
+      MONTHLY: 'Monatlich',
+      YEARLY: 'Jährlich',
+    },
+    every: 'Alle',
+    units: {
+      DAILY: ['Tag', 'Tage'],
+      WEEKLY: ['Woche', 'Wochen'],
+      MONTHLY: ['Monat', 'Monate'],
+      YEARLY: ['Jahr', 'Jahre'],
+    },
+    onDays: 'Am',
+    repeatEnds: 'Bis',
+    never: 'Unbegrenzt',
+    afterCount: 'Eine Anzahl Mal',
+    occurrences: 'Mal',
+    onDate: 'Ein Datum',
+    save: 'Speichern',
+    cancel: 'Abbrechen',
+    delete: 'Löschen',
+    back: 'Zurück',
+    saveWhich: 'Änderung speichern für',
+    deleteWhich: 'Löschen',
+    scope: {
+      this: ['Diesen Termin', 'Nur dieser Termin ändert sich.'],
+      following: ['Diesen und folgende Termine', 'Dieser und alle späteren Termine ändern sich.'],
+      all: ['Alle Termine', 'Jeder Termin der Serie ändert sich.'],
+    },
+  },
 })
 
 const ES_NTH: Record<string, string> = {
@@ -333,4 +475,50 @@ export const es = pack({
   times: (n) => (n === 1 ? 'una vez' : `${n} veces`),
   until: 'hasta el',
   and: 'y',
+  editor: {
+    newEvent: 'Nuevo evento',
+    editEvent: 'Editar evento',
+    title: 'Título',
+    titlePlaceholder: 'Añadir un título',
+    allDay: 'Todo el día',
+    start: 'Empieza',
+    end: 'Termina',
+    endBeforeStart: 'El final no es posterior al inicio.',
+    resource: 'Recurso',
+    noResource: 'Ninguno',
+    color: 'Color',
+    defaultColor: 'Color predeterminado',
+    repeat: 'Repetir',
+    doesNotRepeat: 'No se repite',
+    frequencies: {
+      DAILY: 'Cada día',
+      WEEKLY: 'Cada semana',
+      MONTHLY: 'Cada mes',
+      YEARLY: 'Cada año',
+    },
+    every: 'Cada',
+    units: {
+      DAILY: ['día', 'días'],
+      WEEKLY: ['semana', 'semanas'],
+      MONTHLY: ['mes', 'meses'],
+      YEARLY: ['año', 'años'],
+    },
+    onDays: 'El',
+    repeatEnds: 'Hasta',
+    never: 'Siempre',
+    afterCount: 'Un número de veces',
+    occurrences: 'veces',
+    onDate: 'Una fecha',
+    save: 'Guardar',
+    cancel: 'Cancelar',
+    delete: 'Eliminar',
+    back: 'Atrás',
+    saveWhich: 'Guardar el cambio para',
+    deleteWhich: 'Eliminar',
+    scope: {
+      this: ['Este evento', 'Solo cambia esta vez.'],
+      following: ['Este y los siguientes', 'Esta vez y todas las siguientes cambian.'],
+      all: ['Todos los eventos', 'Cambia cada vez de la serie.'],
+    },
+  },
 })

@@ -166,6 +166,7 @@ watch(
                 v-bind="ctx.part('agendaDayButton', row)"
                 :aria-current="row.isToday ? 'date' : undefined"
                 @click="onDateClick(row.date, $event)"
+                @contextmenu="ctx.openDateMenu(row.date, view, $event)"
               >
                 {{ row.label }}
               </button>

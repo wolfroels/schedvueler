@@ -132,6 +132,8 @@ export interface SchedulerContext<T = unknown> {
   setView(name: string): void
   /** Emits a cancelable `date-click` and then drills down to `drillDownView`, if set. */
   openDate(date: Temporal.PlainDate, view: string, nativeEvent: MouseEvent): void
+  /** Emits `date-contextmenu` for a right-clicked date. */
+  openDateMenu(date: Temporal.PlainDate, view: string, nativeEvent: MouseEvent): void
   /** Re-reads the events, e.g. after mutating event objects in place. */
   refresh(): void
 
