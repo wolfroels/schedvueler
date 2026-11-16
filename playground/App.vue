@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, reactive, ref, shallowRef, watch, type Component } from 'vue'
 import {
   AgendaView,
   DayView,
+  GanttView,
   MonthView,
+  MultiMonthView,
   Scheduler,
   SchedulerEventEditor,
   Temporal,
@@ -28,32 +30,228 @@ import {
   type SchedulerPreset,
   type SlotPointerPayload,
 } from '../src'
+import { de, es, fr, nl } from '../src/locales'
 import { generateEvents, generateResources } from './data'
+import SettingsPanel from './SettingsPanel.vue'
+import {
+  asAttribute,
+  resolve,
+  schedulerGroups,
+  viewSettings,
+  type Setting,
+  type SettingGroup,
+  type ViewKind,
+} from './settings'
 
-// --- settings ------------------------------------------------------------------------------------
+// --- playground-only toggles ---------------------------------------------------------------------
 
 const eventCount = ref(400)
 const resourceCount = ref(9)
-const timeZone = ref('Europe/Brussels')
-const locale = ref('en-GB')
-const theme = ref<'light' | 'dark'>('light')
-const preset = ref<SchedulerPreset>('default')
-const eventLayout = ref<'columns' | 'stack'>('columns')
-const hideWeekends = ref(false)
-const slotDuration = ref(30)
 const customEvents = ref(false)
-const editable = ref(true)
-const selectable = ref(true)
-const blockWeekends = ref(false)
-const dropOnGroups = ref(false)
-const scope = ref<RecurrenceEditScope>('this')
 const confirmRecurring = ref(false)
 const phoneFrame = ref(false)
 
-const accent = ref('#2563eb')
-const slotHeight = ref(36)
-const eventRadius = ref(6)
-const monthEventHeight = ref(22)
+// --- views ---------------------------------------------------------------------------------------
+
+interface PlaygroundView {
+  name: string
+  kind: ViewKind
+  component: Component
+  /** Props that are not settings, such as the label. */
+  fixed?: Record<string, unknown>
+  /** Starting values of this view's settings (labels for choices), over the schema's. */
+  start?: Record<string, unknown>
+}
+
+const views: PlaygroundView[] = [
+  { name: 'day', kind: 'time', component: DayView, start: { days: 1 } },
+  {
+    name: '3days',
+    kind: 'time',
+    component: DayView,
+    fixed: { label: '3 days' },
+    start: { days: 3 },
+  },
+  // Week views need room; on narrow screens the scheduler falls back to the day view.
+  { name: 'week', kind: 'time', component: WeekView, start: { days: 7, minWidth: '600 px' } },
+  {
+    name: 'workweek',
+    kind: 'time',
+    component: WeekView,
+    fixed: { label: 'Work week', scrollTime: '07:00' },
+    start: { days: 5, minWidth: '600 px' },
+  },
+  { name: 'month', kind: 'month', component: MonthView },
+  {
+    name: 'multi-month',
+    kind: 'multi-month',
+    component: MultiMonthView,
+    fixed: { label: '3 months' },
+  },
+  { name: 'year', kind: 'year', component: YearView },
+  { name: 'agenda', kind: 'agenda', component: AgendaView },
+  {
+    name: 'day-resources',
+    kind: 'time',
+    component: DayView,
+    fixed: { label: 'Day × crews' },
+    start: { days: 1, resources: 'Crews and a crane', minWidth: '600 px' },
+  },
+  {
+    name: 'week-resources',
+    kind: 'time',
+    component: WeekView,
+    fixed: { label: 'Week × crews' },
+    start: { days: 7, resources: 'Crews', groupBy: 'Date', minWidth: '600 px' },
+  },
+  {
+    name: 'timeline',
+    kind: 'timeline',
+    component: TimelineView,
+    fixed: { label: 'Timeline', dayStartTime: '06:00', dayEndTime: '20:00' },
+  },
+  {
+    name: 'timeline-week',
+    kind: 'timeline',
+    component: TimelineView,
+    fixed: { label: 'Timeline week' },
+    start: { period: 'Week' },
+  },
+  {
+    name: 'timeline-month',
+    kind: 'timeline',
+    component: TimelineView,
+    fixed: { label: 'Timeline month' },
+    start: { period: 'Month' },
+  },
+  { name: 'gantt', kind: 'gantt', component: GanttView },
+]
+
+/** A view's settings, with its own starting values. */
+const settingsOf = (v: PlaygroundView): Setting[] =>
+  viewSettings[v.kind].map((s) =>
+    v.start && s.key in v.start ? { ...s, initial: v.start[s.key] } : s,
+  )
+
+// --- setting values, remembered in this browser ---------------------------------------------------
+
+const STORE = 'schedvueler:playground-settings'
+type Values = Record<string, Record<string, unknown>>
+
+function initialValues(): Values {
+  const out: Values = {}
+  for (const g of schedulerGroups)
+    out[g.id] = Object.fromEntries(g.settings.map((s) => [s.key, s.initial]))
+  for (const v of views)
+    out[`view:${v.name}`] = Object.fromEntries(settingsOf(v).map((s) => [s.key, s.initial]))
+  return out
+}
+
+function load(): Values {
+  const base = initialValues()
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) ?? '{}') as Values
+    for (const [group, entries] of Object.entries(saved)) {
+      if (!base[group]) continue
+      for (const [key, value] of Object.entries(entries))
+        if (key in base[group]) base[group][key] = value
+    }
+  } catch {
+    // No storage, or something unreadable: start fresh.
+  }
+  return base
+}
+
+const values = reactive<Values>(load())
+watch(
+  values,
+  () => {
+    try {
+      localStorage.setItem(STORE, JSON.stringify(values))
+    } catch {
+      // Private mode or full storage: settings just don't survive a reload.
+    }
+  },
+  { deep: true },
+)
+
+const viewGroup = (v: PlaygroundView): SettingGroup => ({
+  id: `view:${v.name}`,
+  title: `View: ${(v.fixed?.label as string | undefined) ?? v.name[0]!.toUpperCase() + v.name.slice(1)}`,
+  settings: settingsOf(v),
+})
+
+const scheduler = ref<{ clearSelection(): void }>()
+const editor = ref<InstanceType<typeof SchedulerEventEditor>>()
+const date = ref<string>()
+const view = ref('week')
+
+const activeView = computed(() => views.find((v) => v.name === view.value) ?? views[0]!)
+/** The panel: the scheduler's groups, with the active view's settings first. */
+const panelGroups = computed(() => [viewGroup(activeView.value), ...schedulerGroups])
+
+function setValue(group: string, key: string, value: unknown) {
+  values[group]![key] = value
+}
+
+function resetValues(group: string | null, key?: string) {
+  const fresh = initialValues()
+  if (group === null) {
+    for (const g of Object.keys(values)) Object.assign(values[g]!, fresh[g])
+    return
+  }
+  if (key) values[group]![key] = fresh[group]![key]
+  else Object.assign(values[group]!, fresh[group])
+}
+
+/** What a group's setting passes, by key. */
+function resolved(group: SettingGroup): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const s of group.settings) {
+    if (s.control.kind === 'code') continue
+    const value = resolve(s, values[group.id]![s.key])
+    if (value !== undefined) out[s.key] = value
+  }
+  return out
+}
+
+const settingValue = (key: string) => {
+  for (const g of schedulerGroups) {
+    const s = g.settings.find((x) => x.key === key)
+    if (s) return resolve(s, values[g.id]![key])
+  }
+  return undefined
+}
+
+// --- what the scheduler gets ---------------------------------------------------------------------
+
+const draftDemo = {
+  count: 3,
+  apply: () => log('draft', 'apply'),
+  discard: () => log('draft', 'discard'),
+}
+
+const options = computed(() => {
+  const out: Record<string, unknown> = {}
+  for (const g of schedulerGroups) if (g.id !== 'css') Object.assign(out, resolved(g))
+  if (out.draft === 'draft-demo') out.draft = draftDemo
+  return out
+})
+
+const timeZone = computed(() => settingValue('timeZone') as string)
+const locale = computed(() => settingValue('locale') as string)
+const theme = computed(() => settingValue('theme') as 'light' | 'dark' | 'auto')
+const preset = computed(() => settingValue('preset') as SchedulerPreset)
+
+// The sidebar follows the scheduler's light or dark look.
+const prefersDark =
+  typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : undefined
+const systemDark = shallowRef(prefersDark?.matches ?? false)
+prefersDark?.addEventListener('change', (e) => (systemDark.value = e.matches))
+const scheme = computed<'light' | 'dark'>(() =>
+  theme.value === 'auto' ? (systemDark.value ? 'dark' : 'light') : theme.value,
+)
+
 const presetAccents: Record<SchedulerPreset, Record<'light' | 'dark', string>> = {
   default: { light: '#2563eb', dark: '#60a5fa' },
   modern: { light: '#1769aa', dark: '#5ab1e5' },
@@ -65,14 +263,71 @@ const presetAccents: Record<SchedulerPreset, Record<'light' | 'dark', string>> =
   'neo-brutalism': { light: '#ffca3a', dark: '#ffdf4f' },
   'cyber-y2k': { light: '#df3295', dark: '#ff53c8' },
 }
-watch([preset, theme], () => {
-  accent.value = presetAccents[preset.value][theme.value]
+// A new preset or scheme starts from its own accent; the picker can still override it.
+watch([preset, scheme], () => {
+  values.css!['--orb-color-accent'] = presetAccents[preset.value][scheme.value]
 })
 
-const scheduler = ref<{ clearSelection(): void }>()
-const editor = ref<InstanceType<typeof SchedulerEventEditor>>()
-const date = ref<string>()
-const view = ref('week')
+const accent = computed(() => values.css!['--orb-color-accent'] as string)
+const cssVars = computed(() => {
+  const vars = resolved(schedulerGroups.find((g) => g.id === 'css')!) as Record<string, string>
+  if (preset.value !== 'default') delete vars['--orb-event-radius']
+  return {
+    ...vars,
+    '--orb-color-accent-contrast': createTheme(accent.value)['--orb-color-accent-contrast']!,
+  }
+})
+
+const viewProps = (v: PlaygroundView) => ({ name: v.name, ...v.fixed, ...resolved(viewGroup(v)) })
+
+const packs = { Nederlands: nl, Français: fr, Deutsch: de, Español: es } as const
+const editorMessages = computed(
+  () => packs[values.time!.messages as keyof typeof packs]?.editor ?? undefined,
+)
+
+// --- copy as code --------------------------------------------------------------------------------
+
+const code = computed(() => {
+  const lines: string[] = []
+  for (const g of schedulerGroups)
+    for (const s of g.settings) {
+      const a = asAttribute(s, values[g.id]![s.key])
+      if (a) lines.push(`  ${a}`)
+    }
+  const v = activeView.value
+  const viewLines: string[] = []
+  // The component's own defaults, so a week view does not get `:days="7"`.
+  const own: Record<string, unknown> =
+    v.component === WeekView ? { days: 7 } : v.component === DayView ? { days: 1 } : {}
+  for (const s of settingsOf(v)) {
+    const setting = s.key in own ? { ...s, libraryDefault: own[s.key] } : s
+    const a = asAttribute(setting, values[`view:${v.name}`]![s.key])
+    if (a) viewLines.push(a)
+  }
+  const tag = (v.component as { __name?: string }).__name ?? 'View'
+  return [
+    '<Scheduler',
+    ...lines,
+    '>',
+    `  <${tag} name="${v.name}"${viewLines.length ? ` ${viewLines.join(' ')}` : ''} />`,
+    '</Scheduler>',
+  ].join('\n')
+})
+
+// --- emit log ------------------------------------------------------------------------------------
+
+interface LogEntry {
+  id: number
+  name: string
+  detail: string
+}
+const entries = ref<LogEntry[]>([])
+let nextId = 0
+function log(name: string, detail = '') {
+  entries.value = [{ id: nextId++, name, detail }, ...entries.value].slice(0, 40)
+}
+
+// --- data ----------------------------------------------------------------------------------------
 
 const today = Temporal.Now.plainDateISO()
 const resources = shallowRef(generateResources(resourceCount.value))
@@ -92,27 +347,6 @@ watch([eventCount, resourceCount], ([count, resourceTotal]) => {
 
 // Every edit goes through history.commit, so Ctrl+Z / Ctrl+Shift+Z undo and redo it.
 const history = useHistory(events, { keyboard: true })
-
-const cssVars = computed(() => ({
-  '--orb-color-accent': accent.value,
-  '--orb-color-accent-contrast': createTheme(accent.value)['--orb-color-accent-contrast']!,
-  '--orb-slot-height': `${slotHeight.value}px`,
-  ...(preset.value === 'default' ? { '--orb-event-radius': `${eventRadius.value}px` } : {}),
-  '--orb-month-event-height': `${monthEventHeight.value}px`,
-}))
-
-// --- emit log ------------------------------------------------------------------------------------
-
-interface LogEntry {
-  id: number
-  name: string
-  detail: string
-}
-const entries = ref<LogEntry[]>([])
-let nextId = 0
-function log(name: string, detail = '') {
-  entries.value = [{ id: nextId++, name, detail }, ...entries.value].slice(0, 40)
-}
 
 const title = (e: SchedulerEvent) => e.title ?? String(e.id)
 
@@ -249,7 +483,7 @@ const menu = (name: string, detail: string) => log(name, detail)
 </script>
 
 <template>
-  <div class="pg" :data-theme="theme" :style="{ '--pg-accent': accent }">
+  <div class="pg" :data-theme="scheme" :style="{ '--pg-accent': accent }">
     <aside class="pg__sidebar">
       <header class="pg__head">
         <h1>schedvueler</h1>
@@ -295,49 +529,30 @@ const menu = (name: string, detail: string) => log(name, detail)
       </section>
 
       <section>
-        <h2>Options</h2>
-        <label>
-          Time zone
-          <select v-model="timeZone">
-            <option>Europe/Brussels</option>
-            <option>America/New_York</option>
-            <option>Asia/Tokyo</option>
-            <option>UTC</option>
-          </select>
-        </label>
-        <label>
-          Locale
-          <select v-model="locale">
-            <option>en-GB</option>
-            <option>en-US</option>
-            <option>nl-BE</option>
-            <option>fr-BE</option>
-            <option>de-DE</option>
-          </select>
-        </label>
-        <label>
-          Slot
-          <select v-model.number="slotDuration">
-            <option :value="15">15 min</option>
-            <option :value="30">30 min</option>
-            <option :value="60">60 min</option>
-          </select>
-        </label>
-        <label>
-          Overlap
-          <select v-model="eventLayout">
-            <option value="columns">columns</option>
-            <option value="stack">stack</option>
-          </select>
-        </label>
-        <label class="pg__check"
-          ><input v-model="hideWeekends" type="checkbox" /> Hide weekends</label
-        >
+        <h2>Settings</h2>
+        <p class="pg__hint">
+          Every option of the scheduler and of the open view. Changes apply at once and are kept in
+          this browser.
+        </p>
+        <SettingsPanel
+          :groups="panelGroups"
+          :values="values"
+          :code="code"
+          @set="setValue"
+          @reset="resetValues"
+        />
+      </section>
+
+      <section>
+        <h2>Playground</h2>
         <label class="pg__check">
           <input v-model="customEvents" type="checkbox" /> Custom event slot
         </label>
         <label class="pg__check">
           <input v-model="phoneFrame" type="checkbox" /> Phone frame (390 px)
+        </label>
+        <label class="pg__check">
+          <input v-model="confirmRecurring" type="checkbox" /> Ask for scope (prompt)
         </label>
       </section>
 
@@ -352,7 +567,7 @@ const menu = (name: string, detail: string) => log(name, detail)
       </section>
 
       <section>
-        <h2>Editing</h2>
+        <h2>History</h2>
         <div class="pg__history">
           <button
             class="pg__btn"
@@ -374,77 +589,6 @@ const menu = (name: string, detail: string) => log(name, detail)
           </button>
           <span>{{ history.undoLabel.value ?? '' }}</span>
         </div>
-        <label class="pg__check"><input v-model="editable" type="checkbox" /> Editable</label>
-        <label class="pg__check"><input v-model="selectable" type="checkbox" /> Selectable</label>
-        <label class="pg__check">
-          <input v-model="blockWeekends" type="checkbox" /> Refuse drops on weekends
-        </label>
-        <label class="pg__check">
-          <input v-model="dropOnGroups" type="checkbox" /> Drop on group rows
-        </label>
-        <label>
-          Recurring scope
-          <select v-model="scope">
-            <option value="this">this</option>
-            <option value="following">following</option>
-            <option value="all">all</option>
-          </select>
-        </label>
-        <label class="pg__check">
-          <input v-model="confirmRecurring" type="checkbox" /> Ask for scope (prompt)
-        </label>
-      </section>
-
-      <section>
-        <h2>Appearance</h2>
-        <label>
-          Visual preset
-          <select v-model="preset">
-            <option value="default">Default</option>
-            <option value="modern">Modern</option>
-            <option value="glassmorphism">Glassmorphism</option>
-            <option value="neumorphic">Neumorphic</option>
-            <option value="clean">Clean</option>
-            <option value="bento">Bento grids</option>
-            <option value="neo-brutalism">Neo-brutalism</option>
-            <option value="cyber-y2k">Retro futurism / Cyber-Y2K</option>
-          </select>
-        </label>
-        <label class="pg__check">
-          <input
-            type="checkbox"
-            :checked="theme === 'dark'"
-            @change="theme = theme === 'dark' ? 'light' : 'dark'"
-          />
-          Dark theme
-        </label>
-      </section>
-
-      <section>
-        <h2>Theme variables</h2>
-        <label>Accent <input v-model="accent" type="color" /></label>
-        <label>
-          Slot height <span>{{ slotHeight }}px</span>
-          <input v-model.number="slotHeight" type="range" min="20" max="72" />
-        </label>
-        <label>
-          Event radius <span>{{ eventRadius }}px</span>
-          <input
-            v-model.number="eventRadius"
-            type="range"
-            min="0"
-            max="12"
-            :disabled="preset !== 'default'"
-          />
-        </label>
-        <label>
-          Month event height <span>{{ monthEventHeight }}px</span>
-          <input v-model.number="monthEventHeight" type="range" min="16" max="32" />
-        </label>
-        <p v-if="preset !== 'default'" class="pg__hint">
-          Starts with the preset accent; choose any color to override it. Event radius follows the
-          preset.
-        </p>
       </section>
 
       <section class="pg__log">
@@ -465,22 +609,8 @@ const menu = (name: string, detail: string) => log(name, detail)
         v-model:view="view"
         :events="events"
         :resources="resources"
-        :time-zone="timeZone"
-        :locale="locale"
-        :theme="theme"
-        :preset="preset"
-        :slot-duration="slotDuration"
-        :event-layout="eventLayout"
-        :hidden-days="hideWeekends ? [6, 7] : []"
+        v-bind="options"
         :style="cssVars"
-        :editable="editable"
-        :drop-on-groups="dropOnGroups"
-        :selectable="selectable"
-        :recurrence-edit-scope="scope"
-        event-selection
-        drill-down-view="day"
-        :can-drop="(info) => !blockWeekends || info.start.dayOfWeek < 6"
-        :can-receive="(info) => !blockWeekends || info.start.dayOfWeek < 6"
         @range-change="onRange"
         @navigate="(p) => log('navigate', `${p.reason}: ${p.from} → ${p.to}`)"
         @view-change="(p) => log('view-change', `${p.from} → ${p.to}`)"
@@ -496,11 +626,18 @@ const menu = (name: string, detail: string) => log(name, detail)
         @more-click="(p) => log('more-click', `${p.date}: ${p.hiddenCount} hidden`)"
         @event-drag-start="(p) => log('event-drag-start', `${title(p.event)} (${p.kind})`)"
         @event-drag-cancel="(p) => log('event-drag-cancel', `${title(p.event)}: ${p.reason}`)"
+        @event-change-failed="(p) => log('event-change-failed', `${title(p.event)}: ${p.reason}`)"
         @before-event-drop="beforeChange"
         @before-event-resize="beforeChange"
         @event-drop="(p) => onChanged('event-drop', p)"
         @event-resize="(p) => onChanged('event-resize', p)"
         @event-delete="onDelete"
+        @event-duplicate="(p) => log('event-duplicate', title(p.event))"
+        @events-copy="(p) => log('events-copy', `${p.occurrences.length}${p.cut ? ' (cut)' : ''}`)"
+        @events-paste="(p) => log('events-paste', `${p.items.length}`)"
+        @event-leave="(p) => log('event-leave', title(p.event))"
+        @native-drop="() => log('native-drop')"
+        @suggestion-click="(p) => log('suggestion-click', String(p.suggestion.start))"
         @select="onSelect"
         @event-receive="onReceive"
         @unselect="log('unselect')"
@@ -523,41 +660,7 @@ const menu = (name: string, detail: string) => log(name, detail)
           </div>
         </template>
 
-        <DayView />
-        <DayView name="3days" :days="3" label="3 days" />
-        <!-- Week views need room; on narrow screens the scheduler falls back to the day view. -->
-        <WeekView :min-width="600" />
-        <WeekView
-          name="workweek"
-          :days="5"
-          label="Work week"
-          scroll-time="07:00"
-          :min-width="600"
-        />
-        <MonthView />
-        <YearView display="heatmap" />
-        <AgendaView />
-        <DayView
-          name="day-resources"
-          label="Day × crews"
-          :resources="['crews-1', 'crews-2', 'crews-3', 'cranes-1']"
-          :min-width="600"
-        />
-        <WeekView
-          name="week-resources"
-          label="Week × crews"
-          :resources="['crews-1', 'crews-2']"
-          group-by="date"
-          :min-width="600"
-        />
-        <TimelineView label="Timeline" day-start-time="06:00" day-end-time="20:00" />
-        <TimelineView name="timeline-week" label="Timeline week" period="week" />
-        <TimelineView
-          name="timeline-month"
-          label="Timeline month"
-          period="month"
-          :slot-width="56"
-        />
+        <component :is="v.component" v-for="v in views" :key="v.name" v-bind="viewProps(v)" />
       </Scheduler>
       <SchedulerEventEditor
         ref="editor"
@@ -567,6 +670,7 @@ const menu = (name: string, detail: string) => log(name, detail)
         :locale="locale"
         :theme="theme"
         :preset="preset"
+        :messages="editorMessages"
         @update:events="(next, label) => history.commit(next, label)"
         @close="scheduler?.clearSelection()"
       />
