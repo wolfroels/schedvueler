@@ -42,10 +42,9 @@ const view = ref<ViewId>('day')
 const demoId = ref('hours')
 const copied = ref(false)
 
-const rooms: SchedulerResource[] = [
-  { id: 'room-a', title: 'Room A', color: '#2563eb' },
-  { id: 'room-b', title: 'Room B', color: '#16a34a' },
-]
+// A literal closing script tag in the code samples would end this SFC's script block.
+const closeScript = '<' + '/script>'
+
 const teams: SchedulerResource[] = [
   { id: 'design', title: 'Design', color: '#2563eb' },
   { id: 'build', title: 'Build', color: '#ea580c' },
@@ -94,7 +93,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
   { id: 2, title: 'Design review', start: '2026-11-03T13:00', end: '2026-11-03T14:00' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -137,7 +136,7 @@ const events: SchedulerEvent[] = [
   { id: 2, title: 'Workshop', start: '2026-11-04T13:00', end: '2026-11-04T15:00' },
   { id: 3, title: 'Team demo', start: '2026-11-05T15:00', end: '2026-11-05T16:00' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -180,7 +179,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
   { id: 2, title: 'Design review', start: '2026-11-04T10:00', end: '2026-11-04T11:00' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -230,7 +229,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Wireframes', start: '2026-11-03T09:00', end: '2026-11-03T11:00', resourceId: 'design' },
   { id: 2, title: 'Build prototype', start: '2026-11-03T12:00', end: '2026-11-03T15:00', resourceId: 'build' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 560px">
@@ -287,7 +286,7 @@ const events: SchedulerEvent[] = [
   { id: 3, title: 'Send proposal', start: '2026-11-03', end: '2026-11-04' },
   { id: 4, title: 'Project kickoff', start: '2026-11-03', end: '2026-11-04' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 560px">
@@ -323,7 +322,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Planning day', start: '2026-11-03', end: '2026-11-04' },
   { id: 2, title: 'Milestone', start: '2026-11-10', end: '2026-11-11' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -366,7 +365,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Project starts', start: '2026-11-03', end: '2026-11-04' },
   { id: 2, title: 'Quarterly review', start: '2027-01-06', end: '2027-01-07' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 560px">
@@ -409,7 +408,7 @@ const events: SchedulerEvent[] = [
   { id: 2, title: 'Phase two', start: '2027-02-03', end: '2027-02-06' },
   { id: 3, title: 'Launch', start: '2027-04-03', end: '2027-04-04' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 680px">
@@ -472,7 +471,7 @@ const events: SchedulerEvent[] = [
   { id: 3, title: 'Launch', start: '2026-05-14', end: '2026-05-15' },
   { id: 4, title: 'Conference', start: '2026-11-18', end: '2026-11-20' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 560px">
@@ -515,7 +514,7 @@ const events: SchedulerEvent[] = [
   { id: 2, title: 'Build', start: '2026-03-10', end: '2026-07-01' },
   { id: 3, title: 'Launch', start: '2026-08-01', end: '2026-09-15' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 560px">
@@ -558,7 +557,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Team stand-up', start: '2026-11-03T09:00', end: '2026-11-03T09:30' },
   { id: 2, title: 'Design review', start: '2026-11-05T10:00', end: '2026-11-05T11:00' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -601,7 +600,7 @@ const events: SchedulerEvent[] = [
   { id: 2, title: 'Planning workshop', start: '2026-11-11T13:00', end: '2026-11-11T15:00' },
   { id: 3, title: 'Monthly review', start: '2026-11-21T10:00', end: '2026-11-21T11:00' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -658,7 +657,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Wireframes', start: '2026-11-02', end: '2026-11-04', resourceId: 'design' },
   { id: 2, title: 'Prototype', start: '2026-11-04', end: '2026-11-07', resourceId: 'build' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -714,7 +713,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Wireframes', start: '2026-11-03T09:00', end: '2026-11-03T12:00', resourceId: 'design' },
   { id: 2, title: 'Prototype review', start: '2026-11-03T13:00', end: '2026-11-03T15:00', resourceId: 'build' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -769,7 +768,7 @@ const events: SchedulerEvent[] = [
   { id: 'design', title: 'Design screens', start: '2026-11-04', end: '2026-11-06', progress: 0.6, dependsOn: ['scope'] },
   { id: 'build', title: 'Build prototype', start: '2026-11-06', end: '2026-11-09', progress: 0.25, dependsOn: ['design'] },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">
@@ -801,7 +800,7 @@ const events: SchedulerEvent[] = [
   { id: 1, title: 'Design phase', start: '2026-11-02', end: '2026-11-06', progress: 0.8 },
   { id: 2, title: 'Launch', start: '2026-11-10' },
 ]
-<\/script>
+${closeScript}
 
 <template>
   <div style="height: 480px">

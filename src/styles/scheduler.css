@@ -2918,20 +2918,20 @@
   font-weight: 500;
 }
 
-/* The heading rows stack; the last one takes whatever height is left, so the headings fill the
-   header (as tall as the resource corner) without spilling over the first lane. */
 .orb-tl__time-head {
   display: flex;
   flex-direction: column;
 }
 
-.orb-tl__time-head > :last-child {
-  flex: 1 0 auto;
-}
-
 .orb-tl__days-row {
   display: grid;
   grid-template-columns: repeat(var(--orb-tl-days), minmax(0, 1fr));
+}
+
+/* With no slot row under them, the day headings fill the head down to its border. A fixed
+   height: 100% here would push the slot row out of the sticky head, over the first lane. */
+.orb-tl__days-row:last-child {
+  flex: 1 0 auto;
 }
 
 .orb-tl__slots-row {
