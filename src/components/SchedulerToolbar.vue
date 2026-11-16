@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { computed, onServerPrefetch, ref } from 'vue'
+import { computed, onMounted, onServerPrefetch, ref } from 'vue'
 import { useSchedulerContext } from '../composables/context'
 import { useToolbar } from '../composables/useToolbar'
 import { RenderSlot } from './RenderSlot'
 
 const ctx = useSchedulerContext()
-const toolbar = useToolbar(ctx)
+const state = useToolbar(ctx)
+// The toolbar hydrates a tick after <Scheduler> has mounted, when picture-in-picture already reads
+// as available. Its own flag keeps the button (and `pictureInPicture` in the slot scopes) out until
+// the toolbar itself has mounted, so it matches the server HTML.
+const mounted = ref(false)
+onMounted(() => (mounted.value = true))
+const toolbar = computed(() => ({
+  ...state.value,
+  pictureInPicture: mounted.value && state.value.pictureInPicture,
+}))
 // The views come after the toolbar and register while rendering. Waiting a tick on the server lets
 // them do so first, so the title and view buttons are in the HTML. `<Scheduler>` does the same when
 // hydrating.

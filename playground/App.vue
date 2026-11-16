@@ -113,6 +113,17 @@ function log(name: string, detail = '') {
 
 const title = (e: SchedulerEvent) => e.title ?? String(e.id)
 
+const shortcuts: { label: string; keys: string[] }[] = [
+  { label: 'Move event', keys: ['Alt', 'arrows'] },
+  { label: 'Resize event', keys: ['Alt', 'Shift', 'arrows'] },
+  { label: 'Remove event', keys: ['Delete'] },
+  { label: 'Walk the grid', keys: ['arrows'] },
+  { label: 'Select a range', keys: ['Shift', 'arrows', 'Enter'] },
+  { label: 'Previous, next', keys: ['PageUp', 'PageDown'] },
+  { label: 'Today', keys: ['T'] },
+  { label: 'Switch view', keys: ['Alt', '1…9'] },
+]
+
 function onRange(p: RangeChangePayload) {
   log('range-change', `${p.view}: ${p.start} → ${p.end}`)
 }
@@ -271,11 +282,15 @@ function onSlotDblClick(p: SlotPointerPayload) {
 </script>
 
 <template>
-  <div class="pg" :data-theme="theme">
+  <div class="pg" :data-theme="theme" :style="{ '--pg-accent': accent }">
     <aside class="pg__sidebar">
-      <h1>schedvueler</h1>
-      <a class="pg__link" href="#/examples">Simple view examples →</a>
-      <a class="pg__link" href="#/parts">Slots and parts →</a>
+      <header class="pg__head">
+        <h1>schedvueler</h1>
+        <nav class="pg__nav">
+          <a class="pg__link" href="#/examples">Simple view examples</a>
+          <a class="pg__link" href="#/parts">Slots and parts</a>
+        </nav>
+      </header>
 
       <section>
         <h2>Data</h2>
@@ -299,10 +314,16 @@ function onSlotDblClick(p: SlotPointerPayload) {
         </label>
         <p class="pg__hint">
           Drag over empty slots to create an event, drag events to move them, drag their edges to
-          resize. Keyboard: Alt+arrows move, Alt+Shift+arrows resize, Delete removes, arrows walk
-          the grid, Shift+arrows then Enter selects, PageUp/PageDown, T, Alt+1…9. Click a date to
-          open its day. On touch: swipe to navigate, long-press to drag.
+          resize. Click a date to open its day. On touch, swipe to navigate and long-press to drag.
         </p>
+        <dl class="pg__keys">
+          <div v-for="s in shortcuts" :key="s.label">
+            <dt>{{ s.label }}</dt>
+            <dd>
+              <kbd v-for="k in s.keys" :key="k">{{ k }}</kbd>
+            </dd>
+          </div>
+        </dl>
       </section>
 
       <section>
@@ -366,6 +387,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
         <h2>Editing</h2>
         <div class="pg__history">
           <button
+            class="pg__btn"
             type="button"
             :disabled="!history.canUndo.value"
             :title="history.undoLabel.value"
@@ -374,6 +396,7 @@ function onSlotDblClick(p: SlotPointerPayload) {
             Undo
           </button>
           <button
+            class="pg__btn"
             type="button"
             :disabled="!history.canRedo.value"
             :title="history.redoLabel.value"
@@ -581,81 +604,186 @@ body {
     sans-serif;
 }
 
+/* Playground chrome: one slate ramp, three text roles. The accent follows the accent picker and
+   only marks checked controls and focus, so the scheduler stays the one colourful thing. */
 .pg {
+  --pg-bg: #f1f5f9;
+  --pg-control: #ffffff;
+  --pg-text: #0f172a;
+  --pg-text-2: #475569;
+  --pg-muted: #5b6b80;
+  --pg-line: rgb(15 23 42 / 0.1);
+  --pg-hover: rgb(15 23 42 / 0.05);
+  --pg-control-height: 28px;
+  --pg-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--pg-bg);
+  color: var(--pg-text);
+  accent-color: var(--pg-accent);
 }
 
 .pg[data-theme='dark'] {
-  background: #020617;
-  color: #e2e8f0;
+  --pg-bg: #020617;
+  --pg-control: #0f172a;
+  --pg-text: #e2e8f0;
+  --pg-text-2: #cbd5e1;
+  --pg-muted: #94a3b8;
+  --pg-line: rgb(226 232 240 / 0.12);
+  --pg-hover: rgb(226 232 240 / 0.06);
+  color-scheme: dark;
 }
 
 .pg__sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 24px;
+  padding: 16px;
   overflow-y: auto;
-  border-right: 1px solid rgb(100 116 139 / 0.25);
+  border-right: 1px solid var(--pg-line);
   font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.pg__sidebar :focus-visible {
+  outline: 2px solid var(--pg-accent);
+  outline-offset: 1px;
+}
+
+.pg__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .pg__sidebar h1 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.pg__sidebar h2 {
-  margin: 0 0 0.5rem;
-  color: #64748b;
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.pg__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -8px;
 }
 
 .pg__link {
-  color: #2563eb;
+  display: flex;
+  align-items: center;
+  height: var(--pg-control-height);
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--pg-text-2);
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.pg__link:hover {
+  background: var(--pg-hover);
+  color: var(--pg-text);
 }
 
 .pg__sidebar section {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 4px;
+}
+
+.pg__sidebar h2 {
+  margin: 0 0 4px;
+  color: var(--pg-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .pg__sidebar label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 8px;
+  min-height: var(--pg-control-height);
 }
 
 .pg__sidebar label span {
   margin-left: auto;
-  color: #64748b;
+  color: var(--pg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .pg__sidebar .pg__check {
   justify-content: flex-start;
 }
 
+.pg__sidebar input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.pg__sidebar select,
+.pg__btn {
+  height: var(--pg-control-height);
+  border: 1px solid var(--pg-line);
+  border-radius: 6px;
+  background-color: var(--pg-control);
+  color: inherit;
+  font: inherit;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
 .pg__sidebar select {
-  min-width: 9rem;
+  width: 144px;
+  padding: 0 8px;
+}
+
+.pg__sidebar select:hover,
+.pg__btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--pg-text) 28%, transparent);
+}
+
+.pg__btn {
+  padding: 0 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pg__btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.pg__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .pg__sidebar input[type='range'] {
-  width: 8rem;
+  width: 96px;
+  margin: 0;
+}
+
+.pg__sidebar input[type='color'] {
+  width: var(--pg-control-height);
+  height: var(--pg-control-height);
+  padding: 2px;
+  border: 1px solid var(--pg-line);
+  border-radius: 6px;
+  background: var(--pg-control);
+  cursor: pointer;
 }
 
 .pg__templates {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -663,41 +791,88 @@ body {
 
 .pg__templates li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.375rem 0.5rem;
+  gap: 8px;
+  min-height: var(--pg-control-height);
+  padding: 4px 8px;
   border-left: 3px solid var(--c);
   border-radius: 6px;
   background: color-mix(in srgb, var(--c) 14%, transparent);
-  font-weight: 600;
+  font-weight: 500;
+  cursor: grab;
 }
 
 .pg__templates small {
-  color: #64748b;
+  color: var(--pg-text-2);
+  font-size: 0.75rem;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 .pg__history {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .pg__history span {
   overflow: hidden;
-  color: #64748b;
+  margin-left: 4px;
+  color: var(--pg-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .pg__hint {
+  margin: 4px 0 0;
+  color: var(--pg-text-2);
+}
+
+.pg__keys {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0 0;
+}
+
+.pg__keys div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--pg-control-height);
+}
+
+.pg__keys dt {
+  color: var(--pg-text-2);
+}
+
+.pg__keys dd {
+  display: flex;
+  gap: 4px;
   margin: 0;
-  color: #64748b;
+}
+
+.pg__keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--pg-line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--pg-control);
+  color: var(--pg-text-2);
+  font-family: var(--pg-mono);
+  font-size: 0.6875rem;
 }
 
 .pg__log {
   flex: 1;
-  min-height: 10rem;
+  min-height: 160px;
 }
 
 .pg__log ol {
@@ -708,17 +883,20 @@ body {
 }
 
 .pg__log li {
-  padding: 0.25rem 0;
-  border-bottom: 1px solid rgb(100 116 139 / 0.15);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--pg-line);
+  color: var(--pg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .pg__log code {
-  color: #2563eb;
+  color: var(--pg-text);
+  font-family: var(--pg-mono);
 }
 
 .pg__main {
   min-width: 0;
-  padding: 1rem;
+  padding: 16px;
 }
 
 .pg__main--phone {
@@ -732,7 +910,7 @@ body {
 }
 
 .pg__main > .schedvueler {
-  padding: 1rem;
+  padding: 16px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
 }
@@ -742,11 +920,15 @@ body {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: 4px 6px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 60%, #000));
+  padding: 4px 8px;
+  border-radius: var(--orb-event-radius);
+  background: color-mix(in srgb, var(--c) 85%, #000);
   color: white;
   font-size: 0.75rem;
+}
+
+.pg-event strong {
+  font-weight: 600;
 }
 
 @media (max-width: 800px) {
@@ -760,7 +942,7 @@ body {
   }
 
   .pg__main {
-    padding: 0.5rem;
+    padding: 8px;
     height: 80vh;
   }
 }

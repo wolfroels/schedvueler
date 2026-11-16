@@ -120,7 +120,8 @@ test.describe('keyboard', () => {
 
   test('Tab goes from the toolbar into the grid and on to events', async ({ page }) => {
     await open(page)
-    await page.locator('[data-orb-part="viewButton"]').last().focus()
+    // The last toolbar control: the picture-in-picture button where the browser supports it.
+    await page.locator('[data-orb-part="viewButton"], [data-orb-part="pipButton"]').last().focus()
     await page.keyboard.press('Tab')
     const first = await page.evaluate(() => document.activeElement?.getAttribute('data-orb-part'))
     expect(['dayHeader', 'event', 'timeSlot', null]).toContain(first)
