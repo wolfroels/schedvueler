@@ -376,6 +376,11 @@ export interface SchedulerOptions<T> {
   resourceFilter?: (resource: ResourceNode<unknown>) => boolean
   /** "all" moves an event on several resources together, row by row. Default "one". */
   multiResourceDrag?: 'one' | 'all'
+  /**
+   * Events can be moved to, dropped on and created on resources with children (group rows).
+   * Default false: groups only gather their resources.
+   */
+  dropOnGroups?: boolean
   /** Reads resource fields from custom resource objects. */
   resourceAccessors?: Partial<ResourceAccessors<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
 

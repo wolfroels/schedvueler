@@ -45,6 +45,7 @@ const customEvents = ref(false)
 const editable = ref(true)
 const selectable = ref(true)
 const blockWeekends = ref(false)
+const dropOnGroups = ref(false)
 const scope = ref<RecurrenceEditScope>('this')
 const confirmRecurring = ref(false)
 const phoneFrame = ref(false)
@@ -378,6 +379,9 @@ const menu = (name: string, detail: string) => log(name, detail)
         <label class="pg__check">
           <input v-model="blockWeekends" type="checkbox" /> Refuse drops on weekends
         </label>
+        <label class="pg__check">
+          <input v-model="dropOnGroups" type="checkbox" /> Drop on group rows
+        </label>
         <label>
           Recurring scope
           <select v-model="scope">
@@ -470,6 +474,7 @@ const menu = (name: string, detail: string) => log(name, detail)
         :hidden-days="hideWeekends ? [6, 7] : []"
         :style="cssVars"
         :editable="editable"
+        :drop-on-groups="dropOnGroups"
         :selectable="selectable"
         :recurrence-edit-scope="scope"
         event-selection

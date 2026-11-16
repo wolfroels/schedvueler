@@ -28,6 +28,8 @@ export type RefusalReason =
   | 'business-hours'
   | 'duration'
   | 'overlap'
+  /** The target is a resource group, without `dropOnGroups`. */
+  | 'group'
   /** `canDrop`, `canSelect` or `canReceive` said no. */
   | 'custom'
 

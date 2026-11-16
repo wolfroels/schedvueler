@@ -291,6 +291,18 @@ export function createInteraction(ctx: SchedulerContext<unknown>): SchedulerInte
     if (min && Temporal.PlainDate.compare(first, min) < 0) return 'date-limit'
     if (max && Temporal.PlainDate.compare(last, max) > 0) return 'date-limit'
 
+    // Group rows only gather their resources, unless `dropOnGroups`. An event that is already on
+    // a group may still move along it.
+    if (!o.dropOnGroups) {
+      const own = occ?.resourceIds ?? []
+      const nodes = ctx.resourceMap.value
+      const isGroup = (id: ResourceId) => {
+        const node = nodes.get(id)
+        return !!node && (node.childIds.length > 0 || node.lazy)
+      }
+      if (resourceIds.some((id) => !own.includes(id) && isGroup(id))) return 'group'
+    }
+
     if (findBlocked(ctx.availability.blockedTimes.value, startMs, endMs, resourceIds))
       return 'blocked'
     if (o.isSlotDisabled?.({ ...selectInfo(times), resourceId: resourceIds[0] })) return 'disabled'

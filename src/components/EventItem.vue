@@ -257,7 +257,13 @@ function timelineKey(e: KeyboardEvent, arrow: { days?: number; minutes?: number 
   else {
     const rows = ctx.visibleResources.value
     const index = rows.findIndex((r) => r.id === props.resourceId)
-    const target = rows[index + (arrow.minutes ?? 0)]
+    const dir = arrow.minutes ?? 0
+    // Without `dropOnGroups`, group rows are skipped: the event goes to the next resource.
+    const takesEvents = (r: (typeof rows)[number]) =>
+      !!ctx.options.value.raw.dropOnGroups || (!r.childIds.length && !r.lazy)
+    let to = index + dir
+    while (rows[to] && !takesEvents(rows[to]!)) to += dir
+    const target = rows[to]
     if (index < 0 || !target) return
     step.toResource = target.id
   }
