@@ -853,6 +853,7 @@ async function copyCode() {
       <nav aria-label="Playground pages">
         <a href="#/">Full playground</a>
         <a href="#/parts">Slots and parts</a>
+        <a href="#/theme">Theme</a>
       </nav>
       <h1>Scheduler view examples</h1>
       <p>Choose a view, then switch between implementations to compare its features.</p>

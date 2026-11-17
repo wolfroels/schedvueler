@@ -490,6 +490,7 @@ const menu = (name: string, detail: string) => log(name, detail)
         <nav class="pg__nav">
           <a class="pg__link" href="#/examples">Simple view examples</a>
           <a class="pg__link" href="#/parts">Slots and parts</a>
+          <a class="pg__link" href="#/theme">Theme</a>
         </nav>
       </header>
 

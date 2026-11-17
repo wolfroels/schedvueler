@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref } from 'vue'
 import App from './App.vue'
 import PartsPage from './PartsPage.vue'
+import ThemePage from './ThemePage.vue'
 import ViewExamplesPage from './ViewExamplesPage.vue'
 
 const hash = ref(location.hash)
@@ -13,5 +14,6 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
 <template>
   <PartsPage v-if="hash === '#/parts'" />
   <ViewExamplesPage v-else-if="hash === '#/timeline' || hash === '#/examples'" />
+  <ThemePage v-else-if="hash === '#/theme'" />
   <App v-else />
 </template>
