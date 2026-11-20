@@ -12,20 +12,130 @@ import {
   TimelineView,
   WeekView,
   YearView,
-  type SchedulerEvent,
+  type EventAccessors,
   type SchedulerResource,
 } from '../src'
+import FetchDataDemo from './FetchDataDemo.vue'
+import fetchDataSource from './FetchDataDemo.vue?raw'
 
-type ViewId = 'day' | 'week' | 'month' | 'multi-month' | 'year' | 'agenda' | 'timeline' | 'gantt'
+type ViewId =
+  'day' | 'week' | 'month' | 'multi-month' | 'year' | 'agenda' | 'timeline' | 'gantt' | 'data'
 
 interface ViewDemo {
   id: string
   title: string
   feature: string
   props?: Record<string, unknown>
-  events: SchedulerEvent[]
+  // Demos with backend-shaped data use their own event type, read through `accessors`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  accessors?: Partial<EventAccessors<any>>
   resources?: SchedulerResource[]
+  /** Renders this component instead of the shared scheduler. */
+  standalone?: Component
   code: string
+}
+
+const today = Temporal.Now.plainDateISO()
+const monday = today.subtract({ days: today.dayOfWeek - 1 })
+
+// --- Data demos: events as a backend would send them ---
+
+interface ApiBooking {
+  bookingId: string
+  summary: string
+  period: { from: string; until: string }
+  wholeDay: boolean
+  organizer: { name: string }
+}
+
+const apiBookings: ApiBooking[] = [
+  {
+    bookingId: 'BK-1001',
+    summary: 'Quarterly planning',
+    period: {
+      from: monday.toPlainDateTime({ hour: 9 }).toString(),
+      until: monday.toPlainDateTime({ hour: 11 }).toString(),
+    },
+    wholeDay: false,
+    organizer: { name: 'Sara' },
+  },
+  {
+    bookingId: 'BK-1002',
+    summary: 'Customer demo',
+    period: {
+      from: monday.add({ days: 1 }).toPlainDateTime({ hour: 14 }).toString(),
+      until: monday.add({ days: 1 }).toPlainDateTime({ hour: 15, minute: 30 }).toString(),
+    },
+    wholeDay: false,
+    organizer: { name: 'Tom' },
+  },
+  {
+    bookingId: 'BK-1003',
+    summary: 'Company offsite',
+    period: { from: monday.add({ days: 3 }).toString(), until: monday.add({ days: 4 }).toString() },
+    wholeDay: true,
+    organizer: { name: 'HR' },
+  },
+]
+
+const bookingAccessors: Partial<EventAccessors<ApiBooking>> = {
+  id: (b) => b.bookingId,
+  title: (b) => `${b.summary} · ${b.organizer.name}`,
+  start: (b) => b.period.from,
+  end: (b) => b.period.until,
+  allDay: (b) => b.wholeDay,
+}
+
+interface ApiJob {
+  id: number
+  name: string
+  start: string
+  end: string
+  category: 'maintenance' | 'installation' | 'inspection'
+  status: 'planned' | 'done' | 'cancelled'
+}
+
+const categoryColors: Record<ApiJob['category'], string> = {
+  maintenance: '#2563eb',
+  installation: '#ea580c',
+  inspection: '#9333ea',
+}
+
+function job(
+  id: number,
+  name: string,
+  day: number,
+  hour: number,
+  hours: number,
+  category: ApiJob['category'],
+  status: ApiJob['status'],
+): ApiJob {
+  const date = monday.add({ days: day })
+  return {
+    id,
+    name,
+    start: date.toPlainDateTime({ hour }).toString(),
+    end: date.toPlainDateTime({ hour: hour + hours }).toString(),
+    category,
+    status,
+  }
+}
+
+const apiJobs: ApiJob[] = [
+  job(1, 'Boiler service', 0, 9, 2, 'maintenance', 'done'),
+  job(2, 'Solar panel install', 0, 12, 4, 'installation', 'planned'),
+  job(3, 'Safety inspection', 1, 10, 1, 'inspection', 'planned'),
+  job(4, 'Filter replacement', 2, 8, 2, 'maintenance', 'planned'),
+  job(5, 'Heat pump install', 2, 13, 3, 'installation', 'cancelled'),
+  job(6, 'Fire alarm check', 3, 11, 2, 'inspection', 'done'),
+]
+
+const jobAccessors: Partial<EventAccessors<ApiJob>> = {
+  title: (j) => (j.status === 'cancelled' ? `${j.name} (cancelled)` : j.name),
+  color: (j) => (j.status === 'cancelled' ? '#9ca3af' : categoryColors[j.category]),
+  textColor: (j) => (j.status === 'done' ? '#4b5563' : undefined),
 }
 
 interface ViewExample {
@@ -35,8 +145,6 @@ interface ViewExample {
   demos: ViewDemo[]
 }
 
-const today = Temporal.Now.plainDateISO()
-const monday = today.subtract({ days: today.dayOfWeek - 1 })
 const date = ref(today.toString())
 const view = ref<ViewId>('day')
 const demoId = ref('hours')
@@ -812,6 +920,126 @@ ${closeScript}
       },
     ],
   },
+  {
+    id: 'data',
+    label: 'Backend data',
+    component: WeekView,
+    demos: [
+      {
+        id: 'accessors',
+        title: 'Accessors: map your API shape',
+        feature:
+          'The API returns bookings with nested fields (period.from, organizer.name). Accessors tell the scheduler where to read id, title, start and end, so no mapping step is needed.',
+        props: { days: 5, dayStartTime: '08:00', dayEndTime: '18:00', scrollTime: '08:00' },
+        events: apiBookings,
+        accessors: bookingAccessors,
+        code: `<script setup lang="ts">
+import { Scheduler, WeekView, type EventAccessors } from 'schedvueler'
+
+// Exactly what GET /api/bookings returns — no conversion to SchedulerEvent needed.
+interface ApiBooking {
+  bookingId: string
+  summary: string
+  period: { from: string; until: string }
+  wholeDay: boolean
+  organizer: { name: string }
+}
+
+const bookings: ApiBooking[] = [
+  {
+    bookingId: 'BK-1001',
+    summary: 'Quarterly planning',
+    period: { from: '2026-11-02T09:00', until: '2026-11-02T11:00' },
+    wholeDay: false,
+    organizer: { name: 'Sara' },
+  },
+  {
+    bookingId: 'BK-1003',
+    summary: 'Company offsite',
+    period: { from: '2026-11-05', until: '2026-11-06' },
+    wholeDay: true,
+    organizer: { name: 'HR' },
+  },
+]
+
+// Each accessor reads one scheduler field from your object. Fields you leave out keep their
+// default (e.g. \`color\` still reads \`booking.color\`).
+const accessors: Partial<EventAccessors<ApiBooking>> = {
+  id: (b) => b.bookingId,
+  title: (b) => \`\${b.summary} · \${b.organizer.name}\`,
+  start: (b) => b.period.from,
+  end: (b) => b.period.until,
+  allDay: (b) => b.wholeDay,
+}
+${closeScript}
+
+<template>
+  <div style="height: 480px">
+    <Scheduler :events="bookings" :accessors="accessors">
+      <WeekView :days="5" day-start-time="08:00" day-end-time="18:00" />
+    </Scheduler>
+  </div>
+</template>`,
+      },
+      {
+        id: 'colors',
+        title: 'Colors from backend data',
+        feature:
+          'Color each job by its category (blue maintenance, orange installation, purple inspection). Cancelled jobs turn grey and finished jobs get muted text.',
+        props: { days: 5, dayStartTime: '08:00', dayEndTime: '18:00', scrollTime: '08:00' },
+        events: apiJobs,
+        accessors: jobAccessors,
+        code: `<script setup lang="ts">
+import { Scheduler, WeekView, type EventAccessors } from 'schedvueler'
+
+interface ApiJob {
+  id: number
+  name: string
+  start: string
+  end: string
+  category: 'maintenance' | 'installation' | 'inspection'
+  status: 'planned' | 'done' | 'cancelled'
+}
+
+const jobs: ApiJob[] = [
+  { id: 1, name: 'Boiler service', start: '2026-11-02T09:00', end: '2026-11-02T11:00', category: 'maintenance', status: 'done' },
+  { id: 2, name: 'Solar panel install', start: '2026-11-02T12:00', end: '2026-11-02T16:00', category: 'installation', status: 'planned' },
+  { id: 5, name: 'Heat pump install', start: '2026-11-04T13:00', end: '2026-11-04T16:00', category: 'installation', status: 'cancelled' },
+]
+
+const categoryColors: Record<ApiJob['category'], string> = {
+  maintenance: '#2563eb',
+  installation: '#ea580c',
+  inspection: '#9333ea',
+}
+
+// id, start and end already use the default names, so only the derived fields are mapped.
+const accessors: Partial<EventAccessors<ApiJob>> = {
+  title: (j) => (j.status === 'cancelled' ? \`\${j.name} (cancelled)\` : j.name),
+  color: (j) => (j.status === 'cancelled' ? '#9ca3af' : categoryColors[j.category]),
+  textColor: (j) => (j.status === 'done' ? '#4b5563' : undefined),
+}
+${closeScript}
+
+<template>
+  <div style="height: 480px">
+    <Scheduler :events="jobs" :accessors="accessors">
+      <WeekView :days="5" day-start-time="08:00" day-end-time="18:00" />
+    </Scheduler>
+  </div>
+</template>`,
+      },
+      {
+        id: 'fetch',
+        title: 'Fetch from an API',
+        feature:
+          'fetchData runs on every range-change: it calls the (mocked) NSwag client for the visible days and puts the result straight into the scheduler. Navigate weeks to load again.',
+        events: [],
+        standalone: FetchDataDemo,
+        code: fetchDataSource.replace("from '../src'", "from 'schedvueler'"),
+      },
+    ],
+  },
 ]
 
 const activeView = computed(() => examples.find((example) => example.id === view.value)!)
@@ -902,10 +1130,14 @@ async function copyCode() {
         class="examples-page__scheduler"
         :aria-label="`${activeView.label}: ${activeDemo.title}`"
       >
+        <component :is="activeDemo.standalone" v-if="activeDemo.standalone" />
         <Scheduler
+          v-else
+          :key="`${activeView.id}-${activeDemo.id}`"
           v-model:date="date"
           v-model:view="view"
           :events="activeDemo.events"
+          :accessors="activeDemo.accessors"
           :resources="activeDemo.resources"
           :week-start="1"
           locale="en-GB"
