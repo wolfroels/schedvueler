@@ -1033,7 +1033,7 @@ ${closeScript}
         id: 'fetch',
         title: 'Fetch from an API',
         feature:
-          'fetchData runs on every range-change: it calls the (mocked) NSwag client for the visible days and puts the result straight into the scheduler. Navigate weeks to load again.',
+          'fetchData runs on every range-change: it passes startDate and endDate (plain JS Dates) to the (mocked) NSwag client and puts the result straight into the scheduler. Navigate weeks to load again.',
         events: [],
         standalone: FetchDataDemo,
         code: fetchDataSource.replace("from '../src'", "from 'schedvueler'"),

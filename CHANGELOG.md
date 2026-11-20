@@ -6,6 +6,7 @@ Notable changes per version. Versions follow [semver](https://semver.org); befor
 
 This file records notable changes so far.
 
+- `range-change` also carries `startDate` and `endDate`: the visible range as `Date` (midnight of `start` and `end` in the scheduler's time zone, the same instants as `startMs` and `endMs`), ready for generated API clients that take `Date` parameters.
 - Changed: events can no longer be dragged, dropped or created on resource group rows (resources with children) by default. Set `drop-on-groups` to allow it. A refused drop reports `reason: 'group'`, and Alt+up/down on a timeline skips group rows.
 - New `<SchedulerEventEditor>`: an optional dialog to create, edit and delete events, with title, all day, times, resource, color, repeat and the "this / following / all" choice. Open it with `@select="editor?.create"` and `@event-dblclick="editor?.edit"`; with `events` it applies its changes and emits `update:events` with a label for undo. Its wording is translated in the locale packs (`nl.editor` and so on). Its styles are in `schedvueler/editor.css`.
 - New `saveEventEdit(events, occurrence, { start, end, allDay, resourceIds?, fields }, { scope, timeZone })`: saves an editor's times and fields, also to one occurrence of a series or to the following ones.

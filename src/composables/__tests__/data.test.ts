@@ -15,6 +15,8 @@ const range = (startMs: number, endMs: number): RangeChangePayload => ({
   activeEnd: Temporal.PlainDate.from('2026-06-22'),
   startMs,
   endMs,
+  startDate: new Date(startMs),
+  endDate: new Date(endMs),
   timeZone: 'UTC',
 })
 

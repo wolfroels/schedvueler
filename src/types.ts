@@ -650,6 +650,10 @@ export interface RangeChangePayload {
   activeEnd: Temporal.PlainDate
   startMs: number
   endMs: number
+  /** Midnight of `start` in `timeZone`, as a `Date` (same instant as `startMs`). */
+  startDate: Date
+  /** Midnight of `end` in `timeZone`, as a `Date` (same instant as `endMs`). */
+  endDate: Date
   timeZone: string
 }
 

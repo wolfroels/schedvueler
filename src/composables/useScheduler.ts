@@ -388,6 +388,8 @@ export function useScheduler<T>(
         activeEnd: r.active.end,
         startMs: w.startMs,
         endMs: w.endMs,
+        startDate: new Date(w.startMs),
+        endDate: new Date(w.endMs),
         timeZone: timeZone.value,
       })
     },

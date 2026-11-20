@@ -9,10 +9,12 @@ const loading = ref(false)
 
 const statusColors = { confirmed: '#16a34a', tentative: '#d97706', cancelled: '#9ca3af' }
 
-async function fetchData({ start, end }: RangeChangePayload) {
+// `startDate` / `endDate` are plain JS Dates, ready for a generated client. `start` / `end` hold
+// the same range as Temporal.PlainDate (end exclusive) if your API takes date strings instead.
+async function fetchData({ startDate, endDate }: RangeChangePayload) {
   loading.value = true
   try {
-    events.value = await client.getAppointments(start.toString(), end.toString())
+    events.value = await client.getAppointments(startDate, endDate)
   } finally {
     loading.value = false
   }

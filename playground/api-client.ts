@@ -27,8 +27,12 @@ const appointments: AppointmentDto[] = [
 ]
 
 export class AppointmentsClient {
-  async getAppointments(from: string, to: string): Promise<AppointmentDto[]> {
+  // NSwag (dateTimeType: Date) generates Date parameters and sends them as `from.toISOString()`.
+  async getAppointments(from: Date, to: Date): Promise<AppointmentDto[]> {
     await new Promise((resolve) => setTimeout(resolve, 500))
-    return appointments.filter((a) => a.startsAt >= from && a.startsAt < to)
+    return appointments.filter((a) => {
+      const startsAt = new Date(a.startsAt)
+      return startsAt >= from && startsAt < to
+    })
   }
 }

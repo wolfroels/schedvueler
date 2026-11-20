@@ -198,6 +198,8 @@ any). Your app decides what form to show and when to save the new event.
 For small datasets, pass the full event list to `:events`. To fetch only what is visible, handle
 `range-change` or use `useEventSource`; it provides the requested date range, cancellation, loading
 and error state. `visible-resources-change` can further limit timeline loads to visible rows.
+The `range-change` payload has the range as `Temporal.PlainDate` (`start`, `end`), as `Date`
+(`startDate`, `endDate`) for generated API clients, and as epoch milliseconds.
 See the [loading recipe](/recipes#loading-events-by-range) for a complete example.
 
 ## Add resources and a timeline
